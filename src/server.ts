@@ -16,13 +16,25 @@ app.get("/test", (req: Request, res: Response) => {
 });
 
 //post requests
-app.post("/upload", (req: Request, res: Response) => {
+app.post("/api/submit", (req: Request, res: Response) => {
   console.log("post request recieved, sending response..")
+  
+  try {
 
-  res.json({
-    success: true,
-    message: "Post request received"
-  });
+    if (!req.body) {
+      return res.status(400).send("invalid request");
+    }
+    
+    return res.status(200).send("submitted successfully!");
+
+    //log data
+    console.log(req.body);
+
+  } catch (err) {
+    console.log(`err: ${err}`);
+
+    res.status(500).send("server error nyae");
+  }
 });
 
 export default app;
