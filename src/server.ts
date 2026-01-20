@@ -1,6 +1,9 @@
 import express, { Request, Response } from "express";
+import cors from "cors";
 
 const app = express();
+app.use(cors());
+app.use(express.json());
 
 //get requests
 app.get("/", (req: Request, res: Response) => {
@@ -21,14 +24,16 @@ app.post("/api/submit", (req: Request, res: Response) => {
   
   try {
 
-    if (!req.body) {
-      return res.status(400).send("invalid request");
-    }
-    
-    return res.status(200).send("submitted successfully!");
+    // if (!req.body) {
+    //   return res.status(400).send("invalid request");
+    // }
 
     //log data
     console.log(req.body);
+    
+    return res.json({
+      status: "Success",
+    });
 
   } catch (err) {
     console.log(`err: ${err}`);
