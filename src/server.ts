@@ -1,7 +1,15 @@
 import express, { Request, Response } from "express";
+import { PrismaClient } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
+import 'dotenv/config';
 import cors from "cors";
 
 const app = express();
+const connectionString = process.env.DATABASE_URL;
+
+const adapter = new PrismaPg({ connectionString });
+const prisma = new PrismaClient({ adapter });
+
 app.use(cors());
 app.use(express.json());
 
@@ -19,26 +27,34 @@ app.get("/test", (req: Request, res: Response) => {
 });
 
 //post requests
-app.post("/api/submit", (req: Request, res: Response) => {
+app.post("/api/submit", async (req: Request, res: Response) => {
   console.log("post request recieved, sending response..")
   
   try {
+    const student = await prisma.student.create({
+      data: {
+        first_name: "Koi",
+        last_name: "Arona",
+        mid_name: "V.",
+        personal_email: "koi@gmail.com",
+        um_email: "koi@umindanao.edu.ph",
+      },
+    });
 
-    // if (!req.body) {
-    //   return res.status(400).send("invalid request");
-    // }
+    console.log(student);
 
-    //log data
-    console.log(req.body);
-    
     return res.json({
       status: "Success",
+      student,
     });
 
   } catch (err) {
-    console.log(`err: ${err}`);
+    console.error(`err: ${err}`);
 
-    res.status(500).send("server error nyae");
+    res.status(500).json({
+      status: "Error",
+      message: "Server error nyae",
+    });
   }
 });
 
