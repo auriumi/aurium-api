@@ -31,21 +31,28 @@ app.post("/api/submit", async (req: Request, res: Response) => {
   console.log("post request recieved, sending response..")
   
   try {
+    const body = req.body;
+
     const student = await prisma.student.create({
       data: {
-        first_name: "Koi",
-        last_name: "Arona",
-        mid_name: "V.",
-        personal_email: "koi@gmail.com",
-        um_email: "koi@umindanao.edu.ph",
+        student_number: parseInt(body.id),
+        school_email: body.school_email,
+        personal_email: body.personal_email,
+        last_name: body.last_name,
+        first_name: body.first_name,
+        mid_name: body.middle_name,
+        suffix: body.suffix,
+        nickname: body.nickname,
+        birth_date: new Date(body.birthdate),
+        course: body.academics.course,
+        major: body.academics.major,
+        thesis_title: body.academics.thesis,
+        //TODO: add more required data later on..
       },
     });
 
-    console.log(student);
-
     return res.json({
       status: "Success",
-      student,
     });
 
   } catch (err) {
