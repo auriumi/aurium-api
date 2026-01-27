@@ -25,15 +25,15 @@ model Student {
   //TODO: still lacking for important details, will add later...
 
   //normalization
-  studentNumber   StudentNumber 
+  studentNumber   StudentNumber?   
 }
 
 model StudentNumber {
   id              Int       @id @default(autoincrement())
   student_id      Int       @unique
-  student_number  Int       @unique
+  student_number  Int? 
   is_verified     Boolean   @default(false)
 
   //relation from Student table..
-  student         Student   @relation(fields: [student_id], references: [id])
+  student         Student?   @relation(fields: [student_id], references: [id])
 }
