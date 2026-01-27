@@ -8,7 +8,6 @@ datasource db {
 
 model Student {
   id              Int       @id @default(autoincrement())
-  student_number  Int       @unique
   school_email    String    @unique
   personal_email  String
   last_name       String
@@ -24,5 +23,17 @@ model Student {
   updatedAt       DateTime  @updatedAt
 
   //TODO: still lacking for important details, will add later...
-  @@index([student_number])
+
+  //normalization
+  studentNumber   StudentNumber 
+}
+
+model StudentNumber {
+  id              Int       @id @default(autoincrement())
+  student_id      Int       @unique
+  student_number  Int       @unique
+  is_verified     Boolean   @default(false)
+
+  //relation from Student table..
+  student         Student   @relation(fields: [student_id], references: [id])
 }
