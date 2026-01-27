@@ -21,17 +21,15 @@ model Student {
   thesis_title    String?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
-
   //TODO: still lacking for important details, will add later...
 
   //normalization
-  studentNumber   StudentNumber?   
+  studentNumber   StudentNumber? 
 }
 
 model StudentNumber {
-  id              Int       @id @default(autoincrement())
-  student_id      Int       @unique
-  student_number  Int? 
+  student_id      Int       @id @unique
+  student_number  Int       @unique
   is_verified     Boolean   @default(false)
 
   //relation from Student table..

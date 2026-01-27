@@ -29,13 +29,17 @@ app.get("/test", (req: Request, res: Response) => {
 //post requests
 app.post("/api/submit", async (req: Request, res: Response) => {
   console.log("post request recieved, sending response..")
+
   
   try {
     const body = req.body;
 
+    if (!body.id) {
+      throw new Error("Student ID is required!");
+    }
+
     const student = await prisma.student.create({
       data: {
-        student_number: parseInt(body.id),
         school_email: body.school_email,
         personal_email: body.personal_email,
         last_name: body.last_name,
@@ -47,9 +51,20 @@ app.post("/api/submit", async (req: Request, res: Response) => {
         course: body.academics.course,
         major: body.academics.major,
         thesis_title: body.academics.thesis,
+
+        //student_id
+        studentNumber: {
+          create: {
+            student_number: parseInt(body.id),
+            is_verified: false,
+          },
+        },
+
         //TODO: add more required data later on..
       },
     });
+
+    console.log("student added: ", student);
 
     return res.json({
       status: "Success",
