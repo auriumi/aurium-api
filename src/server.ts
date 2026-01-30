@@ -27,41 +27,33 @@ app.get("/test", (req: Request, res: Response) => {
 });
 
 //fetch for unverified students
-app.get("/fetch/verify", (req: Request, res: Response) => {
+app.get("/fetch/verify", async (req: Request, res: Response) => {
   console.log("fetch got!");
 
-  res.json([
-    {
-      id: "101",
-      idNumber: "123456",
-      name: "Koi",
-      program: "BSCS",
-      personalEmail: "koi@gmail.com",
-      umEmail: "koi@umindanao.edu.ph",
-      status: "pending", 
+  const unverified_students = await prisma.student.findMany({
+    where: {
+      studentNumber: {
+        is_verified: false,
+      },
     },
-    {
-      id: "102",
-      idNumber: "987654",
-      name: "Rui",
-      program: "BSM",
-      personalEmail: "rui@gmail.com",
-      umEmail: "rui@umindanao.edu.ph",
-      status: "pending", 
+
+    select: {
+      first_name: true,
+      last_name: true,
+      course: true,
+      school_email: true,
+      studentNumber: {
+        select: {
+          student_number: true,
+        },
+      },
     },
-    {
-      id: "103",
-      idNumber: "345921",
-      name: "Rin",
-      program: "Magiciology",
-      personalEmail: "rin@gmail.com",
-      umEmail: "rin@umindanao.edu.ph",
-      status: "pending", 
-    }
-  ]);
+  });
+  
+  res.json(unverified_students);
 });
 
-//post requests
+//verification
 app.post("/post/verify", async (req: Request, res: Response) => {
   console.log("got verification request!");
 
@@ -85,6 +77,7 @@ app.post("/post/verify", async (req: Request, res: Response) => {
   }
 });
 
+//registration
 app.post("/api/submit", async (req: Request, res: Response) => {
   console.log("post request recieved, sending response..")
 
