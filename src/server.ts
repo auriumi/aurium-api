@@ -34,30 +34,21 @@ app.post("/post/verify", async (req: Request, res: Response) => {
 
   try {
     const body = req.body;
-    console.log(body);
-
     if (!body.id) {
-      throw new Error("Student ID is required!");
-    }
-   
-    //TODO: This counts as 2 queries which can be ineffecient, optimize later..
-    //check if id exist
-    const checkId = await prisma.studentNumber.findUnique({
-      where: {
-        student_number: parseInt(body.id)
-      }
-    });
-    
-    //if found then verify
-    if (checkId) {
-      await verifyStudent(body.id);
-
-      res.json({
-        status: "Success!"
+      return res.status(400).json({
+        error: "Student ID is required!"
       });
-    } else {
+    }
+
+    const isVerified = await verifyStudent(body.id);
+    
+    if (!isVerified) {
       return res.status(404).json({
         message: "ID is not found!"
+      });
+    } else {
+      res.json({
+        status: "Success!"
       });
     }
 
@@ -100,15 +91,22 @@ app.post("/api/submit", async (req: Request, res: Response) => {
 });
 
 //function queries
-async function verifyStudent(id: string) {
-  return prisma.studentNumber.update({
-    where: {
-      student_number: parseInt(id)
-    },
-    data: {
-      is_verified: true,
-    }
-  });
+async function verifyStudent(id: string): Promise<boolean> {
+  try {
+    await prisma.studentNumber.update({
+      where: {
+        student_number: parseInt(id)
+      },
+      data: {
+        is_verified: true,
+      }
+    });
+
+    return true;
+  } catch (err: any) {
+    if (err?.code === "P2025") return false;
+    throw err;
+  }
 }
 
 async function createStudent(body: any) {
