@@ -1,10 +1,12 @@
 import express, { Request, Response } from "express";
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
+import { Resend } from 'resend';
 import 'dotenv/config';
 import cors from "cors";
 
 const app = express();
+// const resend = new Resend(process.env.RESEND_API) needs a verified domain...
 const connectionString = process.env.DATABASE_URL;
 
 const adapter = new PrismaPg({ connectionString });
@@ -64,10 +66,35 @@ app.post("/post/verify", async (req: Request, res: Response) => {
     if (!body.id) {
       throw new Error("Student ID is required!");
     }
-
-    res.json({
-      status: "Success!"
+   
+    //check if id exist
+    const checkId = await prisma.studentNumber.findUnique({
+      where: {
+        student_number: parseInt(body.id)
+      }
     });
+    
+    //TODO: This counts as 2 queries which can be ineffecient, optimize later..
+    //if found then verify
+    if (checkId) {
+      await prisma.studentNumber.update({
+        where: {
+          student_number: parseInt(body.id)
+        },
+        data: {
+          is_verified: true,
+        }
+      });
+
+      res.json({
+        status: "Success!"
+      });
+    } else {
+      return res.status(404).json({
+        message: "ID is not found!"
+      });
+    }
+
   } catch (err) {
     console.error("Error: ", err);
 
