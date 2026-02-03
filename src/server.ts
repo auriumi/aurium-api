@@ -47,7 +47,7 @@ app.post("/post/verify", async (req: Request, res: Response) => {
     
     if (!isVerified) {
       return res.status(404).json({
-        message: "ID is not found!"
+        message: "ID is not found or already verified!"
       });
     } else {
 
@@ -102,7 +102,8 @@ async function verifyStudent(id: string) {
   try {
     const res = await prisma.studentAuth.update({
       where: {
-        student_number: parseInt(id)
+        student_number: parseInt(id),
+        is_verified: false,
       },
       data: {
         is_verified: true,
@@ -111,7 +112,7 @@ async function verifyStudent(id: string) {
 
     return res;
   } catch (err: any) {
-    if (err?.code === "P2025") return false;
+    return false;
     throw err;
   }
 }
