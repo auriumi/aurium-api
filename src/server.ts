@@ -4,6 +4,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { Resend } from 'resend';
 import 'dotenv/config';
 import cors from "cors";
+import crypto from "crypto";
 
 const app = express();
 const connectionString = process.env.DATABASE_URL;
@@ -17,7 +18,9 @@ app.use(express.json());
 
 //get requests
 app.get("/", (req: Request, res: Response) => {
-  res.send("Server is running..");
+  res.json({
+    passowrd: randomPass
+  })
 });
 
 //fetch for unverified students
@@ -39,7 +42,6 @@ app.post("/post/verify", async (req: Request, res: Response) => {
         error: "Student ID is required!"
       });
     }
-
     const isVerified = await verifyStudent(body.id);
     
     if (!isVerified) {
@@ -93,7 +95,7 @@ app.post("/api/submit", async (req: Request, res: Response) => {
 //function queries
 async function verifyStudent(id: string): Promise<boolean> {
   try {
-    await prisma.studentNumber.update({
+    await prisma.studentAuth.update({
       where: {
         student_number: parseInt(id)
       },
@@ -125,7 +127,7 @@ async function createStudent(body: any) {
       thesis_title: body.academics.thesis,
 
       //student_id
-      studentNumber: {
+      studentAuth: {
         create: {
           student_number: parseInt(body.id),
           is_verified: false,
@@ -139,7 +141,7 @@ async function createStudent(body: any) {
 async function fetchUnverifiedStudents() {
   return prisma.student.findMany({
     where: {
-      studentNumber: {
+      studentAuth: {
         is_verified: false,
       },
     },
@@ -149,7 +151,7 @@ async function fetchUnverifiedStudents() {
       last_name: true,
       course: true,
       school_email: true,
-      studentNumber: {
+      studentAuth: {
         select: {
           student_number: true,
         },
