@@ -7,31 +7,28 @@ datasource db {
 }
 
 model Student {
-  id              Int       @id @default(autoincrement())
-  school_email    String    @unique
-  personal_email  String
-  last_name       String
+  id              Int            @id @default(autoincrement())
   first_name      String
+  last_name       String
   mid_name        String?
-  suffix          String?
-  nickname        String?
+  personal_email  String
   birth_date      DateTime
   course          String?
+  createdAt       DateTime       @default(now())
   major           String?
+  nickname        String?
+  school_email    String         @unique
+  suffix          String?
   thesis_title    String?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  //TODO: still lacking for important details, will add later...
-
-  //normalization
-  studentNumber   StudentNumber? 
+  updatedAt       DateTime       @updatedAt
+  StudentAuth     StudentAuth?
 }
 
-model StudentNumber {
-  student_id      Int       @id @unique
-  student_number  Int       @unique
-  is_verified     Boolean   @default(false)
-
-  //relation from Student table..
-  student         Student?   @relation(fields: [student_id], references: [id])
+model StudentAuth {
+  id              Int         @id @unique
+  student_number  Int         @unique
+  is_verified     Boolean     @default(false)
+  hashed_password String?
+  last_login      DateTime?
+  student         Student     @relation(fields: [id], references: [id])
 }
