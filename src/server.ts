@@ -5,6 +5,7 @@ import { Resend } from 'resend';
 import 'dotenv/config';
 import cors from "cors";
 import crypto from "crypto";
+import bcrypt from "bcrypt";
 
 const app = express();
 const connectionString = process.env.DATABASE_URL;
@@ -128,13 +129,17 @@ async function generatePass(id: string) {
     tempPass += chars.charAt(randIndex);
   }
   
+  //hashing password with bcrypt
+  console.log("generated pass: ", tempPass);
+  const hashedPass = await bcrypt.hash(tempPass, 10);
+  
   try {
     const res = await prisma.studentAuth.update({
       where : {
         student_number: parseInt(id)
       },
       data: {
-        hashed_password: tempPass
+        hashed_password: hashedPass 
       }
     });
 
