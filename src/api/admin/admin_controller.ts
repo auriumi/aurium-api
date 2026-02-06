@@ -34,3 +34,9 @@ export async function handleVerify(req: Request, res: Response) {
     });
   }
 };
+
+//fetch for unverified students
+export async function fetchUnverifiedStudents(req: Request, res: Response) {
+  const unverifiedStudentsList = await adminService.fetchUnverifiedStudents();
+  res.json(unverifiedStudentsList);
+};

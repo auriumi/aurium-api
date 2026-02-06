@@ -3,4 +3,5 @@ import * as adminController from "./admin_controller";
 
 const router = Router();
 
-router.post("/verify", adminController.handleVerify);
+router.post("student/verify", adminController.handleVerify);
+router.get("student/fetch", adminController.fetchUnverifiedStudents);

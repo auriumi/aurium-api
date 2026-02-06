@@ -24,9 +24,3 @@ export async function studentRegistration(req: Request, res: Response) {
         });
     }
 }
-
-//fetch for unverified students
-export async function fetchUnverifiedStudents(req: Request, res: Response) {
-  const unverifiedStudentsList = await studentService.fetchUnverifiedStudents();
-  res.json(unverifiedStudentsList);
-};

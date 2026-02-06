@@ -25,25 +25,3 @@ export async function createStudent(body: any) {
     },
   });
 }
-
-export async function fetchUnverifiedStudents() {
-  return prisma.student.findMany({
-    where: {
-      StudentAuth: {
-        is_verified: false,
-      },
-    },
-
-    select: {
-      first_name: true,
-      last_name: true,
-      course: true,
-      school_email: true,
-      StudentAuth: {
-        select: {
-          student_number: true,
-        },
-      },
-    },
-  });
-}

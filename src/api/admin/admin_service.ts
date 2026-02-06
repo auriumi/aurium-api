@@ -54,3 +54,26 @@ export async function generatePass(id: string) {
     console.error("err at password generation: ", err);
   }
 }
+
+//on fetch for unverified students
+export async function fetchUnverifiedStudents() {
+  return prisma.student.findMany({
+    where: {
+      StudentAuth: {
+        is_verified: false,
+      },
+    },
+
+    select: {
+      first_name: true,
+      last_name: true,
+      course: true,
+      school_email: true,
+      StudentAuth: {
+        select: {
+          student_number: true,
+        },
+      },
+    },
+  });
+}
