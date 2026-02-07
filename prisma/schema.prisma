@@ -27,21 +27,22 @@ model Student {
 }
 
 model StudentDetail {
-  id           Int      @id @unique
-  birth_date   DateTime
-  province     String?
-  city         String?
-  barangay     String?
-  mothers_name String?
-  fathers_name String?
-  contact_num  Int?
-  student      Student  @relation(fields: [id], references: [id])
+  id              Int      @id @unique
+  birth_date      DateTime
+  province        String?
+  city            String?
+  barangay        String?
+  mothers_name    String?
+  fathers_name    String?
+  guardians_name  String?
+  contact_num     String?
+  student         Student  @relation(fields: [id], references: [id])
 }
 
 model StudentAuth {
   is_verified     Boolean   @default(false)
   hashed_password String?
   last_login      DateTime?
-  id              Int       @id @unique
-  student         Student   @relation(fields: [id], references: [id])
+  student_number  Int       @id
+  student         Student   @relation(fields: [student_number], references: [student_number])
 }
