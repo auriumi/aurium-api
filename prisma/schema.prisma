@@ -7,28 +7,42 @@ datasource db {
 }
 
 model Student {
-  id              Int            @id @default(autoincrement())
-  first_name      String
-  last_name       String
-  mid_name        String?
-  personal_email  String
+  id             Int            @id @default(autoincrement())
+  first_name     String?
+  last_name      String?
+  mid_name       String?
+  school_email   String         @unique
+  personal_email String
+  department     String?
+  course         String?
+  major          String?
+  nickname       String?
+  suffix         String?
+  thesis_title   String?
+  updatedAt      DateTime       @updatedAt
+  createdAt      DateTime       @default(now())
+  student_number Int            @unique
+  StudentAuth    StudentAuth?
+  studentDetail  StudentDetail?
+}
+
+model StudentDetail {
+  id              Int      @id @unique
   birth_date      DateTime
-  course          String?
-  createdAt       DateTime       @default(now())
-  major           String?
-  nickname        String?
-  school_email    String         @unique
-  suffix          String?
-  thesis_title    String?
-  updatedAt       DateTime       @updatedAt
-  StudentAuth     StudentAuth?
+  province        String?
+  city            String?
+  barangay        String?
+  mothers_name    String?
+  fathers_name    String?
+  guardians_name  String?
+  contact_num     String?
+  student         Student  @relation(fields: [id], references: [id])
 }
 
 model StudentAuth {
-  id              Int         @id @unique
-  student_number  Int         @unique
-  is_verified     Boolean     @default(false)
+  is_verified     Boolean   @default(false)
   hashed_password String?
   last_login      DateTime?
-  student         Student     @relation(fields: [id], references: [id])
+  student_number  Int       @id
+  student         Student   @relation(fields: [student_number], references: [student_number])
 }

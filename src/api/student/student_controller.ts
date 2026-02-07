@@ -5,6 +5,8 @@ import * as studentService from "./student_serivce";
 export async function studentRegistration(req: Request, res: Response) {
     try {
         const body = req.body;
+        console.log(body);
+
         if (!body.id) {
             return res.status(400).json({
                 error: "Student Number is required!",
