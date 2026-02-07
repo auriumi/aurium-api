@@ -7,17 +7,23 @@ import { Resend } from 'resend';
 
 export async function verifyStudent(id: string) {
   try {
-    const res = await prisma.studentAuth.update({
+    const student = await prisma.student.update({
       where: {
         student_number: parseInt(id),
-        is_verified: false,
       },
       data: {
-        is_verified: true,
+        StudentAuth: {
+          update: {
+            is_verified: true,
+          },
+        },
+      },
+      include: {
+        StudentAuth: true,
       }
     });
 
-    return res;
+    return student.StudentAuth;
   } catch (err: any) {
     return false;
     throw err;
@@ -40,16 +46,23 @@ export async function generatePass(id: string) {
   const hashedPass = await bcrypt.hash(tempPass, 10);
   
   try {
-    const res = await prisma.studentAuth.update({
+    const student = await prisma.student.update({
       where : {
         student_number: parseInt(id)
       },
       data: {
-        hashed_password: hashedPass 
+        StudentAuth: {
+          update: {
+            hashed_password: hashedPass
+          },
+        },
+      },
+      include: {
+        StudentAuth: true
       }
     });
 
-    return res;
+    return student.StudentAuth;
   } catch (err: any) {
     console.error("err at password generation: ", err);
   }
@@ -63,17 +76,8 @@ export async function fetchUnverifiedStudents() {
         is_verified: false,
       },
     },
-
-    select: {
-      first_name: true,
-      last_name: true,
-      course: true,
-      school_email: true,
-      StudentAuth: {
-        select: {
-          student_number: true,
-        },
-      },
-    },
+    include: {
+      studentDetail: true,
+    }
   });
 }
