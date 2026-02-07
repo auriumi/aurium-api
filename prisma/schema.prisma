@@ -8,19 +8,20 @@ datasource db {
 
 model Student {
   id             Int            @id @default(autoincrement())
-  student_number Int            @unique
   first_name     String?
   last_name      String?
   mid_name       String?
-  suffix         String?
+  school_email   String         @unique
+  personal_email String
+  department     String?
   course         String?
   major          String?
   nickname       String?
-  school_email   String         @unique
-  personal_email String
+  suffix         String?
   thesis_title   String?
-  createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
+  createdAt      DateTime       @default(now())
+  student_number Int            @unique
   StudentAuth    StudentAuth?
   studentDetail  StudentDetail?
 }
@@ -38,9 +39,9 @@ model StudentDetail {
 }
 
 model StudentAuth {
-  id              Int       @id @unique
   is_verified     Boolean   @default(false)
   hashed_password String?
   last_login      DateTime?
+  id              Int       @id @unique
   student         Student   @relation(fields: [id], references: [id])
 }
