@@ -1,5 +1,4 @@
 import express, { Request, Response } from "express";
-import prisma from "./config/prisma";
 import cors from "cors";
 import studentRoutes from "./api/student/student_route"; 
 import adminRoutes from "./api/admin/admin_route";
