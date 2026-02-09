@@ -1,6 +1,6 @@
 import express, { Request, Response } from "express";
-import prisma from "./config/prisma";
 import cors from "cors";
+import cookieParser from "cookie-parser";
 import studentRoutes from "./api/student/student_route"; 
 import adminRoutes from "./api/admin/admin_route";
 import authRoutes from "./api/auth/auth_route";
@@ -8,6 +8,7 @@ import authRoutes from "./api/auth/auth_route";
 const app = express();
 app.use(cors());
 app.use(express.json());
+app.use(cookieParser());
 
 //API ROUTES
 app.use("/api/student", studentRoutes);
