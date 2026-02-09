@@ -20,11 +20,16 @@ export async function handleLogin(req: Request, res: Response) {
         if (result) {
             const token = await authService.jwtGen({ student_number: id });
 
-            res.json({
-                message: "Succefully logged in!",
-                token: token
+            res.cookie("token", token, {
+                httpOnly: true,
+                secure: false, //must be true in prod
+                sameSite: 'strict',
+                maxAge: 1000 * 60 * 60
             });
 
+            res.json({
+                status: "Logged in!"
+            });
         } else {
             return res.status(401).json({
                 message: "Incorrect Password!"
