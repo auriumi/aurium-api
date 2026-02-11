@@ -10,7 +10,6 @@ interface AuthRequest extends Request {
 
 export function verifyToken(req: AuthRequest, res: Response, next: NextFunction) {
     const token = req.cookies.token;
-
     if (!token) {
         return res.status(401).json({ error: "Access Denied!" });
     }
@@ -18,8 +17,6 @@ export function verifyToken(req: AuthRequest, res: Response, next: NextFunction)
     try {
         const body = jwt.verify(token, jwt_sauce as string);
         req.user = body;
-        console.log(body);
-
         next();
     } catch (err) {
         return res.status(403).json({ err: "Invalid Token!" });

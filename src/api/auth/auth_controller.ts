@@ -14,7 +14,7 @@ export async function handleLogin(req: Request, res: Response) {
         const result = await authService.handleLogin(id, pass);
 
         if (typeof result === 'object') {
-            return res.status(404).json(result);
+            return res.status(401).json(result);
         }
 
         if (result) {
@@ -23,7 +23,7 @@ export async function handleLogin(req: Request, res: Response) {
             res.cookie("token", token, {
                 httpOnly: true,
                 secure: false, //must be true in prod
-                sameSite: 'strict',
+                sameSite: 'lax',
                 maxAge: 1000 * 60 * 60
             });
 
@@ -32,7 +32,7 @@ export async function handleLogin(req: Request, res: Response) {
             });
         } else {
             return res.status(401).json({
-                message: "Incorrect Password!"
+                message: "Incorrect ID or Password"
             });
         }
     } catch (err) {
