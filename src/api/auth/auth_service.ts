@@ -5,16 +5,16 @@ import 'dotenv/config';
 
 const jwt_sauce = process.env.JWT_SAUCE;
 
-export async function handleLogin(id: number, pass: string) {
+export async function handleLogin(id: string, pass: string) {
     const student = await prisma.studentAuth.findUnique({
         where: {
-            student_number: id
+            student_number: parseInt(id)
         },
     });
 
     if (!student) {
         return {
-            message: "Incorrect ID or Password!"
+            message: "Incorrect ID or Password"
         };
     }
 
