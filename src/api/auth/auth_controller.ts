@@ -19,7 +19,7 @@ export async function handleLogin(req: Request, res: Response) {
 
         if (result) {
             const token = await authService.jwtGen({ 
-                student_number: id,
+                [is_admin ? 'admin_email' : 'student_number']: id,
                 is_admin: is_admin, 
             });
 
