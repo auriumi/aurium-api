@@ -46,3 +46,20 @@ model StudentAuth {
   student_number  Int       @id
   student         Student   @relation(fields: [student_number], references: [student_number])
 }
+
+model Admin {
+  id                Int       @id
+  email             String?   @unique 
+  first_name        String?
+  last_name         String?
+  hashed_password   String
+  last_login        DateTime?
+  logs              Logs[]
+}
+
+model Logs {
+  id      Int       @id
+  action  String
+  doneAt  DateTime  @default(now())
+  admin   Admin     @relation(fields: [id], references: [id])
+}
