@@ -21,7 +21,19 @@ export async function handleLogin(id: string, pass: string, is_admin?: boolean) 
         }
 
         const hash = admin.hashed_password;
-        return await bcrypt.compare(pass, hash);
+        const isMatch = await bcrypt.compare(pass, hash);
+        
+        if (isMatch) {
+            await prisma.admin.update({
+                where: {
+                    email: id
+                },
+                data: {
+                    last_login: new Date()
+                }
+            });
+        }
+        return isMatch;
 
     } else {
         const student = await prisma.studentAuth.findUnique({
@@ -37,12 +49,25 @@ export async function handleLogin(id: string, pass: string, is_admin?: boolean) 
         }
 
         const hash = student.hashed_password;
+
         if (!hash) {
             return {
                 message: "You're not verified yet, please wait for confirmation!"
             }
         }
-        return await bcrypt.compare(pass, hash);
+
+        const isMatch = await bcrypt.compare(pass, hash);
+        if (isMatch) {
+            await prisma.studentAuth.update({
+                where: {
+                    student_number: parseInt(id)
+                },
+                data: {
+                    last_login: new Date()
+                }
+            });
+        }
+        return isMatch;
     }
 }
 
