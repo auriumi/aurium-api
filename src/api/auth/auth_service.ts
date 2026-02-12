@@ -5,26 +5,45 @@ import 'dotenv/config';
 
 const jwt_sauce = process.env.JWT_SAUCE;
 
-export async function handleLogin(id: string, pass: string) {
-    const student = await prisma.studentAuth.findUnique({
-        where: {
-            student_number: parseInt(id)
-        },
-    });
+export async function handleLogin(id: string, pass: string, is_admin?: boolean) {
 
-    if (!student) {
-        return {
-            message: "Incorrect ID or Password"
-        };
-    }
+    if (is_admin) {
+        const admin = await prisma.admin.findUnique({
+            where: {
+                email: id
+            }
+        });
 
-    const hash = student.hashed_password;
-    if (!hash) {
-        return {
-            message: "You're not verified yet, please wait for confirmation!"
+        if (!admin) {
+            return {
+                message: "Invalid credentials!"
+            };
         }
+
+        const hash = admin.hashed_password;
+        return await bcrypt.compare(pass, hash);
+
+    } else {
+        const student = await prisma.studentAuth.findUnique({
+            where: {
+                student_number: parseInt(id)
+            },
+        });
+
+        if (!student) {
+            return {
+                message: "Incorrect ID or Password"
+            };
+        }
+
+        const hash = student.hashed_password;
+        if (!hash) {
+            return {
+                message: "You're not verified yet, please wait for confirmation!"
+            }
+        }
+        return await bcrypt.compare(pass, hash);
     }
-    return await bcrypt.compare(pass, hash);
 }
 
 export async function jwtGen(user: object) {

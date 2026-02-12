@@ -2,7 +2,7 @@ import { Response, Request } from "express";
 import * as authService from "./auth_service";
 
 export async function handleLogin(req: Request, res: Response) {
-    const { id, pass } = req.body;
+    const { id, pass, is_admin } = req.body;
 
     if (!id || !pass) {
         return res.status(401).json({
@@ -11,14 +11,17 @@ export async function handleLogin(req: Request, res: Response) {
     }
 
     try {
-        const result = await authService.handleLogin(id, pass);
+        const result = await authService.handleLogin(id, pass, is_admin);
 
         if (typeof result === 'object') {
             return res.status(401).json(result);
         }
 
         if (result) {
-            const token = await authService.jwtGen({ student_number: id });
+            const token = await authService.jwtGen({ 
+                student_number: id,
+                is_admin: is_admin, 
+            });
 
             res.cookie("token", token, {
                 httpOnly: true,
@@ -32,9 +35,10 @@ export async function handleLogin(req: Request, res: Response) {
             });
         } else {
             return res.status(401).json({
-                message: "Incorrect ID or Password"
+                message: "Incorrect credentials!"
             });
         }
+
     } catch (err) {
         console.error(err);
         return res.status(500).json({
