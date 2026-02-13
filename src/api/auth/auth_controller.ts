@@ -27,7 +27,8 @@ export async function handleLogin(req: Request, res: Response) {
                 httpOnly: true,
                 secure: false, //must be true in prod
                 sameSite: 'lax',
-                maxAge: 1000 * 60 * 60
+                maxAge: 1000 * 60 * 60,
+                path: '/'
             });
 
             res.json({
@@ -45,4 +46,17 @@ export async function handleLogin(req: Request, res: Response) {
             message: "Internal Server Error"
         });
     }
+}
+
+export async function handleLogout(req: Request, res: Response) {
+    res.clearCookie("token", {
+        httpOnly: true,
+        secure: false, //must be true in prod
+        sameSite: 'lax',
+        path: '/'
+    });
+
+    res.status(200).json({
+        status: "ok"
+    });
 }
