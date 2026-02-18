@@ -38,7 +38,7 @@ model StudentDetail {
   fathers_name    String?
   guardians_name  String?
   contact_num     String?
-  student         Student  @relation(fields: [id], references: [id])
+  student         Student  @relation(fields: [id], references: [id], onDelete: Cascade)
 }
 
 model StudentAuth {
@@ -49,7 +49,7 @@ model StudentAuth {
 
   //1 = registered, 2 = approved, 3 = fully verified
   status          Int       @default(1) 
-  student         Student   @relation(fields: [student_number], references: [student_number])
+  student         Student   @relation(fields: [student_number], references: [student_number], onDelete: Cascade)
 }
 // ---------------------------------------------------------------------
 
@@ -91,7 +91,7 @@ model Booking {
   booking_day_id  Int         
   period          String
   created_at      DateTime    @default(now())
-  booking_day     BookingDay  @relation(fields: [booking_day_id], references: [id]) 
-  student         Student     @relation(fields: [student_number], references: [student_number])
+  booking_day     BookingDay  @relation(fields: [booking_day_id], references: [id], onDelete: Cascade) 
+  student         Student     @relation(fields: [student_number], references: [student_number], onDelete: Cascade)
 }
 // ---------------------------------------------------------------------
