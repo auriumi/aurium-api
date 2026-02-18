@@ -6,6 +6,7 @@ datasource db {
   provider = "postgresql"
 }
 
+// ------------------------------- Student Schema -------------------------
 model Student {
   id             Int            @id @default(autoincrement())
   first_name     String?
@@ -24,6 +25,7 @@ model Student {
   student_number Int            @unique
   StudentAuth    StudentAuth?
   studentDetail  StudentDetail?
+  booking        Booking?
 }
 
 model StudentDetail {
@@ -44,9 +46,15 @@ model StudentAuth {
   hashed_password String?
   last_login      DateTime?
   student_number  Int       @id
+
+  //1 = registered, 2 = approved, 3 = fully verified
+  status          Int       @default(1) 
   student         Student   @relation(fields: [student_number], references: [student_number])
 }
+// ---------------------------------------------------------------------
 
+
+// ------------------------------- Admin Schema -------------------------
 model Admin {
   id                Int       @id @default(autoincrement())
   email             String?   @unique 
@@ -63,3 +71,27 @@ model Logs {
   doneAt  DateTime  @default(now())
   admin   Admin     @relation(fields: [id], references: [id])
 }
+// ---------------------------------------------------------------------
+
+
+// ------------------------------- Booking Schema -------------------------
+model BookingDay {
+  id                  Int       @id @default(autoincrement())
+  date                DateTime  @unique
+  is_open             Boolean
+  curr_morning        Int
+  curr_afternoon      Int
+  max_morning_cap     Int  
+  max_afternoon_cap   Int
+  bookings            Booking[]
+}
+
+model Booking {
+  student_number  Int         @id
+  booking_day_id  Int         
+  period          String
+  created_at      DateTime    @default(now())
+  booking_day     BookingDay  @relation(fields: [booking_day_id], references: [id]) 
+  student         Student     @relation(fields: [student_number], references: [student_number])
+}
+// ---------------------------------------------------------------------
