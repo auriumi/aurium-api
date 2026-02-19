@@ -53,7 +53,8 @@ export async function generatePass(id: string) {
       data: {
         StudentAuth: {
           update: {
-            hashed_password: hashedPass
+            hashed_password: hashedPass,
+            status: 2,
           },
         },
       },
