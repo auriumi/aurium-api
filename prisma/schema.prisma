@@ -20,16 +20,16 @@ model Student {
   nickname       String?
   suffix         String?
   thesis_title   String?
-  updatedAt      DateTime       @updatedAt
-  createdAt      DateTime       @default(now())
+  updated_at     DateTime       @updatedAt
+  created_at     DateTime       @default(now())
   student_number Int            @unique
   StudentAuth    StudentAuth?
   studentDetail  StudentDetail?
-  booking        Booking?
+  booking        Booking[]
 }
 
 model StudentDetail {
-  id              Int      @id @unique
+  id              Int      @id 
   birth_date      DateTime
   province        String?
   city            String?
@@ -42,14 +42,20 @@ model StudentDetail {
 }
 
 model StudentAuth {
-  is_verified     Boolean   @default(false)
+  is_verified     Boolean         @default(false)
   hashed_password String?
   last_login      DateTime?
-  student_number  Int       @id
+  student_number  Int             @id
+  status          StudentStatus   @default(REGISTERED) 
+  student         Student         @relation(fields: [student_number], references: [student_number], onDelete: Cascade)
+}
 
-  //1 = registered, 2 = approved, 3 = fully verified
-  status          Int       @default(1) 
-  student         Student   @relation(fields: [student_number], references: [student_number], onDelete: Cascade)
+enum StudentStatus {
+  REGISTERED 
+  APPROVED 
+  BOOKED 
+  ATTENDED 
+  FULLY_VERIFIED
 }
 // ---------------------------------------------------------------------
 
@@ -66,10 +72,10 @@ model Admin {
 }
 
 model Logs {
-  id      Int       @id
-  action  String
-  doneAt  DateTime  @default(now())
-  admin   Admin     @relation(fields: [id], references: [id])
+  id          Int       @id @default(autoincrement())
+  action      String
+  created_at  DateTime  @default(now())
+  admin       Admin     @relation(fields: [id], references: [id])
 }
 // ---------------------------------------------------------------------
 
@@ -87,7 +93,8 @@ model BookingDay {
 }
 
 model Booking {
-  student_number  Int         @id
+  id              Int         @id @default(autoincrement())
+  student_number  Int         
   booking_day_id  Int         
   period          String
   created_at      DateTime    @default(now())
