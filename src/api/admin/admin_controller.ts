@@ -40,3 +40,26 @@ export async function fetchUnverifiedStudents(req: Request, res: Response) {
   const unverifiedStudentsList = await adminService.fetchUnverifiedStudents();
   res.json(unverifiedStudentsList);
 };
+
+export async function addSchedule(req: Request, res: Response) {
+  try {
+    const body = req.body;
+    const success = await adminService.addSchedule(body.date, body.am_cap, body.pm_cap);
+
+    if (!success) {
+      res.status(400).json({
+        status: 'failed'
+      });
+    } 
+
+    res.json({
+      status: 'success'
+    });
+
+  } catch(err) {
+    console.error("Server error: ", err);
+    res.status(500).json({
+      status: 'internal server error'
+    });
+  }
+};

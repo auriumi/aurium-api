@@ -82,3 +82,14 @@ export async function fetchUnverifiedStudents() {
     }
   });
 }
+
+//add schedule per day
+export async function addSchedule(date: string, am_cap: number, pm_cap: number) {
+  return prisma.bookingDay.create({
+    data: {
+      date: new Date(`${date}T00:00:00.000Z`),
+      max_morning_cap: am_cap,
+      max_afternoon_cap: pm_cap
+    }
+  });
+}
