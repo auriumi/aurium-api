@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import * as adminService from "./admin_service";
+import { Prisma } from "@prisma/client"; //required for proper error handling
 
 //handle verification
 export async function handleVerify(req: Request, res: Response) {
@@ -57,6 +58,15 @@ export async function addSchedule(req: Request, res: Response) {
     });
 
   } catch(err) {
+    if ( err instanceof Prisma.PrismaClientKnownRequestError) {
+      if (err.code === 'P2002') {
+        return res.status(409).json({
+          status: 'failed',
+          reason: 'A schedule for this day already exist.'
+        });
+      }
+    }
+
     console.error("Server error: ", err);
     res.status(500).json({
       status: 'internal server error'
