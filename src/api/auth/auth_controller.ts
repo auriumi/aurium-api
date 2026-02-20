@@ -13,32 +13,26 @@ export async function handleLogin(req: Request, res: Response) {
     try {
         const result = await authService.handleLogin(id, pass, is_admin);
 
-        if (typeof result === 'object') {
-            return res.status(401).json(result);
+        if (!result.success) {
+            return res.status(401).json(result.reason);
         }
 
-        if (result) {
-            const token = await authService.jwtGen({ 
-                [is_admin ? 'admin_email' : 'student_number']: id,
-                is_admin: is_admin, 
-            });
+        const token = await authService.jwtGen({
+            [is_admin ? 'admin_email' : 'student_number']: id,
+            is_admin: is_admin,
+        });
 
-            res.cookie("token", token, {
-                httpOnly: true,
-                secure: false, //must be true in prod
-                sameSite: 'lax',
-                maxAge: 1000 * 60 * 60,
-                path: '/'
-            });
+        res.cookie("token", token, {
+            httpOnly: true,
+            secure: false, //must be true in prod
+            sameSite: 'lax',
+            maxAge: 1000 * 60 * 60,
+            path: '/'
+        });
 
-            res.json({
-                status: "Logged in!"
-            });
-        } else {
-            return res.status(401).json({
-                message: "Incorrect credentials!"
-            });
-        }
+        res.json({
+            status: "Logged in!"
+        });
 
     } catch (err) {
         console.error(err);

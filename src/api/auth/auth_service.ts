@@ -16,7 +16,8 @@ export async function handleLogin(id: string, pass: string, is_admin?: boolean) 
 
         if (!admin) {
             return {
-                message: "Invalid credentials!"
+                success: false,
+                reason: "Invalid credentials!"
             };
         }
 
@@ -32,8 +33,12 @@ export async function handleLogin(id: string, pass: string, is_admin?: boolean) 
                     last_login: new Date()
                 }
             });
+            return { success: true };
         }
-        return isMatch;
+        return { 
+            success: false,
+            reason: "Invalid credentials!"
+        }
 
     } else {
         const student = await prisma.studentAuth.findUnique({
@@ -44,7 +49,8 @@ export async function handleLogin(id: string, pass: string, is_admin?: boolean) 
 
         if (!student) {
             return {
-                message: "Incorrect ID or Password"
+                success: false,
+                reason: "Incorrect ID or Password"
             };
         }
 
@@ -52,7 +58,8 @@ export async function handleLogin(id: string, pass: string, is_admin?: boolean) 
 
         if (!hash) {
             return {
-                message: "You're not verified yet, please wait for confirmation!"
+                success: false,
+                reason: "You're not verified yet, please wait for confirmation!"
             }
         }
 
@@ -66,8 +73,13 @@ export async function handleLogin(id: string, pass: string, is_admin?: boolean) 
                     last_login: new Date()
                 }
             });
+            return { success: true };
         }
-        return isMatch;
+
+        return {
+            success: false,
+            reason: "Incorrect ID or Password"
+        }
     }
 }
 
