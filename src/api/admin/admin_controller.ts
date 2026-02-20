@@ -42,6 +42,7 @@ export async function fetchUnverifiedStudents(req: Request, res: Response) {
   res.json(unverifiedStudentsList);
 };
 
+//add schedule
 export async function addSchedule(req: Request, res: Response) {
   try {
     const body = req.body;
@@ -73,3 +74,9 @@ export async function addSchedule(req: Request, res: Response) {
     });
   }
 };
+
+//fetch schedule
+export async function fetchSchedule(req: Request, res: Response) {
+  const scheduleList = await adminService.fetchSchedule();
+  return res.json(scheduleList);
+}
