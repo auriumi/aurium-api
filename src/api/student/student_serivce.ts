@@ -1,3 +1,4 @@
+import { StudentStatus } from "@prisma/client";
 import prisma from "../../config/prisma";
 
 export async function createStudent(body: any) {
@@ -32,6 +33,7 @@ export async function createStudent(body: any) {
       StudentAuth: {
         create: {
           is_verified: false,
+          status: StudentStatus.REGISTERED
         },
       },
     },
