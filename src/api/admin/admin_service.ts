@@ -93,3 +93,12 @@ export async function addSchedule(date: string, am_cap: number, pm_cap: number) 
     }
   });
 }
+
+//fetch schedule per day
+export async function fetchSchedule() {
+  return prisma.bookingDay.findMany({
+    include: {
+      bookings: true
+    }
+  });
+}

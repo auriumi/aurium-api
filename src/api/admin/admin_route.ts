@@ -10,5 +10,6 @@ router.get("/student/fetch", verifyToken, adminController.fetchUnverifiedStudent
 
 //booking endpoint
 router.post("/book/add", verifyToken, adminController.addSchedule);
+router.get("/book/fetch", verifyToken, adminController.fetchSchedule);
 
 export default router;
