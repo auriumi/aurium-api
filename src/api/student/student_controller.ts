@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import * as studentService from "./student_serivce";
+import * as studentService from "./student_service";
 
 //create student upon registration
 export async function studentRegistration(req: Request, res: Response) {

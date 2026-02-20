@@ -8,6 +8,7 @@ interface AuthRequest extends Request {
     user?: any
 }
 
+//verify token
 export function verifyToken(req: AuthRequest, res: Response, next: NextFunction) {
     const token = req.cookies.token;
     if (!token) {
@@ -20,5 +21,16 @@ export function verifyToken(req: AuthRequest, res: Response, next: NextFunction)
         next();
     } catch (err) {
         return res.status(403).json({ err: "Invalid Token!" });
+    }
+}
+
+//admin guard
+export function isAdmin(req: AuthRequest, res: Response, next: NextFunction) {
+    if (req.user && req.user.is_admin) {
+        next();
+    } else {
+        return res.status(403).json({
+            error: "Forbidden!"
+        });
     }
 }
