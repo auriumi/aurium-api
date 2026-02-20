@@ -27,7 +27,6 @@ export async function verifyStudent(id: string) {
     return student.StudentAuth;
   } catch (err: any) {
     return false;
-    throw err;
   }
 }
 
