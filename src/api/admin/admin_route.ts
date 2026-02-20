@@ -1,15 +1,15 @@
 import { Router } from "express";
 import * as adminController from "./admin_controller";
-import { verifyToken } from "../auth/auth_middleware";
+import { isAdmin, verifyToken } from "../auth/auth_middleware";
 
 const router = Router();
 
 //student verifier endpoint
-router.post("/student/verify", verifyToken, adminController.handleVerify);
-router.get("/student/fetch", verifyToken, adminController.fetchUnverifiedStudents);
+router.post("/student/verify", verifyToken, isAdmin, adminController.handleVerify);
+router.get("/student/fetch", verifyToken, isAdmin, adminController.fetchUnverifiedStudents);
 
 //booking endpoint
-router.post("/book/add", verifyToken, adminController.addSchedule);
-router.get("/book/fetch", verifyToken, adminController.fetchSchedule);
+router.post("/book/add", verifyToken, isAdmin, adminController.addSchedule);
+router.get("/book/fetch", verifyToken, isAdmin, adminController.fetchSchedule);
 
 export default router;
