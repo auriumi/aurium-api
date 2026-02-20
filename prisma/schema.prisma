@@ -78,9 +78,9 @@ model Logs {
 model BookingDay {
   id                  Int       @id @default(autoincrement())
   date                DateTime  @unique
-  is_open             Boolean
-  curr_morning        Int
-  curr_afternoon      Int
+  is_open             Boolean   @default(true)
+  curr_morning        Int       @default(0)
+  curr_afternoon      Int       @default(0)
   max_morning_cap     Int  
   max_afternoon_cap   Int
   bookings            Booking[]
