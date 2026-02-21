@@ -95,10 +95,26 @@ export async function addSchedule(date: string, am_cap: number, pm_cap: number) 
 }
 
 //fetch schedule per day
+//TODO: paginate query
 export async function fetchSchedule() {
   return prisma.bookingDay.findMany({
     include: {
-      bookings: true
-    }
+      bookings: {
+        include: {
+          student: {
+            select: {
+              first_name: true,
+              last_name: true,
+              student_number: true,
+              StudentAuth: {
+                select: {
+                  status: true
+                },
+              },
+            },
+          },
+        },
+      },
+    },
   });
 }
