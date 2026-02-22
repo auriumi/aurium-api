@@ -9,6 +9,6 @@ router.post("/submit", studentController.studentRegistration);
 
 //booking
 router.get("/book/fetch", verifyToken, studentController.fetchBooking);
-//router.post("/book/create", verifyToken, studentController.createBooking);
+router.post("/book/create", verifyToken, studentController.createBooking);
 
 export default router;

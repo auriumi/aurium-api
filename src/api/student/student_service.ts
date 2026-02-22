@@ -46,7 +46,7 @@ export async function fetchBooking() {
 
 export async function createBooking(student_id: number, booking_id: number, period: string) {
   try {
-    const session_count = period === 'morning' ? 'curr_morning' : 'curr_afternoon';
+    const session_count = period === 'AM' ? 'curr_morning' : 'curr_afternoon';
 
     return await prisma.booking.create({
       data: {

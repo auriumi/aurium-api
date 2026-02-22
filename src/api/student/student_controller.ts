@@ -32,24 +32,23 @@ export async function fetchBooking(req: Request, res: Response) {
     return res.json(list_booking);
 }
 
-/* TODO:
 export async function createBooking(req: Request, res: Response) {
     try {
-        const { student_number, boooking_id, period } = req.body;
+        const { student_number, booking_id, period } = req.body;
 
-        if (!student_number || !boooking_id || !period) {
+        if (!student_number || !booking_id || !period) {
             return res.status(400).json({
                 error: "Invalid Request!",
             })
         }
 
-        if (period !== 'morning' && period !== 'afternoon') {
+        if (period !== 'AM' && period !== 'PM') {
             return res.status(400).json({
                 error: "Invalid Request!",
             })
         }
 
-        await studentService.createBooking(student_number, boooking_id, period);
+        await studentService.createBooking(student_number, booking_id, period);
 
         return res.json({
             status: "Success"
@@ -61,5 +60,4 @@ export async function createBooking(req: Request, res: Response) {
             message: "Server error nyae",
         });
     }
-}
-*/
+};
