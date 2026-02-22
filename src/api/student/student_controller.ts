@@ -20,9 +20,44 @@ export async function studentRegistration(req: Request, res: Response) {
         });
     } catch (err) {
         console.error(`Error: ${err}`);
-        res.status(500).json({
-            status: "Error",
+        return res.status(500).json({
+            status: "Failed",
             message: "Server error nyae",
         });
     }
 }
+
+export async function fetchBooking(req: Request, res: Response) {
+    const list_booking = await studentService.fetchBooking();
+    return res.json(list_booking);
+}
+
+export async function createBooking(req: Request, res: Response) {
+    try {
+        const { student_number, booking_id, period } = req.body;
+
+        if (!student_number || !booking_id || !period) {
+            return res.status(400).json({
+                error: "Invalid Request!",
+            })
+        }
+
+        if (period !== 'AM' && period !== 'PM') {
+            return res.status(400).json({
+                error: "Invalid Request!",
+            })
+        }
+
+        await studentService.createBooking(student_number, booking_id, period);
+
+        return res.json({
+            status: "Success"
+        });
+    } catch (err) {
+        console.error(`Error: ${err}`);
+        return res.status(500).json({
+            status: "Failed",
+            message: "Server error nyae",
+        });
+    }
+};

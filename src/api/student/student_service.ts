@@ -2,7 +2,7 @@ import { StudentStatus } from "@prisma/client";
 import prisma from "../../config/prisma";
 
 export async function createStudent(body: any) {
-  return prisma.student.create({
+  return await prisma.student.create({
     data: {
       student_number: parseInt(body.id),
       first_name: body.first_name,
@@ -38,4 +38,34 @@ export async function createStudent(body: any) {
       },
     },
   });
+}
+
+export async function fetchBooking() {
+  return await prisma.bookingDay.findMany();
+}
+
+export async function createBooking(student_id: number, booking_id: number, period: string) {
+  try {
+    const session_count = period === 'AM' ? 'curr_morning' : 'curr_afternoon';
+
+    return await prisma.booking.create({
+      data: {
+        student_number: student_id,
+        booking_day_id: booking_id,
+        period: period
+      }
+    }),
+    prisma.bookingDay.update({
+      where: {
+        id: booking_id
+      },
+      data: {
+        [session_count]: {
+          increment: 1
+        },
+      },
+    });
+  } catch(err) {
+    console.error("Error: ", err);
+  }
 }
