@@ -13,18 +13,18 @@ export async function verifyStudent(id: string) {
         student_number: parseInt(id),
       },
       data: {
-        StudentAuth: {
+        studentAuth: {
           update: {
             is_verified: true,
           },
         },
       },
       include: {
-        StudentAuth: true,
+        studentAuth: true,
       }
     });
 
-    return student.StudentAuth;
+    return student.studentAuth;
   } catch (err: any) {
     return false;
   }
@@ -51,7 +51,7 @@ export async function generatePass(id: string) {
         student_number: parseInt(id)
       },
       data: {
-        StudentAuth: {
+        studentAuth: {
           update: {
             hashed_password: hashedPass,
             status: StudentStatus.APPROVED,
@@ -59,11 +59,11 @@ export async function generatePass(id: string) {
         },
       },
       include: {
-        StudentAuth: true
+        studentAuth: true
       }
     });
 
-    return student.StudentAuth;
+    return student.studentAuth;
   } catch (err: any) {
     console.error("err at password generation: ", err);
   }
@@ -73,7 +73,7 @@ export async function generatePass(id: string) {
 export async function fetchUnverifiedStudents() {
   return prisma.student.findMany({
     where: {
-      StudentAuth: {
+      studentAuth: {
         is_verified: false,
       },
     },
@@ -106,7 +106,7 @@ export async function fetchSchedule() {
               first_name: true,
               last_name: true,
               student_number: true,
-              StudentAuth: {
+              studentAuth: {
                 select: {
                   status: true
                 },

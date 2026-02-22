@@ -30,7 +30,7 @@ export async function createStudent(body: any) {
         },
       },
 
-      StudentAuth: {
+      studentAuth: {
         create: {
           is_verified: false,
           status: StudentStatus.REGISTERED
@@ -78,7 +78,7 @@ export async function getStudentProfile(student_number: number) {
       },
       include: {
         studentDetail: true,
-        StudentAuth: {
+        studentAuth: {
           select: {
             status: true,
           },

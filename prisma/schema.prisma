@@ -23,7 +23,7 @@ model Student {
   updated_at     DateTime       @updatedAt
   created_at     DateTime       @default(now())
   student_number Int            @unique
-  StudentAuth    StudentAuth?
+  studentAuth    StudentAuth?
   studentDetail  StudentDetail?
   booking        Booking[]
 }
