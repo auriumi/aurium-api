@@ -81,7 +81,7 @@ export async function getUnverifiedStudentCount() {
 }
 
 //on fetch for unverified students (offset-based pagination)
-export async function fetchUnverifiedStudents(page: number) {
+export async function gethUnverifiedStudents(page: number) {
   const skip = (page - 1) * STUDENTS_PER_PAGE;
   return prisma.student.findMany({
     skip: skip,
@@ -99,6 +99,30 @@ export async function fetchUnverifiedStudents(page: number) {
     }
   });
 }
+
+//get student by id (search query)
+export async function getUnverifiedStudentById(student_id: number) {
+  const student = await prisma.student.findUnique({
+    where: {
+      student_number: student_id,
+    },
+    include: {
+      studentDetail: true,
+    }
+  });
+
+  if (!student) {
+    return {
+      success: false,
+      reason: "Student ID not found"
+    };
+  }
+
+  return { 
+    success: true,
+    student
+   };
+} 
 
 //add schedule per day
 export async function addSchedule(date: string, am_cap: number, pm_cap: number) {
