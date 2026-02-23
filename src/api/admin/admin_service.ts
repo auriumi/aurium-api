@@ -69,9 +69,26 @@ export async function generatePass(id: string) {
   }
 }
 
-//on fetch for unverified students
-export async function fetchUnverifiedStudents() {
+const STUDENTS_PER_PAGE = 8;
+
+//get total count of unverified students
+export async function getUnverifiedStudentCount() {
+  return prisma.studentAuth.count({
+    where: {
+      is_verified: false
+    },
+  });
+}
+
+//on fetch for unverified students (offset-based pagination)
+export async function fetchUnverifiedStudents(page: number) {
+  const skip = (page - 1) * STUDENTS_PER_PAGE;
   return prisma.student.findMany({
+    skip: skip,
+    take: STUDENTS_PER_PAGE,
+    orderBy: {
+      id: 'asc'
+    },
     where: {
       studentAuth: {
         is_verified: false,
