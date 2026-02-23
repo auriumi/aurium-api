@@ -31,16 +31,49 @@ export async function handleVerify(req: Request, res: Response) {
   } catch (err) {
     console.error("Error: ", err);
     res.status(500).json({
-      status: "Invalid!",
+      status: 'Internal Server Error'
     });
   }
 };
 
 //fetch for unverified students
 export async function fetchUnverifiedStudents(req: Request, res: Response) {
-  const unverifiedStudentsList = await adminService.fetchUnverifiedStudents();
-  res.json(unverifiedStudentsList);
+  try {
+    const { page } = req.query;
+    if (!page) res.status(400).json({ error: 'Invalid request' });
+
+    const total = await adminService.getUnverifiedStudentCount();
+    const student_list = await adminService.gethUnverifiedStudents(Number(page));
+
+    res.json({
+      total,
+      student_list
+    });
+  } catch (err) {
+    console.error("Error: ", err);
+    res.status(500).json({
+      status: 'Internal Server Error'
+    });
+  }
 };
+
+export async function searchUnverifiedById(req: Request, res: Response) {
+  try {
+    const { id } = req.query;
+    if (!id) res.status(400).json({ error: 'Invalid request' });
+
+    const result = await adminService.getUnverifiedStudentById(Number(id));  
+    if (!result.success) res.status(404).json({ reason: result.reason });
+
+    res.json(result.student);
+
+  } catch (err) {
+    console.error("Error: ", err);
+    res.status(500).json({
+      status: 'Internal Server Error'
+    });
+  }
+}
 
 //add schedule
 export async function addSchedule(req: Request, res: Response) {
@@ -70,7 +103,7 @@ export async function addSchedule(req: Request, res: Response) {
 
     console.error("Server error: ", err);
     res.status(500).json({
-      status: 'internal server error'
+      status: 'Internal Server Error'
     });
   }
 };

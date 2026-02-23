@@ -69,9 +69,26 @@ export async function generatePass(id: string) {
   }
 }
 
-//on fetch for unverified students
-export async function fetchUnverifiedStudents() {
+const STUDENTS_PER_PAGE = 8;
+
+//get total count of unverified students
+export async function getUnverifiedStudentCount() {
+  return prisma.studentAuth.count({
+    where: {
+      is_verified: false
+    },
+  });
+}
+
+//on fetch for unverified students (offset-based pagination)
+export async function gethUnverifiedStudents(page: number) {
+  const skip = (page - 1) * STUDENTS_PER_PAGE;
   return prisma.student.findMany({
+    skip: skip,
+    take: STUDENTS_PER_PAGE,
+    orderBy: {
+      id: 'asc'
+    },
     where: {
       studentAuth: {
         is_verified: false,
@@ -82,6 +99,30 @@ export async function fetchUnverifiedStudents() {
     }
   });
 }
+
+//get student by id (search query)
+export async function getUnverifiedStudentById(student_id: number) {
+  const student = await prisma.student.findUnique({
+    where: {
+      student_number: student_id,
+    },
+    include: {
+      studentDetail: true,
+    }
+  });
+
+  if (!student) {
+    return {
+      success: false,
+      reason: "Student ID not found"
+    };
+  }
+
+  return { 
+    success: true,
+    student
+   };
+} 
 
 //add schedule per day
 export async function addSchedule(date: string, am_cap: number, pm_cap: number) {
