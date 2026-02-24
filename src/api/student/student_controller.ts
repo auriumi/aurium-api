@@ -61,9 +61,11 @@ export async function fetchBooking(req: Request, res: Response) {
     return res.json(list_booking);
 };
 
-export async function createBooking(req: Request, res: Response) {
+export async function createBooking(req: StudentRequest, res: Response) {
     try {
-        const { student_number, booking_id, period } = req.body;
+        //get id from jwt paylaod
+        const student_number = req.user?.student_number;
+        const { booking_id, period } = req.body;
 
         if (!student_number || !booking_id || !period) {
             return res.status(400).json({
@@ -77,7 +79,7 @@ export async function createBooking(req: Request, res: Response) {
             })
         }
 
-        await studentService.createBooking(student_number, booking_id, period);
+        await studentService.createBooking(parseInt(student_number!), booking_id, period);
 
         return res.json({
             status: "Success"
