@@ -4,7 +4,8 @@ import bcrypt from "bcrypt";
 import { Resend } from 'resend';
 import { StudentStatus } from "@prisma/client";
 
-// const resend = new Resend(process.env.RESEND_API) needs a domain..
+const resend = new Resend(process.env.RESEND_API);
+const DOMAIN = "auriumi.cloud";
 
 export async function verifyStudent(id: string) {
   try {
@@ -23,10 +24,14 @@ export async function verifyStudent(id: string) {
         studentAuth: true,
       }
     });
+    if (!student) return { success: false, reason: "Student ID doesn't exist or already verified!" };
 
-    return student.studentAuth;
+    const generate_pass = await generatePass(id);
+    if (!generate_pass) return { success: false, reason: "Something went wrong!" };
+
+    return { success: true };
   } catch (err: any) {
-    return false;
+    return { success: false, reason: "Something went wrong!" };
   }
 }
 
@@ -63,10 +68,41 @@ export async function generatePass(id: string) {
       }
     });
 
-    return student.studentAuth;
+    const get_email = await prisma.student.findUnique({
+      where: {
+        id: parseInt(id),
+      },
+      select: {
+        school_email: true,
+      }
+    }); 
+
+    if (!get_email) return false;
+
+    //send credentials to the respective student email
+    const send_pass = await sendCreds(tempPass, get_email.school_email);
+    if (!send_pass) return false;
+
+    return true;
   } catch (err: any) {
     console.error("err at password generation: ", err);
+    return false;
   }
+}
+
+//send temporary password to their email
+export async function sendCreds(pass: string, recipent: string) {
+  const { error } = await resend.emails.send({
+    from: `Aurium <noreply@${DOMAIN}>`,
+    to: recipent,
+    template: {
+      id: "password-verification",
+      variables: {
+        TEMP_PASSWORD: pass
+      },
+    },
+  });
+  return !!error;
 }
 
 const STUDENTS_PER_PAGE = 8;

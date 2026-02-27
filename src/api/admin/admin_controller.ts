@@ -12,21 +12,17 @@ export async function handleVerify(req: Request, res: Response) {
       });
     }
 
-    const isVerified = await adminService.verifyStudent(body.id);
+    const result = await adminService.verifyStudent(body.id);
     
-    if (!isVerified) {
+    if (!result.success) {
       return res.status(404).json({
-        message: "ID is not found or already verified!"
-      });
-    } else {
-
-      //generate passwrod when verified
-      await adminService.generatePass(body.id); 
-      
-      res.json({
-        status: "Success!"
+        message: result.reason
       });
     }
+
+    res.json({
+      status: "Success!"
+    });
 
   } catch (err) {
     console.error("Error: ", err);
