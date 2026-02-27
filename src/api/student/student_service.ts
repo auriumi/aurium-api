@@ -64,6 +64,14 @@ export async function createBooking(student_id: number, booking_id: number, peri
           increment: 1
         },
       },
+    }),
+    prisma.studentAuth.update({
+      where: {
+        student_number: student_id
+      },
+      data: {
+        status: StudentStatus.BOOKED
+      }
     });
   } catch(err) {
     console.error("Error: ", err);
