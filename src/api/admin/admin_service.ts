@@ -9,6 +9,7 @@ const DOMAIN = "auriumi.cloud";
 
 export async function verifyStudent(id: string) {
   try {
+    //student lookup
     const student = await prisma.student.update({
       where: {
         student_number: parseInt(id),
@@ -26,16 +27,55 @@ export async function verifyStudent(id: string) {
     });
     if (!student) return { success: false, reason: "Student ID doesn't exist or already verified!" };
 
-    const generate_pass = await generatePass(id);
-    if (!generate_pass) return { success: false, reason: "Something went wrong!" };
+    //generate temp pass and hash
+    const temp_pass = await generatePass();
+
+    //upload hashed pass
+    await prisma.student.update({
+      where : {
+        student_number: parseInt(id)
+      },
+      data: {
+        studentAuth: {
+          update: {
+            hashed_password: temp_pass.hash_pass,
+            status: StudentStatus.APPROVED,
+          },
+        },
+      },
+    });
+
+    //get the email
+    const get_email = await prisma.student.findUnique({
+      where: {
+        student_number: parseInt(id),
+      },
+      select: {
+        school_email: true,
+      }
+    }); 
+
+    if (!get_email) {
+      return { 
+        success: false,
+        reason: 'Student has no school email provided!'
+      };
+    }
+
+    //send credentials to the respective student email
+    const send_pass = await sendCreds(temp_pass.actual_pass, get_email.school_email);
+    if (!send_pass) return { success: false, reason: "Email API Error" };
 
     return { success: true };
   } catch (err: any) {
-    return { success: false, reason: "Something went wrong!" };
+    return { 
+      success: false, 
+      reason: "Something went wrong!"
+    };
   }
 }
 
-export async function generatePass(id: string) {
+export async function generatePass() {
   const chars: string = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()";
   const charsLength: number = chars.length;
   const passLength = 10;
@@ -47,47 +87,13 @@ export async function generatePass(id: string) {
   }
   
   //hashing password with bcrypt
-  console.log("generated pass: ", tempPass);
+  console.log("generated pass: ", tempPass); //remove on prod
   const hashedPass = await bcrypt.hash(tempPass, 10);
-  
-  try {
-    const student = await prisma.student.update({
-      where : {
-        student_number: parseInt(id)
-      },
-      data: {
-        studentAuth: {
-          update: {
-            hashed_password: hashedPass,
-            status: StudentStatus.APPROVED,
-          },
-        },
-      },
-      include: {
-        studentAuth: true
-      }
-    });
 
-    const get_email = await prisma.student.findUnique({
-      where: {
-        id: parseInt(id),
-      },
-      select: {
-        school_email: true,
-      }
-    }); 
-
-    if (!get_email) return false;
-
-    //send credentials to the respective student email
-    const send_pass = await sendCreds(tempPass, get_email.school_email);
-    if (!send_pass) return false;
-
-    return true;
-  } catch (err: any) {
-    console.error("err at password generation: ", err);
-    return false;
-  }
+  return {
+    actual_pass: tempPass,
+    hash_pass: hashedPass
+  };
 }
 
 //send temporary password to their email
@@ -102,7 +108,7 @@ export async function sendCreds(pass: string, recipent: string) {
       },
     },
   });
-  return !!error;
+  return !error;
 }
 
 const STUDENTS_PER_PAGE = 8;
