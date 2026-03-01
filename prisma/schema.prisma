@@ -43,6 +43,7 @@ model StudentDetail {
 
 model StudentAuth {
   is_verified     Boolean         @default(false)
+  is_new          Boolean         @default(true)
   hashed_password String?
   last_login      DateTime?
   student_number  Int             @id
