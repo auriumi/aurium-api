@@ -39,7 +39,8 @@ export async function handleLogin(req: Request, res: Response) {
         });
 
         res.json({
-            status: "Logged in!"
+            status: 'ok',
+            is_new: result.is_new
         });
 
     } catch (err) {
