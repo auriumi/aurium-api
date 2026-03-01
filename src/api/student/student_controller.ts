@@ -1,5 +1,7 @@
 import { Request, Response } from "express";
+import { generatePresignedUrl } from "./r2_service";
 import * as studentService from "./student_service";
+import * as r2Service from "./r2_service";
 
 interface StudentRequest extends Request {
     user?: {
@@ -92,3 +94,48 @@ export async function createBooking(req: StudentRequest, res: Response) {
         });
     }
 };
+
+//R2
+export async function getPhotoUploadUrl(req: StudentRequest, res: Response) {
+    const student_number = req.user?.student_number;
+    if (!student_number) {
+        return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const ext = req.query.ext as string || "jpg";
+    const mime = req.query.mime as string || "image/jpg";
+
+    try {
+        const { upload_url, photo_url } = await generatePresignedUrl(student_number, ext, mime);
+        res.json({ upload_url, photo_url });
+    } catch (err) {
+        res.json(500).json({ error: "Something went wrong generating URL" })
+    }
+}
+
+export async function savePhotoUrl(req: StudentRequest, res: Response) {
+    const student_number = req.user?.student_number;
+    if (!student_number) {
+        return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const { photo_url } = req.body;
+    if (!photo_url || !photo_url.startsWith("https://")) {
+        return res.status(400).json({ error: "Invalid URL" });
+    }
+
+    try {
+        const result = await r2Service.uploadPhotoUrl(student_number, photo_url); 
+
+        if (!result.success) {
+            return res.status(404).json({ 
+                success: false, 
+                reason: result.reason 
+            });
+        }
+        return res.json({ sucess: true });
+
+    } catch {
+        res.status(500).json({ error: "Something went wrong saving photo URL" });
+    }
+}
