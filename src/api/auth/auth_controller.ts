@@ -1,6 +1,8 @@
 import { Response, Request } from "express";
 import * as authService from "./auth_service";
 
+const is_secure = process.env.COOKIE_SECURE === "true";
+
 interface StudentRequest extends Request {
     user?: {
         student_number: string;
@@ -30,7 +32,7 @@ export async function handleLogin(req: Request, res: Response) {
 
         res.cookie("token", token, {
             httpOnly: true,
-            secure: false, //must be true in prod
+            secure: is_secure,
             sameSite: 'lax',
             maxAge: 1000 * 60 * 60,
             path: '/'
@@ -56,7 +58,7 @@ export async function handleUpdatePassById(req: StudentRequest, res: Response) {
         return res.status(404).json({ error: "Invalid request!" });
     }
 
-    const result = await authService.updatePassById(student_number!, pass!);
+    const result = await authService.updatePassById(student_number, pass);
     if (!result.success) {
         return res.status(401).json({ error: result.reason });
     }
@@ -69,7 +71,7 @@ export async function handleUpdatePassById(req: StudentRequest, res: Response) {
 export async function handleLogout(req: Request, res: Response) {
     res.clearCookie("token", {
         httpOnly: true,
-        secure: false, //must be true in prod
+        secure: is_secure,
         sameSite: 'lax',
         path: '/'
     });
