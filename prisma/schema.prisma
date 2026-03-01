@@ -38,6 +38,7 @@ model StudentDetail {
   fathers_name    String?
   guardians_name  String?
   contact_num     String?
+  photo_url       String?
   student         Student  @relation(fields: [id], references: [id], onDelete: Cascade)
 }
 
