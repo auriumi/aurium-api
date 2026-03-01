@@ -87,3 +87,26 @@ export async function jwtGen(user: object) {
     const token = jwt.sign(user, jwt_sauce as string, { expiresIn: '1h'});
     return token;
 }
+
+export async function updatePassById(student_number: string, new_pass: string) {
+    const hashed_pass = await bcrypt.hash(new_pass, 10);
+
+    try {
+        await prisma.studentAuth.update({
+            where: {
+                student_number: parseInt(student_number),
+            },
+            data: {
+                hashed_password: hashed_pass
+            }
+        });    
+
+        return { success: true }
+    } catch (err) {
+        console.error(err);
+        return {
+            success: false,
+            reason: "Something went wrong in the server, please try again later."
+        }
+    }
+}
