@@ -18,8 +18,7 @@ jobs:
             [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
             cd web/aurium-api/
             git pull
-            npm install --omit=dev
-            npm audit fix
+            npm ci --omit=dev
             npm run build
             npx prisma generate
             pm2 restart aurium-backend
