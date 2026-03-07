@@ -44,29 +44,43 @@ export async function createStudent(body: any) {
 }
 
 export async function fetchBooking() {
-  return await prisma.bookingDay.findMany();
+  const booking_days = await prisma.bookingDay.findMany({
+    select: {
+      id: true,
+      date: true,
+      max_afternoon_cap: true,
+      max_morning_cap: true,
+      bookings: {
+        select: {
+          period: true,
+        }
+      }
+    }
+  });
+
+  return booking_days.map(day => {
+    const curr_morning = day.bookings.filter(p => p.period === 'AM').length;
+    const curr_afternoon = day.bookings.filter(p => p.period === 'PM').length;
+
+    return {
+      id: day.id,
+      date: day.date,
+      max_morning_cap: day.max_morning_cap,
+      max_afternoon_cap: day.max_afternoon_cap,
+      curr_morning,
+      curr_afternoon
+    };
+  });
 }
 
 export async function createBooking(student_id: number, booking_id: number, period: string) {
   try {
-    const session_count = period === 'AM' ? 'curr_morning' : 'curr_afternoon';
-
     return await prisma.booking.create({
       data: {
         student_number: student_id,
         booking_day_id: booking_id,
         period: period
       }
-    }),
-    prisma.bookingDay.update({
-      where: {
-        id: booking_id
-      },
-      data: {
-        [session_count]: {
-          increment: 1
-        },
-      },
     }),
     prisma.studentAuth.update({
       where: {
