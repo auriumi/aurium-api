@@ -35,8 +35,11 @@ model StudentDetail {
   city            String?
   barangay        String?
   mothers_name    String?
+  mothers_title   String?
   fathers_name    String?
+  fathers_title   String?
   guardians_name  String?
+  guardians_title String?
   contact_num     String?
   photo_url       String?
   student         Student  @relation(fields: [id], references: [id], onDelete: Cascade)
