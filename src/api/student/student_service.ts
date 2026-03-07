@@ -22,8 +22,11 @@ export async function createStudent(body: any) {
           birth_date: new Date(body.birthdate),
           contact_num: body.contact_num,
           mothers_name: body.parent?.mothers_name,
+          mothers_title: body.parent?.mothers_title,
           fathers_name: body.parent?.fathers_name,
+          fathers_title: body.parent?.fathers_title,
           guardians_name: body.guardian?.guardians_name,
+          guardians_title: body.guardian?.guardians_title,
           province: body.province,
           city: body.city,
           barangay: body.barangay
