@@ -7,6 +7,9 @@ import { StudentStatus } from "@prisma/client";
 const resend = new Resend(process.env.RESEND_API);
 const DOMAIN = "auriumi.cloud";
 
+//pagination query
+const STUDENTS_PER_PAGE = 8;
+
 export async function verifyStudent(id: string) {
   try {
     //student lookup
@@ -52,6 +55,7 @@ export async function verifyStudent(id: string) {
       },
       select: {
         school_email: true,
+        personal_email: true,
       }
     }); 
 
@@ -62,8 +66,11 @@ export async function verifyStudent(id: string) {
       };
     }
 
+    //check if school email is null then fallback to their personal email instead
+    const email = get_email.school_email ? get_email.school_email : get_email.personal_email; 
+
     //send credentials to the respective student email
-    const send_pass = await sendCreds(temp_pass.actual_pass, get_email.school_email);
+    const send_pass = await sendCreds(temp_pass.actual_pass, email);
     if (!send_pass) return { success: false, reason: "Email API Error" };
 
     return { success: true };
@@ -87,7 +94,6 @@ export async function generatePass() {
   }
   
   //hashing password with bcrypt
-  console.log("generated pass: ", tempPass); //remove on prod
   const hashedPass = await bcrypt.hash(tempPass, 10);
 
   return {
@@ -110,8 +116,6 @@ export async function sendCreds(pass: string, recipent: string) {
   });
   return !error;
 }
-
-const STUDENTS_PER_PAGE = 8;
 
 //get total count of unverified students
 export async function getUnverifiedStudentCount() {
