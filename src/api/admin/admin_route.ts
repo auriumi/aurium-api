@@ -13,6 +13,9 @@ router.get("/student/fetch", verifyToken, isAdmin, adminController.fetchUnverifi
 //get student by id
 router.get("/student/search", verifyToken, isAdmin, adminController.searchUnverifiedById);
 
+//masterlist
+router.get("/masterlist", verifyToken, isAdmin, adminController.fetchMasterlist);
+
 //booking endpoint
 router.post("/book/add", verifyToken, isAdmin, adminController.addSchedule);
 router.get("/book/fetch", verifyToken, isAdmin, adminController.fetchSchedule);

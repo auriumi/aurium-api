@@ -9,6 +9,15 @@ const DOMAIN = "auriumi.cloud";
 
 //pagination query
 const STUDENTS_PER_PAGE = 8;
+const M_STUDENTS_PER_PAGE = 9;
+
+const STATUS_MAP: Record<number, StudentStatus> = {
+  1: StudentStatus.REGISTERED,
+  2: StudentStatus.APPROVED,
+  3: StudentStatus.BOOKED,
+  4: StudentStatus.ATTENDED,
+  5: StudentStatus.FULLY_VERIFIED
+}
 
 export async function verifyStudent(id: string) {
   try {
@@ -204,4 +213,58 @@ export async function fetchSchedule() {
       },
     },
   });
+}
+
+export async function m_queryByFilter(page: number, dept: string, course: string, status: string) {
+  const safe_page = page > 0 ? page : 1;
+  const skip = (safe_page - 1) * M_STUDENTS_PER_PAGE;
+
+  const all_dept = dept === "ALL";
+  const all_course = course === "ALL";
+  const all_status = status === "ALL";
+  
+  const total_students = await prisma.student.count();
+
+  const query = {
+    skip: skip,
+    take: M_STUDENTS_PER_PAGE,
+    orderBy: {
+      id: "asc" as const
+    },
+    include: {
+      studentDetail: true,
+      studentAuth: {
+        select: {
+          status: true
+        },
+      },
+    },
+  }
+
+  if (all_dept && all_course && all_status) {
+    const students = await prisma.student.findMany(query);
+  }
+
+  //filters
+  const where: any = {};
+  if (!all_dept) where.department = dept;
+  if (!all_course) where.course = course;
+
+  if (!all_status) {
+    const status_map = STATUS_MAP[Number(status)];
+    if (status_map) {
+      where.studentAuth = {
+        is: {
+          status: status_map
+        },
+      };
+    }
+  }
+
+  const students = await prisma.student.findMany({
+    ...query,
+    where,
+  });
+
+  return { students, total_students };
 }
