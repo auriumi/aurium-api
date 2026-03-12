@@ -219,52 +219,33 @@ export async function m_queryByFilter(page: number, dept: string, course: string
   const safe_page = page > 0 ? page : 1;
   const skip = (safe_page - 1) * M_STUDENTS_PER_PAGE;
 
-  const all_dept = dept === "ALL";
-  const all_course = course === "ALL";
-  const all_status = status === "ALL";
+  const where: any = {};
+  if (dept !== "ALL") where.department = dept;
+  if (course !== "ALL") where.course = course;
+
+  if (status !== "ALL") {
+    const status_map = STATUS_MAP[Number(status)];
+    if (status_map) {
+      where.studentAuth = { status: status_map };
+    }
+  }
+  console.log(where);
   
   const total_students = await prisma.student.count();
+  const total_result = await prisma.student.count({where});
 
-  const query = {
-    skip: skip,
+  const students = await prisma.student.findMany({
+    skip,
     take: M_STUDENTS_PER_PAGE,
-    orderBy: {
-      id: "asc" as const
-    },
+    orderBy: { id: "asc" as const },
+    where,
     include: {
       studentDetail: true,
       studentAuth: {
-        select: {
-          status: true
-        },
+        select: { status: true },
       },
     },
-  }
-
-  if (all_dept && all_course && all_status) {
-    const students = await prisma.student.findMany(query);
-  }
-
-  //filters
-  const where: any = {};
-  if (!all_dept) where.department = dept;
-  if (!all_course) where.course = course;
-
-  if (!all_status) {
-    const status_map = STATUS_MAP[Number(status)];
-    if (status_map) {
-      where.studentAuth = {
-        is: {
-          status: status_map
-        },
-      };
-    }
-  }
-
-  const students = await prisma.student.findMany({
-    ...query,
-    where,
   });
 
-  return { students, total_students };
+  return { students, total_students, total_result };
 }
