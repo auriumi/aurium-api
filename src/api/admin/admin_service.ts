@@ -229,7 +229,6 @@ export async function m_queryByFilter(page: number, dept: string, course: string
       where.studentAuth = { status: status_map };
     }
   }
-  console.log(where);
   
   const total_students = await prisma.student.count();
   const total_result = await prisma.student.count({where});
@@ -248,4 +247,23 @@ export async function m_queryByFilter(page: number, dept: string, course: string
   });
 
   return { students, total_students, total_result };
+}
+
+export async function m_queryById(student_id: number) {
+  const student = await prisma.student.findUnique({
+    where: {
+      student_number: student_id,
+    },
+    include: {
+      studentDetail: true,
+      studentAuth: {
+        select: {
+          status: true,
+        }
+      }
+    }
+  });
+
+  if (!student) return { success: false, reason: "Student doesn't exist!" };
+  return { success: true, student };
 }
