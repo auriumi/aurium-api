@@ -56,7 +56,7 @@ export async function fetchUnverifiedStudents(req: Request, res: Response) {
 export async function searchUnverifiedById(req: Request, res: Response) {
   try {
     const { id } = req.query;
-    if (!id) res.status(400).json({ error: 'Invalid request' });
+    if (!id) return res.status(400).json({ error: 'Invalid request' });
 
     const result = await adminService.getUnverifiedStudentById(Number(id));  
     if (!result.success) res.status(404).json({ reason: result.reason });
@@ -112,6 +112,9 @@ export async function fetchSchedule(req: Request, res: Response) {
 
 //fetch students based on filter type
 export async function fetchMasterlist(req: Request, res: Response) {
+  const id = req.query.id;
+  if (id) return fetchMasterlistById(req, res, Number(id));
+
   try {
     const page = Number(req.query.page ?? 1);
     const dept = String(req.query.dept ?? "ALL");
@@ -121,6 +124,23 @@ export async function fetchMasterlist(req: Request, res: Response) {
     const result = await adminService.m_queryByFilter(page, dept, course, status);
     return res.json(result);
 
+  } catch (err) {
+    console.error("Server error: ", err);
+    return res.status(500).json({
+      status: 'Internal Server Error'
+    });
+  }
+}
+
+export async function fetchMasterlistById(req: Request, res: Response, student_id: number) {
+  try {
+    const result = await adminService.m_queryById(student_id);
+
+    if (!result.success) {
+      return res.json({ error: result.reason });
+    }
+
+    return res.json(result);
   } catch (err) {
     console.error("Server error: ", err);
     return res.status(500).json({
