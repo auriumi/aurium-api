@@ -2,7 +2,7 @@ import prisma from "../../config/prisma";
 import crypto from "crypto";
 import bcrypt from "bcrypt";
 import { Resend } from 'resend';
-import { StudentStatus } from "@prisma/client";
+import { AdminActions, StudentStatus } from "@prisma/client";
 
 const resend = new Resend(process.env.RESEND_API);
 const DOMAIN = "auriumi.cloud";
@@ -19,7 +19,7 @@ const STATUS_MAP: Record<number, StudentStatus> = {
   5: StudentStatus.FULLY_VERIFIED
 }
 
-export async function verifyStudent(id: string) {
+export async function verifyStudent(id: string, admin_id: string) {
   try {
     //student lookup
     const student = await prisma.student.update({
@@ -82,6 +82,9 @@ export async function verifyStudent(id: string) {
     const send_pass = await sendCreds(temp_pass.actual_pass, email);
     if (!send_pass) return { success: false, reason: "Email API Error" };
 
+    //generate log if everything succeeds
+    await generateLog(parseInt(admin_id), student.student_number, AdminActions.APPROVED); 
+
     return { success: true };
   } catch (err: any) {
     return { 
@@ -89,6 +92,16 @@ export async function verifyStudent(id: string) {
       reason: "Something went wrong!"
     };
   }
+}
+
+export async function generateLog(admin_id: number, target_id: number, action: AdminActions) {
+  return await prisma.logs.create({
+    data: {
+      admin_id: admin_id,
+      action: action,
+      target_id: target_id
+    }
+  });
 }
 
 export async function generatePass() {

@@ -1,18 +1,32 @@
 import { Request, Response } from "express";
 import * as adminService from "./admin_service";
-import { Prisma } from "@prisma/client"; //required for proper error handling
+import { Prisma } from "@prisma/client";
+
+interface AdminRequest extends Request {
+  user?: {
+    admin_id: string;
+  }
+}
 
 //handle verification
-export async function handleVerify(req: Request, res: Response) {
+export async function handleVerify(req: AdminRequest, res: Response) {
   try {
     const body = req.body;
+    const admin_id = req.user?.admin_id;
+
+    if (!admin_id) {
+      return res.status(401).json({
+        error: "Unauthorized!"
+      });
+    } 
+
     if (!body.id) {
       return res.status(400).json({
         error: "Student ID is required!"
       });
     }
 
-    const result = await adminService.verifyStudent(body.id);
+    const result = await adminService.verifyStudent(body.id, admin_id);
     
     if (!result.success) {
       return res.status(404).json({
