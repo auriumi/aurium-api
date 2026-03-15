@@ -6,6 +6,7 @@ const router = Router();
 
 //student verifier endpoint
 router.post("/student/verify", verifyToken, isAdmin, adminController.handleVerify);
+router.delete("/student/:id", verifyToken, isAdmin, adminController.handleCancel);
 
 //get all unverified students
 router.get("/student/fetch", verifyToken, isAdmin, adminController.fetchUnverifiedStudents);

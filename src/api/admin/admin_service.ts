@@ -19,6 +19,22 @@ const STATUS_MAP: Record<number, StudentStatus> = {
   5: StudentStatus.FULLY_VERIFIED
 }
 
+export async function deleteStudent(id: string, admin_id: string) {
+  try {
+    await prisma.student.delete({
+      where: {
+        student_number: parseInt(id)
+      }
+    });
+    return { success: true };
+  } catch (err: any) {
+    return { 
+      success: false, 
+      reason: "Something went wrong!"
+    };
+  }
+}
+
 export async function verifyStudent(id: string, admin_id: string) {
   try {
     //student lookup

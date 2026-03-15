@@ -46,6 +46,43 @@ export async function handleVerify(req: AdminRequest, res: Response) {
   }
 };
 
+//reject student approval
+export async function handleCancel(req: AdminRequest, res: Response) {
+  try {
+    const { id } = req.params;
+    if (typeof id !== 'string') {
+      return res.status(400).json({
+        error: "Bad Student ID format!"
+      });
+    }
+
+    const admin_id = req.user?.admin_id;
+    if (!admin_id) {
+      return res.status(401).json({
+        error: "Unauthorized!"
+      });
+    } 
+
+    const result = await adminService.deleteStudent(id, admin_id);
+    
+    if (!result.success) {
+      return res.status(404).json({
+        message: result.reason
+      });
+    }
+
+    res.json({
+      status: "Success!"
+    });
+
+  } catch (err) {
+    console.error("Error: ", err);
+    res.status(500).json({
+      status: 'Internal Server Error'
+    });
+  }
+}
+
 //fetch for unverified students
 export async function fetchUnverifiedStudents(req: Request, res: Response) {
   try {
