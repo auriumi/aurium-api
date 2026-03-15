@@ -33,7 +33,7 @@ export async function handleLogin(id: string, pass: string, is_admin?: boolean) 
                     last_login: new Date()
                 }
             });
-            return { success: true };
+            return { success: true, admin };
         }
         return { 
             success: false,
@@ -88,7 +88,7 @@ export async function handleLogin(id: string, pass: string, is_admin?: boolean) 
 }
 
 export async function jwtGen(user: object) {
-    const token = jwt.sign(user, jwt_sauce as string, { expiresIn: '1h'});
+    const token = jwt.sign(user, jwt_sauce as string, { expiresIn: '3h'});
     return token;
 }
 

@@ -25,9 +25,11 @@ export async function handleLogin(req: Request, res: Response) {
             return res.status(401).json(result.reason);
         }
 
+        const admin_id = result.admin?.id;
         const token = await authService.jwtGen({
+            admin_id: admin_id,
             [is_admin ? 'admin_email' : 'student_number']: id,
-            is_admin: is_admin,
+            is_admin: is_admin
         });
 
         res.cookie("token", token, {
