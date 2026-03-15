@@ -26,6 +26,7 @@ model Student {
   studentAuth    StudentAuth?
   studentDetail  StudentDetail?
   booking        Booking[]
+  logs           Logs[]
 }
 
 model StudentDetail {
@@ -78,9 +79,19 @@ model Admin {
 
 model Logs {
   id          Int       @id @default(autoincrement())
-  action      String
+  admin_id    Int
+  action      AdminActions
+  target_id   Int?
   created_at  DateTime  @default(now())
-  admin       Admin     @relation(fields: [id], references: [id])
+
+  admin       Admin     @relation(fields: [admin_id], references: [id], onDelete: Cascade)
+  student     Student?  @relation(fields: [target_id], references: [student_number], onDelete: SetNull, onUpdate: Cascade)
+}
+
+enum AdminActions {
+  APPROVED
+  VERIFIED
+  UPLOADED
 }
 // ---------------------------------------------------------------------
 
