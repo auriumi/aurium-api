@@ -17,5 +17,6 @@ router.post("/profile/upload", verifyToken, studentController.savePhotoUrl);
 //booking
 router.get("/book/fetch", verifyToken, studentController.fetchBooking);
 router.post("/book/create", verifyToken, studentController.createBooking);
+router.patch("/book/update/:id", verifyToken, studentController.updateBooking);
 
 export default router;
