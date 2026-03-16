@@ -95,6 +95,46 @@ export async function createBooking(req: StudentRequest, res: Response) {
     }
 };
 
+export async function updateBooking(req: StudentRequest, res: Response) {
+    try {
+        //get id from jwt paylaod
+        const student_number = req.user?.student_number;
+
+        const { id } = req.params;
+        const { booking_day_id, period } = req.body;
+
+        if (typeof id !== 'string') {
+            return res.status(400).json({
+                error: "Bad Request!"
+            });
+        }
+
+        if (!student_number || !booking_day_id || !period) {
+            return res.status(400).json({
+                error: "Invalid Request!",
+            })
+        }
+
+        if (period !== 'AM' && period !== 'PM') {
+            return res.status(400).json({
+                error: "Invalid Request!",
+            })
+        }
+
+        await studentService.updateBooking(id, booking_day_id, period);
+
+        return res.json({
+            status: "Success"
+        });
+    } catch (err) {
+        console.error(`Error: ${err}`);
+        return res.status(500).json({
+            status: "Failed",
+            message: "Server error nyae",
+        });
+    }
+};
+
 //R2
 export async function getPhotoUploadUrl(req: StudentRequest, res: Response) {
     const student_number = req.user?.student_number;

@@ -95,6 +95,22 @@ export async function createBooking(student_id: number, booking_id: number, peri
   }
 }
 
+export async function updateBooking(booking_id: string, booking_day_id: number, period: string) {
+  try {
+    return await prisma.booking.update({
+      where: {
+        id: parseInt(booking_id) 
+      },
+      data: {
+        booking_day_id: booking_day_id,
+        period: period
+      }
+    });
+  } catch(err) {
+    console.error("Error: ", err);
+  }
+}
+
 export async function getStudentProfile(student_number: number) {
   try {
     const student = await prisma.student.findUnique({
