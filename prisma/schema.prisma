@@ -12,7 +12,7 @@ model Student {
   first_name     String?
   last_name      String?
   mid_name       String?
-  school_email   String         @unique
+  school_email   String?         
   personal_email String
   department     String?
   course         String?
