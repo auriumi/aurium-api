@@ -58,6 +58,13 @@ export async function verifyStudent(id: string, admin_id: string) {
     //generate temp pass and hash
     const temp_pass = await generatePass();
 
+    //check if school email is null then fallback to their personal email instead
+    const email = student.school_email ? student.school_email : student.personal_email; 
+
+    //send credentials to the respective student email
+    const send_pass = await sendCreds(temp_pass.actual_pass, email);
+    if (!send_pass) return { success: false, reason: "Something went wrong when sending the password." };
+
     //upload hashed pass
     await prisma.student.update({
       where : {
@@ -72,31 +79,6 @@ export async function verifyStudent(id: string, admin_id: string) {
         },
       },
     });
-
-    //get the email
-    const get_email = await prisma.student.findUnique({
-      where: {
-        student_number: parseInt(id),
-      },
-      select: {
-        school_email: true,
-        personal_email: true,
-      }
-    }); 
-
-    if (!get_email) {
-      return { 
-        success: false,
-        reason: 'Student has no school email provided!'
-      };
-    }
-
-    //check if school email is null then fallback to their personal email instead
-    const email = get_email.school_email ? get_email.school_email : get_email.personal_email; 
-
-    //send credentials to the respective student email
-    const send_pass = await sendCreds(temp_pass.actual_pass, email);
-    if (!send_pass) return { success: false, reason: "Email API Error" };
 
     //generate log if everything succeeds
     await generateLog(parseInt(admin_id), student.student_number, AdminActions.APPROVED); 
