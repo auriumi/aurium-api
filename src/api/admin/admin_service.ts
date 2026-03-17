@@ -19,6 +19,31 @@ const STATUS_MAP: Record<number, StudentStatus> = {
   5: StudentStatus.FULLY_VERIFIED
 }
 
+export async function getStaffProfile(id: string) {
+  try {
+    const staff = await prisma.admin.findUnique({
+      where: {
+        id: parseInt(id)
+      },
+      select: {
+        first_name: true,
+        last_name: true,
+        email: true,
+        role: true
+      }
+    });
+
+    if (!staff) return { success: false, reason: "Unauthorized!" };
+
+    return { success: true, staff }
+  } catch (err: any) {
+    return { 
+      success: false, 
+      reason: "Something went wrong!"
+    };
+  }
+}
+
 export async function deleteStudent(id: string, admin_id: string) {
   try {
     await prisma.student.delete({

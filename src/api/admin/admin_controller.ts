@@ -8,6 +8,29 @@ interface AdminRequest extends Request {
   }
 }
 
+export async function getStaffDetails(req: AdminRequest, res: Response) {
+  try {
+    const id = req.user?.admin_id;
+    if (!id) {
+      return res.status(401).json({
+        error: "Unauthorized!"
+      });
+    } 
+
+    const data = await adminService.getStaffProfile(id);
+    if (!data.success) {
+      return res.status(401).json(data.reason);
+    }
+    return res.json(data.staff);
+
+  } catch (err) {
+    console.error("Error: ", err);
+    res.status(500).json({
+      status: 'Internal Server Error'
+    });
+  }
+} 
+
 //handle verification
 export async function handleVerify(req: AdminRequest, res: Response) {
   try {
