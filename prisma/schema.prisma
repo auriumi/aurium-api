@@ -68,13 +68,20 @@ enum StudentStatus {
 
 // ------------------------------- Admin Schema -------------------------
 model Admin {
-  id                Int       @id @default(autoincrement())
-  email             String?   @unique 
+  id                Int         @id @default(autoincrement())
+  email             String?     @unique 
   first_name        String?
   last_name         String?
   hashed_password   String
   last_login        DateTime?
+  role              AdminRoles  @default(MEMBER)
   logs              Logs[]
+}
+
+enum AdminRoles {
+  ADMINISTRATOR
+  MODERATOR
+  MEMBER
 }
 
 model Logs {
