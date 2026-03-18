@@ -115,18 +115,14 @@ export async function resetStudentPass(id: string, email_target: string) {
 export async function verifyStudent(id: string, admin_id: string) {
   try {
     //student lookup
-    const student = await prisma.student.update({
+    const student = await prisma.student.findUnique({
       where: {
         student_number: parseInt(id),
       },
-      data: {
-        studentAuth: {
-          update: {
-            is_verified: true,
-          },
-        },
-      },
-      include: {
+      select: {
+        student_number: true,
+        school_email: true,
+        personal_email: true,
         studentAuth: true,
       }
     });
@@ -142,15 +138,16 @@ export async function verifyStudent(id: string, admin_id: string) {
     const send_pass = await sendCreds(temp_pass.actual_pass, email);
     if (!send_pass) return { success: false, reason: "Something went wrong when sending the password." };
 
-    //upload hashed pass
+    //upload hashed pass to db
     await prisma.student.update({
       where : {
-        student_number: parseInt(id)
+        student_number: student.student_number
       },
       data: {
         studentAuth: {
           update: {
             hashed_password: temp_pass.hash_pass,
+            is_verified: true,
             status: StudentStatus.APPROVED,
           },
         },
