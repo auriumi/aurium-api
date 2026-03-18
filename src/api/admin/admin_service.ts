@@ -44,7 +44,7 @@ export async function getStaffProfile(id: string) {
   }
 }
 
-export async function deleteStudent(id: string, admin_id: string) {
+export async function deleteStudent(id: string) {
   try {
     await prisma.student.delete({
       where: {
@@ -56,6 +56,58 @@ export async function deleteStudent(id: string, admin_id: string) {
     return { 
       success: false, 
       reason: "Something went wrong!"
+    };
+  }
+}
+
+export async function resetStudentPass(id: string, email_target: string) {
+  try {
+    const student = await prisma.student.findUnique({
+      where: {
+        student_number: parseInt(id)
+      },
+      select: {
+        student_number: true,
+        school_email: true,
+        personal_email: true
+      }
+    });
+    if (!student) return { success: false, reason: "Student ID doesn't exist." };
+
+    const target_email = email_target === 'personal' 
+      ? student.personal_email 
+      : email_target === 'school' 
+      ? student.school_email 
+      : null;
+
+    if (!target_email) {
+      return { success: false, reason: "Invalid target email given." };
+    }
+
+    const temp_pass = await generatePass();
+
+    const send_pass = await sendCreds(temp_pass.actual_pass, target_email);
+    if (!send_pass) {
+      return { success: false, reason: "Something went wrong when sending the password." };
+    }
+
+    await prisma.studentAuth.update({
+      where: {
+        student_number: student.student_number
+      },
+      data: {
+        hashed_password: temp_pass.hash_pass,
+        is_new: true
+      }
+    });
+
+    return { success: true };
+  } catch (err) {
+    console.error(`Failed to reset password for student ${id}:`, err);
+
+    return { 
+      success: false, 
+      reason: "An unexpected error occurred. Please try again later." 
     };
   }
 }

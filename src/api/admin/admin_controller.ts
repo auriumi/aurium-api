@@ -86,7 +86,7 @@ export async function handleCancel(req: AdminRequest, res: Response) {
       });
     } 
 
-    const result = await adminService.deleteStudent(id, admin_id);
+    const result = await adminService.deleteStudent(id);
     
     if (!result.success) {
       return res.status(404).json({
@@ -221,4 +221,29 @@ export async function fetchMasterlistById(req: Request, res: Response, student_i
       status: 'Internal Server Error'
     });
   }
+}
+
+export async function handleStudentPasswordReset(req: AdminRequest, res: Response) {
+  const { id } = req.params;
+  if (typeof id !== 'string') {
+    return res.status(400).json({
+      error: "Bad Student ID format!"
+    });
+  }
+
+  const { target } = req.body;
+  if (!target) {
+    return res.status(401).json({
+      error: "No target email provided!"
+    });
+  } 
+
+  const result = await adminService.resetStudentPass(id, target);
+  if (!result.success) {
+    return res.status(400).json({
+      error: result.reason
+    });
+  }
+
+  res.json({ status: 'success' });
 }

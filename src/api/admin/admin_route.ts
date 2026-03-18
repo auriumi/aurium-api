@@ -19,6 +19,7 @@ router.get("/student/search", verifyToken, isAdmin, adminController.searchUnveri
 
 //masterlist
 router.get("/masterlist", verifyToken, isAdmin, adminController.fetchMasterlist);
+router.post("/masterlist/reset/:id", verifyToken, isAdmin, adminController.handleStudentPasswordReset);
 
 //booking endpoint
 router.post("/book/add", verifyToken, isAdmin, adminController.addSchedule);
