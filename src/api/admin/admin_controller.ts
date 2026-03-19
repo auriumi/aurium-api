@@ -193,9 +193,10 @@ export async function fetchMasterlist(req: Request, res: Response) {
     const page = Number(req.query.page ?? 1);
     const dept = String(req.query.dept ?? "ALL");
     const course = String(req.query.course ?? "ALL");
+    const major = String(req.query.major ?? "ALL");
     const status = String(req.query.status ?? "ALL");
 
-    const result = await adminService.m_queryByFilter(page, dept, course, status);
+    const result = await adminService.m_queryByFilter(page, dept, course, major, status);
     return res.json(result);
 
   } catch (err) {

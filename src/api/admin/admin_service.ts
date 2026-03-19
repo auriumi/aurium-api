@@ -300,13 +300,14 @@ export async function fetchSchedule() {
   });
 }
 
-export async function m_queryByFilter(page: number, dept: string, course: string, status: string) {
+export async function m_queryByFilter(page: number, dept: string, course: string, major: string, status: string) {
   const safe_page = page > 0 ? page : 1;
   const skip = (safe_page - 1) * M_STUDENTS_PER_PAGE;
 
   const where: any = {};
   if (dept !== "ALL") where.department = dept;
   if (course !== "ALL") where.course = course;
+  if (major !== "ALL") where.major = major;
 
   if (status !== "ALL") {
     const status_map = STATUS_MAP[Number(status)];
