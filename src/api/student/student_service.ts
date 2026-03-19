@@ -45,6 +45,9 @@ export async function createStudent(body: any) {
 
 export async function fetchBooking() {
   const booking_days = await prisma.bookingDay.findMany({
+    where: {
+      is_open: true,
+    },
     select: {
       id: true,
       date: true,
@@ -54,7 +57,7 @@ export async function fetchBooking() {
         select: {
           period: true,
         }
-      }
+      },
     }
   });
 
