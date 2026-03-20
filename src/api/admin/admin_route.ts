@@ -24,5 +24,6 @@ router.post("/masterlist/reset/:id", verifyToken, isAdmin, adminController.handl
 //booking endpoint
 router.post("/book/add", verifyToken, isAdmin, adminController.addSchedule);
 router.get("/book/fetch", verifyToken, isAdmin, adminController.fetchSchedule);
+router.patch("/book/toggle", verifyToken, isAdmin, adminController.handleToggleScheduleState);
 
 export default router;

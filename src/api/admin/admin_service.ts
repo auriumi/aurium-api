@@ -276,7 +276,7 @@ export async function addSchedule(date: string, am_cap: number, pm_cap: number) 
 }
 
 //fetch schedule per day
-//TODO: paginate query
+//TODO: paginate query or cache :P
 export async function fetchSchedule() {
   return prisma.bookingDay.findMany({
     include: {
@@ -298,6 +298,44 @@ export async function fetchSchedule() {
       },
     },
   });
+}
+
+export async function toggleScheduleState(id: number) {
+  try {
+    const booking_day = await prisma.bookingDay.findUnique({
+      where: {
+        id: id
+      },
+      select: {
+        id: true,
+        is_open: true,
+      }
+    });
+
+    if (!booking_day) {
+      return {
+        success: false,
+        reason: `Booking with ID ${id} is not found`
+      };
+    }
+
+    await prisma.bookingDay.update({
+      where: {
+        id: booking_day.id
+      },
+      data: {
+        is_open: !booking_day.is_open,
+      }
+    })  
+
+    return { success: true };
+
+  } catch (err: any) {
+    return { 
+      success: false, 
+      reason: "Something went wrong!"
+    };
+  }
 }
 
 export async function m_queryByFilter(page: number, dept: string, course: string, major: string, status: string) {

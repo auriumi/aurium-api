@@ -184,6 +184,24 @@ export async function fetchSchedule(req: Request, res: Response) {
   return res.json(scheduleList);
 }
 
+export async function handleToggleScheduleState(req: AdminRequest, res: Response) {
+  const booking_id = req.query.id; 
+  if (!booking_id) return res.status(400).json({ error: 'No id provided!' });
+
+  try {
+    const result = await adminService.toggleScheduleState(Number(booking_id));
+    if (!result.success) res.status(404).json({ reason: result.reason });
+
+    return res.json({ status: 'success' });
+
+  } catch (err) {
+    console.error("Server error: ", err);
+    return res.status(500).json({
+      status: 'Internal Server Error'
+    });
+  }
+}
+
 //fetch students based on filter type
 export async function fetchMasterlist(req: Request, res: Response) {
   const id = req.query.id;
