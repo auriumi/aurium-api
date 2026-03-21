@@ -248,13 +248,25 @@ export async function getUnverifiedStudentById(student_id: number) {
     },
     include: {
       studentDetail: true,
-    }
+      studentAuth: {
+        select: {
+          is_verified: true,
+        },
+      },
+    },
   });
 
   if (!student) {
     return {
       success: false,
-      reason: "Student ID not found"
+      reason: `Student ${student_id} is not found`
+    };
+  }
+
+  if (student.studentAuth?.is_verified) {
+    return {
+      success: false,
+      reason: "Student was already approved"
     };
   }
 
