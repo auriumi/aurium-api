@@ -272,6 +272,29 @@ export async function handleFinalizeStudentUpdate(req: AdminRequest, res: Respon
   }
 }
 
+export async function handleFinalizeStudentStatus(req: AdminRequest, res: Response) {
+  const { id } = req.query;
+
+  if (typeof id !== "string" || Number.isNaN(Number(id))) {
+    return res.status(400).json({ reason: "Invalid student ID." });
+  }
+
+  try {
+    const result = await adminService.fv_markFullyVerified(Number(id));
+
+    if (!result.success) {
+      return res.status(400).json({ reason: result.reason });
+    }
+
+    return res.json({ success: true });
+  } catch (err) {
+    console.error("Server error: ", err);
+    return res.status(500).json({
+      status: "Internal Server Error"
+    });
+  }
+}
+
 export async function fetchMasterlistById(req: Request, res: Response, student_id: number) {
   try {
     const result = await adminService.m_queryById(student_id);

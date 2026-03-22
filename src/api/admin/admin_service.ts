@@ -466,6 +466,34 @@ export async function fv_queryStudents(page: number) {
   return { students, total_students };
 }
 
+export async function fv_markFullyVerified(studentId: number) {
+  try {
+    const auth = await prisma.studentAuth.findUnique({
+      where: { student_number: studentId },
+      select: { student_number: true },
+    });
+
+    if (!auth) {
+      return { success: false, reason: "Student doesn't exist!" };
+    }
+
+    await prisma.studentAuth.update({
+      where: { student_number: studentId },
+      data: {
+        status: StudentStatus.FULLY_VERIFIED,
+      },
+    });
+
+    return { success: true };
+  } catch (err) {
+    console.error(`Failed to fully verify student ${studentId}:`, err);
+    return {
+      success: false,
+      reason: "An unexpected error occurred. Please try again later.",
+    };
+  }
+}
+
 export async function fv_updateStudent(studentId: number, type: string, data: any) {
   try {
     const normalizedType = String(type).toLowerCase() as FinalizeUpdateType;

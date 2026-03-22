@@ -24,6 +24,7 @@ router.post("/masterlist/reset/:id", verifyToken, isAdmin, adminController.handl
 //final verification
 router.get("/finalize/fetch", verifyToken, isAdmin, adminController.fetchAttendedStudents);
 router.patch("/finalize/update/:studentId", verifyToken, isAdmin, adminController.handleFinalizeStudentUpdate);
+router.patch("/finalize/verify", verifyToken, isAdmin, adminController.handleFinalizeStudentStatus);
 
 //booking endpoint
 router.post("/book/add", verifyToken, isAdmin, adminController.addSchedule);
