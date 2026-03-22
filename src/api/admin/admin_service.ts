@@ -468,21 +468,58 @@ export async function fv_queryStudents(page: number) {
 
 export async function fv_markAttended(studentId: number) {
   try {
-    const auth = await prisma.studentAuth.findUnique({
+    const student = await prisma.student.findUnique({
       where: { student_number: studentId },
-      select: { student_number: true },
+      select: {
+        student_number: true,
+        studentAuth: {
+          select: {
+            student_number: true,
+          },
+        },
+        studentDetail: {
+          select: {
+            photo_url: true,
+          },
+        },
+        booking: {
+          orderBy: {
+            created_at: "desc",
+          },
+          take: 1,
+          select: {
+            booking_day_id: true,
+            period: true,
+          },
+        },
+      },
     });
 
-    if (!auth) {
+    if (!student?.studentAuth) {
       return { success: false, reason: "Student doesn't exist!" };
     }
 
-    await prisma.studentAuth.update({
-      where: { student_number: studentId },
-      data: {
-        status: StudentStatus.ATTENDED,
-      },
-    });
+    const latestBooking = student.booking[0];
+    if (!latestBooking) {
+      return { success: false, reason: "No booking found for this student." };
+    }
+
+    await prisma.$transaction([
+      prisma.studentAuth.update({
+        where: { student_number: studentId },
+        data: {
+          status: StudentStatus.ATTENDED,
+        },
+      }),
+      prisma.attendanceQueue.create({
+        data: {
+          student_number: studentId,
+          booking_day_id: latestBooking.booking_day_id,
+          period: latestBooking.period,
+          photo_url: student.studentDetail?.photo_url ?? null,
+        },
+      }),
+    ]);
 
     return { success: true };
   } catch (err) {

@@ -26,6 +26,7 @@ model Student {
   studentAuth    StudentAuth?
   studentDetail  StudentDetail?
   booking        Booking[]
+  attendanceQueue AttendanceQueue?
   logs           Logs[]
 }
 
@@ -111,6 +112,7 @@ model BookingDay {
   max_morning_cap     Int  
   max_afternoon_cap   Int
   bookings            Booking[]
+  attendanceQueue     AttendanceQueue[]
 }
 
 model Booking {
@@ -121,5 +123,20 @@ model Booking {
   created_at      DateTime    @default(now())
   booking_day     BookingDay  @relation(fields: [booking_day_id], references: [id], onDelete: Cascade) 
   student         Student     @relation(fields: [student_number], references: [student_number], onDelete: Cascade)
+}
+
+model AttendanceQueue {
+  id              Int        @id @default(autoincrement())
+  student_number  Int        @unique
+  booking_day_id  Int
+  period          String
+  photo_url       String?
+  created_at      DateTime   @default(now())
+
+  student         Student    @relation(fields: [student_number], references: [student_number], onDelete: Cascade)
+  booking_day     BookingDay @relation(fields: [booking_day_id], references: [id], onDelete: Cascade)
+
+  @@index([created_at])
+  @@index([student_number])
 }
 // ---------------------------------------------------------------------
