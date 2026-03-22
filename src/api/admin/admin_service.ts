@@ -466,7 +466,7 @@ export async function fv_queryStudents(page: number) {
   return { students, total_students };
 }
 
-export async function fv_markFullyVerified(studentId: number) {
+export async function fv_markFullyVerified(studentId: number, adminId: number) {
   try {
     const auth = await prisma.studentAuth.findUnique({
       where: { student_number: studentId },
@@ -477,12 +477,21 @@ export async function fv_markFullyVerified(studentId: number) {
       return { success: false, reason: "Student doesn't exist!" };
     }
 
-    await prisma.studentAuth.update({
-      where: { student_number: studentId },
-      data: {
-        status: StudentStatus.FULLY_VERIFIED,
-      },
-    });
+    await prisma.$transaction([
+      prisma.studentAuth.update({
+        where: { student_number: studentId },
+        data: {
+          status: StudentStatus.FULLY_VERIFIED,
+        },
+      }),
+      prisma.logs.create({
+        data: {
+          admin_id: adminId,
+          action: AdminActions.VERIFIED,
+          target_id: studentId,
+        },
+      }),
+    ]);
 
     return { success: true };
   } catch (err) {

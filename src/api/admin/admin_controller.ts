@@ -274,13 +274,20 @@ export async function handleFinalizeStudentUpdate(req: AdminRequest, res: Respon
 
 export async function handleFinalizeStudentStatus(req: AdminRequest, res: Response) {
   const { id } = req.query;
+  const admin_id = req.user?.admin_id;
+
+  if (!admin_id) {
+    return res.status(401).json({
+      error: "Unauthorized!"
+    });
+  }
 
   if (typeof id !== "string" || Number.isNaN(Number(id))) {
     return res.status(400).json({ reason: "Invalid student ID." });
   }
 
   try {
-    const result = await adminService.fv_markFullyVerified(Number(id));
+    const result = await adminService.fv_markFullyVerified(Number(id), Number(admin_id));
 
     if (!result.success) {
       return res.status(400).json({ reason: result.reason });
