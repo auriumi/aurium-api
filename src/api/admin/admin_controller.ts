@@ -240,6 +240,38 @@ export async function fetchAttendedStudents(req: Request, res: Response) {
    }
 }
 
+export async function handleFinalizeStudentUpdate(req: AdminRequest, res: Response) {
+  const { studentId } = req.params;
+  const { type } = req.query;
+
+  if (typeof studentId !== "string" || Number.isNaN(Number(studentId))) {
+    return res.status(400).json({ reason: "Invalid student ID." });
+  }
+
+  if (typeof type !== "string") {
+    return res.status(400).json({ reason: "Invalid update type." });
+  }
+
+  if (!req.body || typeof req.body !== "object" || Array.isArray(req.body)) {
+    return res.status(400).json({ reason: "Invalid request body." });
+  }
+
+  try {
+    const result = await adminService.fv_updateStudent(Number(studentId), type, req.body);
+
+    if (!result.success) {
+      return res.status(400).json({ reason: result.reason });
+    }
+
+    return res.json({ success: true });
+  } catch (err) {
+    console.error("Server error: ", err);
+    return res.status(500).json({
+      status: "Internal Server Error"
+    });
+  }
+}
+
 export async function fetchMasterlistById(req: Request, res: Response, student_id: number) {
   try {
     const result = await adminService.m_queryById(student_id);
