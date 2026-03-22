@@ -225,6 +225,21 @@ export async function fetchMasterlist(req: Request, res: Response) {
   }
 }
 
+export async function fetchAttendedStudents(req: Request, res: Response) {
+  const page = Number(req.query.page ?? 1);
+  
+   try {
+    const result = await adminService.fv_queryStudents(page);
+    return res.json(result);
+
+   } catch (err) {
+     console.error("Server error: ", err);
+     return res.status(500).json({
+       status: 'Internal Server Error'
+     });
+   }
+}
+
 export async function fetchMasterlistById(req: Request, res: Response, student_id: number) {
   try {
     const result = await adminService.m_queryById(student_id);

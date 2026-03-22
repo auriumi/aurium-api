@@ -10,6 +10,7 @@ const DOMAIN = "auriumi.cloud";
 //pagination query
 const STUDENTS_PER_PAGE = 8;
 const M_STUDENTS_PER_PAGE = 9;
+const F_STUDENTS_PER_PAGE = 8;
 
 const STATUS_MAP: Record<number, StudentStatus> = {
   1: StudentStatus.REGISTERED,
@@ -402,4 +403,33 @@ export async function m_queryById(student_id: number) {
 
   if (!student) return { success: false, reason: "Student doesn't exist!" };
   return { success: true, student };
+}
+
+//get paginated students where status is 'ATTENDED'
+export async function fv_queryStudents(page: number) {
+  const skip = (page - 1) * F_STUDENTS_PER_PAGE;
+
+  const students = await prisma.student.findMany({
+    skip: skip,
+    take: F_STUDENTS_PER_PAGE,
+    where: {
+      studentAuth: {
+        status: StudentStatus.ATTENDED
+      }
+    },
+    orderBy: {
+      id: 'asc'
+    },
+    include: {
+      studentDetail: true,
+    }
+  });
+
+  const total_students = await prisma.studentAuth.count({
+    where: {
+      status: StudentStatus.ATTENDED
+    }
+  });
+
+  return { students, total_students };
 }
