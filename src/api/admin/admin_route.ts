@@ -26,6 +26,9 @@ router.get("/finalize/fetch", verifyToken, isAdmin, adminController.fetchAttende
 router.patch("/finalize/update/:studentId", verifyToken, isAdmin, adminController.handleFinalizeStudentUpdate);
 router.patch("/finalize/verify", verifyToken, isAdmin, adminController.handleFinalizeStudentStatus);
 
+//attendance
+router.post("/scan/override", verifyToken, isAdmin, adminController.handleFinalizeStudentAttended);
+
 //booking endpoint
 router.post("/book/add", verifyToken, isAdmin, adminController.addSchedule);
 router.get("/book/fetch", verifyToken, isAdmin, adminController.fetchSchedule);
