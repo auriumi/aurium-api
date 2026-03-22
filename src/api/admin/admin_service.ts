@@ -44,8 +44,11 @@ const STUDENT_DETAIL_CONTACT_FIELDS = new Set([
 ]);
 
 const STUDENT_DETAIL_FAMILY_FIELDS = new Set([
+  "fathers_title",
   "fathers_name",
+  "mothers_title",
   "mothers_name",
+  "guardians_title",
   "guardians_name"
 ]);
 
