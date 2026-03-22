@@ -531,6 +531,14 @@ export async function fv_markAttended(studentId: number) {
   }
 }
 
+export async function fv_fetchAttendanceQueue() {
+  return await prisma.attendanceQueue.findMany({
+    orderBy: {
+      id: "asc",
+    },
+  });
+}
+
 export async function fv_markFullyVerified(studentId: number, adminId: number) {
   try {
     const auth = await prisma.studentAuth.findUnique({

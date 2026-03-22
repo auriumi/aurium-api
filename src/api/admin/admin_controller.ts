@@ -325,6 +325,18 @@ export async function handleFinalizeStudentAttended(req: AdminRequest, res: Resp
   }
 }
 
+export async function fetchAttendanceQueueList(req: AdminRequest, res: Response) {
+  try {
+    const attendance_list = await adminService.fv_fetchAttendanceQueue();
+    return res.json(attendance_list);
+  } catch (err) {
+    console.error("Server error: ", err);
+    return res.status(500).json({
+      status: "Internal Server Error"
+    });
+  }
+}
+
 export async function fetchMasterlistById(req: Request, res: Response, student_id: number) {
   try {
     const result = await adminService.m_queryById(student_id);
