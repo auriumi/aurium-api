@@ -543,6 +543,15 @@ export async function fv_fetchAttendanceQueue() {
     orderBy: {
       id: "asc",
     },
+    include: {
+      student: {
+        select: {
+          first_name: true,
+          mid_name: true,
+          last_name: true,
+        },
+      },
+    },
   });
 }
 
