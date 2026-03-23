@@ -40,7 +40,14 @@ const STUDENT_DETAIL_CONTACT_FIELDS = new Set([
   "barangay",
   "city",
   "province",
-  "contact_num"
+  "contact_num",
+  "school_email",
+  "personal_email"
+]);
+
+const STUDENT_CONTACT_EMAIL_FIELDS = new Set([
+  "school_email",
+  "personal_email"
 ]);
 
 const STUDENT_DETAIL_FAMILY_FIELDS = new Set([
@@ -634,6 +641,48 @@ export async function fv_updateStudent(studentId: number, type: string, data: an
 
     if (invalidFields.length > 0) {
       return { success: false, reason: `Invalid field(s) for ${normalizedType}: ${invalidFields.join(", ")}` };
+    }
+
+    if (normalizedType === "contact") {
+      const studentData: Record<string, any> = {};
+      const detailData: Record<string, any> = {};
+
+      for (const [key, value] of payloadEntries) {
+        if (STUDENT_CONTACT_EMAIL_FIELDS.has(key)) {
+          studentData[key] = value;
+        } else {
+          detailData[key] = value;
+        }
+      }
+
+      const updates: any[] = [];
+      if (Object.keys(studentData).length > 0) {
+        updates.push(
+          prisma.student.update({
+            where: { student_number: studentId },
+            data: studentData,
+          })
+        );
+      }
+
+      if (Object.keys(detailData).length > 0) {
+        updates.push(
+          prisma.student.update({
+            where: { student_number: studentId },
+            data: {
+              studentDetail: {
+                update: detailData,
+              },
+            },
+          })
+        );
+      }
+
+      if (updates.length > 0) {
+        await prisma.$transaction(updates);
+      }
+
+      return { success: true };
     }
 
     const detailData: Record<string, any> = {};
