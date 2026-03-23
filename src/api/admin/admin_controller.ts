@@ -327,7 +327,8 @@ export async function handleFinalizeStudentAttended(req: AdminRequest, res: Resp
 
 export async function fetchAttendanceQueueList(req: AdminRequest, res: Response) {
   try {
-    const attendance_list = await adminService.fv_fetchAttendanceQueue();
+    const period = req.query.period as string;
+    const attendance_list = await adminService.fv_fetchAttendanceQueue(period);
     return res.json(attendance_list);
   } catch (err) {
     console.error("Server error: ", err);

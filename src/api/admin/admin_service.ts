@@ -538,8 +538,11 @@ export async function fv_markAttended(studentId: number) {
   }
 }
 
-export async function fv_fetchAttendanceQueue() {
+export async function fv_fetchAttendanceQueue(periodFilter?: string) {
+  const whereClause = periodFilter ? { period: periodFilter } : {};
+
   return await prisma.attendanceQueue.findMany({
+    where: whereClause,
     orderBy: {
       id: "asc",
     },
@@ -549,6 +552,9 @@ export async function fv_fetchAttendanceQueue() {
           first_name: true,
           mid_name: true,
           last_name: true,
+          studentDetail: {
+            select: { photo_url: true }
+          }
         },
       },
     },
