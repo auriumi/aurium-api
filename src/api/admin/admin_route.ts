@@ -36,5 +36,6 @@ router.get("/queue/list", verifyToken, isAdmin, adminController.fetchAttendanceQ
 router.post("/book/add", verifyToken, isAdmin, adminController.addSchedule);
 router.get("/book/fetch", verifyToken, isAdmin, adminController.fetchSchedule);
 router.patch("/book/toggle", verifyToken, isAdmin, adminController.handleToggleScheduleState);
+router.patch("/book/update", verifyToken, isAdmin, adminController.handleUpdateScheduleCapacity);
 
 export default router;

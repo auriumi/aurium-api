@@ -390,6 +390,45 @@ export async function toggleScheduleState(id: number) {
   }
 }
 
+export async function updateScheduleCapacity(id: number, session: string, new_cap: number) {
+  const session_type = session === "AM" ? "max_morning_cap" : "max_afternoon_cap";
+
+  try {
+    const booking_day = await prisma.bookingDay.findUnique({
+      where: {
+        id: id
+      },
+      select: {
+        id: true,
+      }
+    });
+
+    if (!booking_day) {
+      return {
+        success: false,
+        reason: `Booking with ID ${id} is not found`
+      };
+    }
+
+    await prisma.bookingDay.update({
+      where: {
+        id: booking_day.id
+      },
+      data: {
+        [session_type]: new_cap
+      }
+    })  
+
+    return { success: true };
+
+  } catch (err: any) {
+    return { 
+      success: false, 
+      reason: "Something went wrong!"
+    };
+  }
+}
+
 export async function m_queryByFilter(page: number, dept: string, course: string, major: string, status: string) {
   const safe_page = page > 0 ? page : 1;
   const skip = (safe_page - 1) * M_STUDENTS_PER_PAGE;

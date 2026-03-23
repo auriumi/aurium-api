@@ -202,6 +202,37 @@ export async function handleToggleScheduleState(req: AdminRequest, res: Response
   }
 }
 
+export async function handleUpdateScheduleCapacity(req: AdminRequest, res: Response) {
+  const booking_id = req.query.id;
+  const { session, new_cap } = req.body ?? {};
+
+  if (typeof booking_id !== "string" || Number.isNaN(Number(booking_id))) {
+    return res.status(400).json({ reason: "Invalid booking ID." });
+  }
+
+  if (session !== "AM" && session !== "PM") {
+    return res.status(400).json({ reason: "Invalid session. Use AM or PM." });
+  }
+
+  if (!Number.isInteger(new_cap) || new_cap < 0) {
+    return res.status(400).json({ reason: "Invalid capacity." });
+  }
+
+  try {
+    const result = await adminService.updateScheduleCapacity(Number(booking_id), session, new_cap);
+    if (!result.success) {
+      return res.status(404).json({ reason: result.reason });
+    }
+
+    return res.json({ success: true });
+  } catch (err) {
+    console.error("Server error: ", err);
+    return res.status(500).json({
+      status: "Internal Server Error"
+    });
+  }
+}
+
 //fetch students based on filter type
 export async function fetchMasterlist(req: Request, res: Response) {
   const id = req.query.id;
