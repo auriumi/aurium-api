@@ -1,5 +1,11 @@
-import { StudentStatus } from "@prisma/client";
+import { SolicitationType, StudentStatus } from "@prisma/client";
 import prisma from "../../config/prisma";
+
+type SolicitationPayload = {
+  type: SolicitationType;
+  title: string;
+  name: string;
+};
 
 export async function createStudent(body: any) {
   return await prisma.student.create({
@@ -159,3 +165,76 @@ export async function getStudentProfile(student_number: number) {
     };
   }
 };
+
+export async function saveSolicitations(student_number: number, sponsors: SolicitationPayload[]) {
+  try {
+    if (sponsors.length !== 4) {
+      return {
+        success: false,
+        reason: "Sponsors must contain exactly 4 entries"
+      };
+    }
+
+    const student = await prisma.student.findUnique({
+      where: {
+        student_number
+      },
+      select: {
+        student_number: true,
+      },
+    });
+
+    if (!student) {
+      return {
+        success: false,
+        reason: "Student doesn't exist!"
+      };
+    }
+
+    await prisma.$transaction(
+      sponsors.map((sponsor, index) => {
+        const slot = index + 1;
+        const trimmedName = sponsor.name.trim();
+        const trimmedTitle = sponsor.title.trim();
+
+        if (!trimmedName) {
+          return prisma.studentSolicitations.deleteMany({
+            where: {
+              student_number,
+              slot,
+            },
+          });
+        }
+
+        return prisma.studentSolicitations.upsert({
+          where: {
+            student_number_slot: {
+              student_number,
+              slot,
+            },
+          },
+          update: {
+            type: sponsor.type,
+            name: trimmedName,
+            title: sponsor.type === "PERSON" ? trimmedTitle : null,
+          },
+          create: {
+            student_number,
+            slot,
+            type: sponsor.type,
+            name: trimmedName,
+            title: sponsor.type === "PERSON" ? trimmedTitle : null,
+          },
+        });
+      })
+    );
+
+    return { success: true };
+  } catch (err) {
+    console.error("Error: ", err);
+    return {
+      success: false,
+      reason: "Server error"
+    };
+  }
+}

@@ -19,4 +19,7 @@ router.get("/book/fetch", verifyToken, studentController.fetchBooking);
 router.post("/book/create", verifyToken, studentController.createBooking);
 router.patch("/book/update/:id", verifyToken, studentController.updateBooking);
 
+//solicitation
+router.post("/solicitation", verifyToken, studentController.saveSolicitations);
+
 export default router;

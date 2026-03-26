@@ -149,7 +149,7 @@ export async function getPhotoUploadUrl(req: StudentRequest, res: Response) {
         const { upload_url, photo_url } = await generatePresignedUrl(student_number, ext, mime);
         res.json({ upload_url, photo_url });
     } catch (err) {
-        res.json(500).json({ error: "Something went wrong generating URL" })
+        res.status(500).json({ error: "Something went wrong generating URL" })
     }
 }
 
@@ -177,5 +177,61 @@ export async function savePhotoUrl(req: StudentRequest, res: Response) {
 
     } catch {
         res.status(500).json({ error: "Something went wrong saving photo URL" });
+    }
+}
+
+export async function saveSolicitations(req: StudentRequest, res: Response) {
+    try {
+        const student_number = req.user?.student_number;
+        const { sponsors } = req.body;
+
+        if (!student_number) {
+            return res.status(401).json({ error: "Unauthorized!" });
+        }
+
+        if (!Array.isArray(sponsors) || sponsors.length !== 4) {
+            return res.status(400).json({ error: "Invalid Request!" });
+        }
+
+        const normalizedSponsors = [];
+
+        for (const sponsor of sponsors) {
+            if (!sponsor || typeof sponsor !== "object") {
+                return res.status(400).json({ error: "Invalid Request!" });
+            }
+
+            const typeValue = typeof sponsor.type === "string" ? sponsor.type.toUpperCase() : "";
+            const nameValue = typeof sponsor.name === "string" ? sponsor.name : "";
+            const titleValue = typeof sponsor.title === "string" ? sponsor.title : "";
+
+            if (typeValue !== "PERSON" && typeValue !== "COMPANY") {
+                return res.status(400).json({ error: "Invalid Request!" });
+            }
+
+            if (typeValue === "PERSON" && nameValue.trim() !== "" && titleValue.trim() === "") {
+                return res.status(400).json({ error: "Invalid Request!" });
+            }
+
+            normalizedSponsors.push({
+                type: typeValue,
+                name: nameValue,
+                title: typeValue === "PERSON" ? titleValue : "",
+            });
+        }
+
+        const result = await studentService.saveSolicitations(parseInt(student_number), normalizedSponsors);
+
+        if (!result.success) {
+            return res.status(404).json({ error: result.reason });
+        }
+
+        return res.json({ status: "Success" });
+
+    } catch (err) {
+        console.error(`Error: ${err}`);
+        return res.status(500).json({
+            status: "Failed",
+            message: "Server error nyae",
+        });
     }
 }
