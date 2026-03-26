@@ -133,6 +133,14 @@ export async function getStudentProfile(student_number: number) {
             status: true,
           },
         },
+        studentSolicitations: {
+          select: {
+            name: true,
+            title: true,
+            type: true,
+            slot: true,
+          }
+        },
         booking: {
           include: {
             booking_day: {
