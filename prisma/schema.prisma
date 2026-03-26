@@ -8,26 +8,27 @@ datasource db {
 
 // ------------------------------- Student Schema -------------------------
 model Student {
-  id             Int            @id @default(autoincrement())
-  first_name     String?
-  last_name      String?
-  mid_name       String?
-  school_email   String?         
-  personal_email String
-  department     String?
-  course         String?
-  major          String?
-  nickname       String?
-  suffix         String?
-  thesis_title   String?
-  updated_at     DateTime       @updatedAt
-  created_at     DateTime       @default(now())
-  student_number Int            @unique
-  studentAuth    StudentAuth?
-  studentDetail  StudentDetail?
-  booking        Booking[]
-  attendanceQueue AttendanceQueue?
-  logs           Logs[]
+  id                    Int            @id @default(autoincrement())
+  first_name            String?
+  last_name             String?
+  mid_name              String?
+  school_email          String?         
+  personal_email        String
+  department            String?
+  course                String?
+  major                 String?
+  nickname              String?
+  suffix                String?
+  thesis_title          String?
+  updated_at            DateTime       @updatedAt
+  created_at            DateTime       @default(now())
+  student_number        Int            @unique
+  studentAuth           StudentAuth?
+  studentDetail         StudentDetail?
+  studentSolicitations  StudentSolicitations[]
+  booking               Booking[]
+  attendanceQueue       AttendanceQueue?
+  logs                  Logs[]
 }
 
 model StudentDetail {
@@ -45,6 +46,24 @@ model StudentDetail {
   contact_num     String?
   photo_url       String?
   student         Student  @relation(fields: [id], references: [id], onDelete: Cascade)
+}
+
+model StudentSolicitations {
+  id              Int               @id @default(autoincrement())
+  student_number  Int
+  type            SolicitationType
+  slot            Int
+  title           String?
+  name            String?
+  student         Student           @relation(fields: [student_number], references: [student_number], onDelete: Cascade)
+
+  @@unique([student_number, slot])
+  @@index([student_number, slot])
+}
+
+enum SolicitationType {
+  PERSON
+  COMPANY
 }
 
 model StudentAuth {
