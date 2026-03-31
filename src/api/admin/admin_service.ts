@@ -458,6 +458,7 @@ export async function m_queryByFilter(page: number, dept: string, course: string
       studentAuth: {
         select: { status: true },
       },
+      studentSolicitations: true,
     },
   });
 
@@ -475,7 +476,8 @@ export async function m_queryById(student_id: number) {
         select: {
           status: true,
         }
-      }
+      },
+      studentSolicitations: true,
     }
   });
 
