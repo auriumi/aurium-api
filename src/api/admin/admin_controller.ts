@@ -129,7 +129,7 @@ export async function fetchUnverifiedStudents(req: Request, res: Response) {
 
 export async function searchUnverifiedById(req: Request, res: Response) {
   try {
-    const { id } = req.query;
+    const { id } = req.params;
     if (!id) return res.status(400).json({ error: 'Invalid request' });
 
     const result = await adminService.getUnverifiedStudentById(Number(id));  

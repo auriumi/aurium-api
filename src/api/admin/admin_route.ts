@@ -7,15 +7,18 @@ const router = Router();
 //get admin's profile
 router.get("/profile", verifyToken, isAdmin, adminController.getStaffDetails);
 
-//student verifier endpoint
-router.post("/student/verify", verifyToken, isAdmin, adminController.handleVerify);
-router.delete("/student/:id", verifyToken, isAdmin, adminController.handleCancel);
 
 //get all unverified students
-router.get("/student/fetch", verifyToken, isAdmin, adminController.fetchUnverifiedStudents);
+router.get("/student", verifyToken, isAdmin, adminController.fetchUnverifiedStudents);
 
-//get student by id
-router.get("/student/search", verifyToken, isAdmin, adminController.searchUnverifiedById);
+//get unverified student by id
+router.get("/student/:id", verifyToken, isAdmin, adminController.searchUnverifiedById);
+
+//student verifier endpoint
+router.post("/student/verify", verifyToken, isAdmin, adminController.handleVerify);
+
+//delete student record
+router.delete("/student/:id", verifyToken, isAdmin, adminController.handleCancel);
 
 //masterlist
 router.get("/masterlist", verifyToken, isAdmin, adminController.fetchMasterlist);
