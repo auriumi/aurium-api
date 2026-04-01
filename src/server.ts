@@ -20,21 +20,28 @@ app.use(express.json());
 app.use(cookieParser());
 
 const login_limiter = rateLimit({
-  windowMs: 5 * 60 * 1000,
+  windowMs: 5 * 60 * 1000, //5 mins
   limit: 5,
   message: "Too many login attempts, please try again later",
   legacyHeaders: false
 });
 
+const admin_limiter = rateLimit({
+  windowMs: 3 * 60 * 1000, //3 mins
+  limit: 50,
+  message: "Too many request, please try again later :P",
+  legacyHeaders: false
+});
+
 const gen_limiter = rateLimit({
-  windowMs: 3 * 60 * 1000,
+  windowMs: 3 * 60 * 1000, //3 mins
   limit: 10,
   message: "Too many request, please try again later :P",
   legacyHeaders: false
 });
 
 //API ROUTES
-app.use("/api/admin", gen_limiter, verifyToken, isAdmin, adminRoutes);
+app.use("/api/admin", admin_limiter, verifyToken, isAdmin, adminRoutes);
 app.use("/api/student", gen_limiter, verifyToken, studentRoutes);
 app.use("/api/auth", login_limiter, authRoutes);
 
