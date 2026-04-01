@@ -1,43 +1,42 @@
 import { Router } from "express";
 import * as adminController from "./admin_controller";
-import { isAdmin, verifyToken } from "../auth/auth_middleware";
 
 const router = Router();
 
 //get admin's profile
-router.get("/profile", verifyToken, isAdmin, adminController.getStaffDetails);
+router.get("/profile", adminController.getStaffDetails);
 
 //get all unverified students
-router.get("/student", verifyToken, isAdmin, adminController.fetchUnverifiedStudents);
+router.get("/student", adminController.fetchUnverifiedStudents);
 
 //get unverified student by id
-router.get("/student/:id", verifyToken, isAdmin, adminController.searchUnverifiedById);
+router.get("/student/:id", adminController.searchUnverifiedById);
 
 //verify student
-router.patch("/student/:id", verifyToken, isAdmin, adminController.handleVerify);
+router.patch("/student/:id", adminController.handleVerify);
 
 //delete student record
-router.delete("/student/:id", verifyToken, isAdmin, adminController.handleCancel);
+router.delete("/student/:id", adminController.handleCancel);
 
 //masterlist
-router.get("/masterlist", verifyToken, isAdmin, adminController.fetchMasterlist);
-router.post("/masterlist/reset/:id", verifyToken, isAdmin, adminController.handleStudentPasswordReset);
+router.get("/masterlist", adminController.fetchMasterlist);
+router.post("/masterlist/reset/:id", adminController.handleStudentPasswordReset);
 
 //final verification
-router.get("/finalize/fetch", verifyToken, isAdmin, adminController.fetchAttendedStudents);
-router.patch("/finalize/update/:studentId", verifyToken, isAdmin, adminController.handleFinalizeStudentUpdate);
-router.patch("/finalize/verify", verifyToken, isAdmin, adminController.handleFinalizeStudentStatus);
+router.get("/finalize/fetch", adminController.fetchAttendedStudents);
+router.patch("/finalize/update/:studentId", adminController.handleFinalizeStudentUpdate);
+router.patch("/finalize/verify", adminController.handleFinalizeStudentStatus);
 
 //attendance
-router.post("/scan/override", verifyToken, isAdmin, adminController.handleFinalizeStudentAttended);
+router.post("/scan/override", adminController.handleFinalizeStudentAttended);
 
 //queue
-router.get("/queue/list", verifyToken, isAdmin, adminController.fetchAttendanceQueueList);
+router.get("/queue/list", adminController.fetchAttendanceQueueList);
 
 //booking endpoint
-router.post("/book/add", verifyToken, isAdmin, adminController.addSchedule);
-router.get("/book/fetch", verifyToken, isAdmin, adminController.fetchSchedule);
-router.patch("/book/toggle", verifyToken, isAdmin, adminController.handleToggleScheduleState);
-router.patch("/book/update", verifyToken, isAdmin, adminController.handleUpdateScheduleCapacity);
+router.post("/book/add", adminController.addSchedule);
+router.get("/book/fetch", adminController.fetchSchedule);
+router.patch("/book/toggle", adminController.handleToggleScheduleState);
+router.patch("/book/update", adminController.handleUpdateScheduleCapacity);
 
 export default router;

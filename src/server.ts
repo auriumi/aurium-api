@@ -2,6 +2,7 @@ import express, { Request, Response } from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import { rateLimit } from "express-rate-limit";
+import { isAdmin, verifyToken } from "./api/auth/auth_middleware";
 
 import studentRoutes from "./api/student/student_route"; 
 import adminRoutes from "./api/admin/admin_route";
@@ -33,8 +34,8 @@ const gen_limiter = rateLimit({
 });
 
 //API ROUTES
-app.use("/api/student", gen_limiter, studentRoutes);
-app.use("/api/admin", gen_limiter, adminRoutes);
+app.use("/api/admin", gen_limiter, verifyToken, isAdmin, adminRoutes);
+app.use("/api/student", gen_limiter, verifyToken, studentRoutes);
 app.use("/api/auth", login_limiter, authRoutes);
 
 app.get("/", (req: Request, res: Response) => {

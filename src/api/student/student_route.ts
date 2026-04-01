@@ -8,18 +8,18 @@ const router = Router();
 router.post("/submit", studentController.studentRegistration);
 
 //fetch student profile respective to the id number
-router.get("/profile/fetch", verifyToken, studentController.getStudentById);
+router.get("/profile/fetch", studentController.getStudentById);
 
 //uplaod url endpoint
-router.get("/profile/get-upload", verifyToken, studentController.getPhotoUploadUrl);
-router.post("/profile/upload", verifyToken, studentController.savePhotoUrl);
+router.get("/profile/get-upload", studentController.getPhotoUploadUrl);
+router.post("/profile/upload", studentController.savePhotoUrl);
 
 //booking
-router.get("/book/fetch", verifyToken, studentController.fetchBooking);
-router.post("/book/create", verifyToken, studentController.createBooking);
-router.patch("/book/update/:id", verifyToken, studentController.updateBooking);
+router.get("/book/fetch", studentController.fetchBooking);
+router.post("/book/create", studentController.createBooking);
+router.patch("/book/update/:id", studentController.updateBooking);
 
 //solicitation
-router.post("/solicitation", verifyToken, studentController.saveSolicitations);
+router.post("/solicitation", studentController.saveSolicitations);
 
 export default router;
