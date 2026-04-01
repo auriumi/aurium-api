@@ -34,7 +34,7 @@ export async function getStaffDetails(req: AdminRequest, res: Response) {
 //handle verification
 export async function handleVerify(req: AdminRequest, res: Response) {
   try {
-    const body = req.body;
+    const { id } = req.params;
     const admin_id = req.user?.admin_id;
 
     if (!admin_id) {
@@ -43,13 +43,13 @@ export async function handleVerify(req: AdminRequest, res: Response) {
       });
     } 
 
-    if (!body.id) {
+    if (typeof id !== 'string') {
       return res.status(400).json({
         error: "Student ID is required!"
       });
     }
 
-    const result = await adminService.verifyStudent(body.id, admin_id);
+    const result = await adminService.verifyStudent(id, admin_id);
     
     if (!result.success) {
       return res.status(404).json({
