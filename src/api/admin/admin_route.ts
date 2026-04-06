@@ -23,9 +23,9 @@ router.get("/masterlist", adminController.fetchMasterlist);
 router.post("/masterlist/reset/:id", adminController.handleStudentPasswordReset);
 
 //final verification
-router.get("/finalize/fetch", adminController.fetchAttendedStudents);
-router.patch("/finalize/update/:studentId", adminController.handleFinalizeStudentUpdate);
-router.patch("/finalize/verify", adminController.handleFinalizeStudentStatus);
+router.get("/finalize", adminController.fetchAttendedStudents);
+router.patch("/finalize/:studentId", adminController.handleFinalizeStudentUpdate);
+router.patch("/finalize", adminController.handleFinalizeStudentStatus);
 
 //attendance
 router.post("/scan/override", adminController.handleFinalizeStudentAttended);
