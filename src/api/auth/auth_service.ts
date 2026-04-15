@@ -50,7 +50,7 @@ export async function handleLogin(id: string, pass: string, is_admin?: boolean) 
         if (!student) {
             return {
                 success: false,
-                reason: "Incorrect ID or Password"
+                reason: "Invalid credentials!"
             };
         }
         
@@ -60,7 +60,8 @@ export async function handleLogin(id: string, pass: string, is_admin?: boolean) 
         if (!hash) {
             return {
                 success: false,
-                reason: "You're not verified yet, please wait for confirmation!"
+                reason: "Invalid credentials!"
+                //reason: "You're not verified yet, please wait for confirmation!"
             }
         }
 
@@ -82,13 +83,13 @@ export async function handleLogin(id: string, pass: string, is_admin?: boolean) 
 
         return {
             success: false,
-            reason: "Incorrect ID or Password"
+            reason: "Invalid credentials!"
         }
     }
 }
 
 export async function jwtGen(user: object) {
-    const token = jwt.sign(user, jwt_sauce as string, { expiresIn: '3h'});
+    const token = jwt.sign(user, jwt_sauce as string, { expiresIn: '1h' });
     return token;
 }
 
