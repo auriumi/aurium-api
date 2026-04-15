@@ -38,7 +38,7 @@ export async function handleLogin(req: Request, res: Response) {
         res.cookie("token", token, {
             httpOnly: true,
             secure: is_secure,
-            sameSite: 'lax',
+            sameSite: 'strict',
             maxAge: 1000 * 60 * 60,
             path: '/'
         });
@@ -78,7 +78,7 @@ export async function handleLogout(req: Request, res: Response) {
     res.clearCookie("token", {
         httpOnly: true,
         secure: is_secure,
-        sameSite: 'lax',
+        sameSite: 'strict',
         path: '/'
     });
 
