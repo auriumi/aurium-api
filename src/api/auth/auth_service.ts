@@ -5,6 +5,26 @@ import 'dotenv/config';
 
 const jwt_sauce = process.env.JWT_SAUCE;
 
+
+export async function verifyCaptcha(token: string): Promise<boolean> {
+    const secret = process.env.NODE_ENV === "development"
+        ? "1x0000000000000000000000000000000AA"
+        : process.env.TURNSTILE_SECRET_KEY!;
+
+    const params = new URLSearchParams({
+        secret,
+        response: token,
+    });
+
+    const res = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
+        method: "POST",
+        body: params,
+    });
+
+    const data = await res.json() as { success: boolean };
+    return data.success;
+}
+
 export async function handleLogin(id: string, pass: string, is_admin?: boolean) {
 
     if (is_admin) {
