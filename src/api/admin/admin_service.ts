@@ -485,6 +485,27 @@ export async function m_queryById(student_id: number) {
   return { success: true, student };
 }
 
+export async function m_exportAll(dept: string, course: string, major: string, status: string) {
+  const where: any = {};
+  if (dept !== "ALL") where.department = dept;
+  if (course !== "ALL") where.course = course;
+  if (major !== "ALL") where.major = major;
+
+  if (status !== "ALL") {
+    const status_map = STATUS_MAP[Number(status)];
+    if (status_map) where.studentAuth = { status: status_map };
+  }
+
+  return prisma.student.findMany({
+    orderBy: { student_number: "asc" },
+    where,
+    include: {
+      studentDetail: true,
+      studentAuth: { select: { status: true } },
+    },
+  });
+}
+
 //get paginated students where status is 'ATTENDED'
 export async function fv_queryStudents(page: number) {
   const skip = (page - 1) * F_STUDENTS_PER_PAGE;
