@@ -8,6 +8,25 @@ interface AdminRequest extends Request {
   }
 }
 
+export async function verifyPassword(req: AdminRequest, res: Response) {
+  const admin_id = req.user?.admin_id;
+  if (!admin_id) return res.status(401).json({ reason: "Unauthorized" });
+
+  const { password } = req.body;
+  if (typeof password !== "string" || !password) {
+    return res.status(400).json({ reason: "Password is required." });
+  }
+
+  try {
+    const valid = await adminService.verifyAdminPassword(admin_id, password);
+    if (!valid) return res.status(401).json({ reason: "Incorrect password." });
+    return res.json({ success: true });
+  } catch (err) {
+    console.error("Password verify error:", err);
+    return res.status(500).json({ reason: "Internal Server Error" });
+  }
+}
+
 export async function getStaffDetails(req: AdminRequest, res: Response) {
   try {
     const id = req.user?.admin_id;

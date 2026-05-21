@@ -59,6 +59,15 @@ const STUDENT_DETAIL_FAMILY_FIELDS = new Set([
   "guardians_name"
 ]);
 
+export async function verifyAdminPassword(admin_id: string, password: string) {
+  const admin = await prisma.admin.findUnique({
+    where: { id: parseInt(admin_id) },
+    select: { hashed_password: true },
+  });
+  if (!admin) return false;
+  return bcrypt.compare(password, admin.hashed_password);
+}
+
 export async function getStaffProfile(id: string) {
   try {
     const staff = await prisma.admin.findUnique({

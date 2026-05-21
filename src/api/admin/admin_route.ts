@@ -6,6 +6,9 @@ const router = Router();
 //get admin's profile
 router.get("/profile", adminController.getStaffDetails);
 
+//verify admin password (used before sensitive actions)
+router.post("/verify-password", adminController.verifyPassword);
+
 //get all unverified students
 router.get("/student", adminController.fetchUnverifiedStudents);
 
