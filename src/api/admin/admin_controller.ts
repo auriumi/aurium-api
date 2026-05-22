@@ -456,7 +456,7 @@ export async function handleStudentPasswordReset(req: AdminRequest, res: Respons
     return res.status(401).json({
       error: "No target email provided!"
     });
-  } 
+  }
 
   const result = await adminService.resetStudentPass(id, target);
   if (!result.success) {
@@ -466,4 +466,46 @@ export async function handleStudentPasswordReset(req: AdminRequest, res: Respons
   }
 
   res.json({ status: 'success' });
+}
+
+export async function fetchStaffList(req: AdminRequest, res: Response) {
+  try {
+    const result = await adminService.getAdminList();
+    if (!result.success) {
+      return res.status(400).json({ reason: result.reason });
+    }
+    return res.json(result.admins);
+  } catch (err) {
+    console.error("Error:", err);
+    return res.status(500).json({ status: 'Internal Server Error' });
+  }
+}
+
+export async function handleUpdateAdminRole(req: AdminRequest, res: Response) {
+  const { id } = req.params;
+  const { role } = req.body;
+  const requesterId = req.user?.admin_id;
+
+  if (typeof id !== 'string' || Number.isNaN(Number(id))) {
+    return res.status(400).json({ reason: "Invalid admin ID." });
+  }
+
+  if (typeof role !== 'string' || !role) {
+    return res.status(400).json({ reason: "Role is required." });
+  }
+
+  if (String(requesterId) === id) {
+    return res.status(400).json({ reason: "You cannot change your own role." });
+  }
+
+  try {
+    const result = await adminService.updateAdminRole(Number(id), role);
+    if (!result.success) {
+      return res.status(400).json({ reason: result.reason });
+    }
+    return res.json({ success: true });
+  } catch (err) {
+    console.error("Error:", err);
+    return res.status(500).json({ status: 'Internal Server Error' });
+  }
 }

@@ -689,6 +689,47 @@ export async function fv_markFullyVerified(studentId: number, adminId: number) {
   }
 }
 
+export async function getAdminList() {
+  try {
+    const admins = await prisma.admin.findMany({
+      where: {
+        NOT: { role: 'ADMINISTRATOR' }
+      },
+      select: {
+        id: true,
+        first_name: true,
+        last_name: true,
+        email: true,
+        role: true,
+        last_login: true
+      },
+      orderBy: { last_name: 'asc' }
+    });
+    return { success: true, admins };
+  } catch (err) {
+    console.error("getAdminList error:", err);
+    return { success: false, reason: "Something went wrong!" };
+  }
+}
+
+export async function updateAdminRole(targetId: number, newRole: string) {
+  const validRoles = ['MODERATOR', 'MEMBER'];
+  if (!validRoles.includes(newRole)) {
+    return { success: false, reason: "Invalid role. Only MODERATOR or MEMBER are allowed." };
+  }
+
+  try {
+    await prisma.admin.update({
+      where: { id: targetId },
+      data: { role: newRole as any }
+    });
+    return { success: true };
+  } catch (err) {
+    console.error("updateAdminRole error:", err);
+    return { success: false, reason: "Admin not found or update failed." };
+  }
+}
+
 export async function fv_updateStudent(studentId: number, type: string, data: any) {
   try {
     const normalizedType = String(type).toLowerCase() as FinalizeUpdateType;

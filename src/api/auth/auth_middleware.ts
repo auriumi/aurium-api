@@ -34,3 +34,14 @@ export function isAdmin(req: AuthRequest, res: Response, next: NextFunction) {
         });
     }
 }
+
+// ADMINISTRATOR-only guard (role is embedded in JWT at login time)
+export function isAdministrator(req: AuthRequest, res: Response, next: NextFunction) {
+    if (req.user && req.user.role === 'ADMINISTRATOR') {
+        next();
+    } else {
+        return res.status(403).json({
+            error: "Forbidden! This action requires Administrator access."
+        });
+    }
+}

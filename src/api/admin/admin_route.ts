@@ -1,5 +1,6 @@
 import { Router } from "express";
 import * as adminController from "./admin_controller";
+import { isAdministrator } from "../auth/auth_middleware";
 
 const router = Router();
 
@@ -42,5 +43,9 @@ router.post("/book/add", adminController.addSchedule);
 router.get("/book/fetch", adminController.fetchSchedule);
 router.patch("/book/toggle", adminController.handleToggleScheduleState);
 router.patch("/book/update", adminController.handleUpdateScheduleCapacity);
+
+// staff role management (Administrator only)
+router.get("/staff/list", isAdministrator, adminController.fetchStaffList);
+router.patch("/staff/:id/role", isAdministrator, adminController.handleUpdateAdminRole);
 
 export default router;
