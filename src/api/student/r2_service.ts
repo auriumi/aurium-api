@@ -1,4 +1,4 @@
-import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { PutObjectCommand, GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import prisma from "../../config/prisma";
 
@@ -20,13 +20,34 @@ export async function generatePresignedUrl(student_number: string, ext = "jpg", 
         Bucket: BUCKET,
         Key: key,
         ContentType: mime,
-        ACL: "public-read",
     });
 
     const upload_url = await getSignedUrl(s3, command, { expiresIn: 120 });
     const photo_url = `https://${ACC_ID}.r2.cloudflarestorage.com/${BUCKET}/${key}`;
-    
+
     return { upload_url, photo_url };
+}
+
+function extractKey(photo_url: string): string | null {
+    try {
+        const { hostname, pathname } = new URL(photo_url);
+        if (hostname.includes('r2.cloudflarestorage.com')) {
+            // Path: /<bucket>/<key> — strip the bucket prefix
+            return pathname.replace(`/${BUCKET}/`, '/').slice(1);
+        }
+        // Custom domain (e.g. static.auriumi.cloud): path is already /<key>
+        return pathname.slice(1) || null;
+    } catch {
+        return null;
+    }
+}
+
+export async function generateReadUrl(photo_url: string | null): Promise<string | null> {
+    if (!photo_url) return null;
+    const key = extractKey(photo_url);
+    if (!key) return null;
+    const command = new GetObjectCommand({ Bucket: BUCKET, Key: key });
+    return getSignedUrl(s3, command, { expiresIn: 3600 });
 }
 
 export async function uploadPhotoUrl(student_number: string, photo_url: string) {

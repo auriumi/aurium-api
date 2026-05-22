@@ -1,5 +1,6 @@
 import { SolicitationType, StudentStatus } from "@prisma/client";
 import prisma from "../../config/prisma";
+import { generateReadUrl } from "./r2_service";
 
 type SolicitationPayload = {
   type: SolicitationType;
@@ -158,6 +159,10 @@ export async function getStudentProfile(student_number: number) {
         success: false,
         reason: "Student doesn't exist!"
       };
+    }
+
+    if (student.studentDetail?.photo_url) {
+      student.studentDetail.photo_url = await generateReadUrl(student.studentDetail.photo_url) ?? student.studentDetail.photo_url;
     }
 
     return {

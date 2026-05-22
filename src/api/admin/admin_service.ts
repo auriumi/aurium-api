@@ -3,6 +3,7 @@ import crypto from "crypto";
 import bcrypt from "bcrypt";
 import { Resend } from 'resend';
 import { AdminActions, StudentStatus } from "@prisma/client";
+import { generateReadUrl } from "../student/r2_service";
 
 const resend = new Resend(process.env.RESEND_API);
 const DOMAIN = "auriumi.cloud";
@@ -471,6 +472,12 @@ export async function m_queryByFilter(page: number, dept: string, course: string
     },
   });
 
+  await Promise.all(students.map(async (s) => {
+    if (s.studentDetail?.photo_url) {
+      s.studentDetail.photo_url = await generateReadUrl(s.studentDetail.photo_url) ?? s.studentDetail.photo_url;
+    }
+  }));
+
   return { students, total_students, total_result };
 }
 
@@ -491,6 +498,11 @@ export async function m_queryById(student_id: number) {
   });
 
   if (!student) return { success: false, reason: "Student doesn't exist!" };
+
+  if (student.studentDetail?.photo_url) {
+    student.studentDetail.photo_url = await generateReadUrl(student.studentDetail.photo_url) ?? student.studentDetail.photo_url;
+  }
+
   return { success: true, student };
 }
 
@@ -540,6 +552,12 @@ export async function fv_queryStudents(page: number) {
       status: StudentStatus.ATTENDED
     }
   });
+
+  await Promise.all(students.map(async (s) => {
+    if (s.studentDetail?.photo_url) {
+      s.studentDetail.photo_url = await generateReadUrl(s.studentDetail.photo_url) ?? s.studentDetail.photo_url;
+    }
+  }));
 
   return { students, total_students };
 }
@@ -610,7 +628,7 @@ export async function fv_markAttended(studentId: number) {
 }
 
 export async function fv_fetchAttendanceQueue() {
-  return await prisma.attendanceQueue.findMany({
+  const queue = await prisma.attendanceQueue.findMany({
     orderBy: {
       id: "asc",
     },
@@ -624,6 +642,14 @@ export async function fv_fetchAttendanceQueue() {
       },
     },
   });
+
+  await Promise.all(queue.map(async (entry) => {
+    if (entry.photo_url) {
+      entry.photo_url = await generateReadUrl(entry.photo_url) ?? entry.photo_url;
+    }
+  }));
+
+  return queue;
 }
 
 export async function fv_markFullyVerified(studentId: number, adminId: number) {
