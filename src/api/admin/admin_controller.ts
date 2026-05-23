@@ -37,8 +37,9 @@ export async function handleChangePassword(req: AdminRequest, res: Response) {
     return res.status(400).json({ reason: "All fields are required." });
   }
 
-  if (new_password.length < 8) {
-    return res.status(400).json({ reason: "New password must be at least 8 characters." });
+  const passwordPolicy = /^(?=.*[A-Z])(?=.*[0-9])(?=.*[^A-Za-z0-9]).{8,}$/;
+  if (!passwordPolicy.test(new_password)) {
+    return res.status(400).json({ reason: "Password must be at least 8 characters and include an uppercase letter, a number, and a symbol." });
   }
 
   try {
