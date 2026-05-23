@@ -27,6 +27,31 @@ export async function verifyPassword(req: AdminRequest, res: Response) {
   }
 }
 
+export async function handleChangePassword(req: AdminRequest, res: Response) {
+  const admin_id = req.user?.admin_id;
+  if (!admin_id) return res.status(401).json({ reason: "Unauthorized" });
+
+  const { current_password, new_password } = req.body;
+  if (typeof current_password !== "string" || !current_password ||
+      typeof new_password !== "string" || !new_password) {
+    return res.status(400).json({ reason: "All fields are required." });
+  }
+
+  const passwordPolicy = /^(?=.*[A-Z])(?=.*[0-9])(?=.*[^A-Za-z0-9]).{8,}$/;
+  if (!passwordPolicy.test(new_password)) {
+    return res.status(400).json({ reason: "Password must be at least 8 characters and include an uppercase letter, a number, and a symbol." });
+  }
+
+  try {
+    const result = await adminService.changeAdminPassword(admin_id, current_password, new_password);
+    if (!result.success) return res.status(400).json({ reason: result.reason });
+    return res.json({ success: true });
+  } catch (err) {
+    console.error("Change password error:", err);
+    return res.status(500).json({ reason: "Internal Server Error" });
+  }
+}
+
 export async function getStaffDetails(req: AdminRequest, res: Response) {
   try {
     const id = req.user?.admin_id;

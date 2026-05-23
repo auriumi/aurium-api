@@ -10,6 +10,9 @@ router.get("/profile", adminController.getStaffDetails);
 //verify admin password (used before sensitive actions)
 router.post("/verify-password", adminController.verifyPassword);
 
+//change own password
+router.patch("/change-password", adminController.handleChangePassword);
+
 //get all unverified students
 router.get("/student", adminController.fetchUnverifiedStudents);
 
