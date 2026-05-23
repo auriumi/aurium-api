@@ -69,6 +69,25 @@ export async function verifyAdminPassword(admin_id: string, password: string) {
   return bcrypt.compare(password, admin.hashed_password);
 }
 
+export async function changeAdminPassword(admin_id: string, current_password: string, new_password: string) {
+  const admin = await prisma.admin.findUnique({
+    where: { id: parseInt(admin_id) },
+    select: { hashed_password: true },
+  });
+  if (!admin) return { success: false, reason: "Admin not found." };
+
+  const valid = await bcrypt.compare(current_password, admin.hashed_password);
+  if (!valid) return { success: false, reason: "Current password is incorrect." };
+
+  const hashed = await bcrypt.hash(new_password, 10);
+  await prisma.admin.update({
+    where: { id: parseInt(admin_id) },
+    data: { hashed_password: hashed },
+  });
+
+  return { success: true };
+}
+
 export async function getStaffProfile(id: string) {
   try {
     const staff = await prisma.admin.findUnique({
