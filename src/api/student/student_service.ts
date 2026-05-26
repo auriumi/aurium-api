@@ -105,11 +105,12 @@ export async function createBooking(student_id: number, booking_id: number, peri
   }
 }
 
-export async function updateBooking(booking_id: string, booking_day_id: number, period: string) {
+export async function updateBooking(booking_id: string, booking_day_id: number, period: string, student_number: string) {
   try {
     return await prisma.booking.update({
       where: {
-        id: parseInt(booking_id) 
+        id: parseInt(booking_id),
+        student_number: parseInt(student_number)
       },
       data: {
         booking_day_id: booking_day_id,
