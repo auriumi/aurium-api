@@ -8,31 +8,31 @@ datasource db {
 
 // ------------------------------- Student Schema -------------------------
 model Student {
-  id                    Int            @id @default(autoincrement())
-  first_name            String?
-  last_name             String?
-  mid_name              String?
-  school_email          String?         
-  personal_email        String
-  department            String?
-  course                String?
-  major                 String?
-  nickname              String?
-  suffix                String?
-  thesis_title          String?
-  updated_at            DateTime       @updatedAt
-  created_at            DateTime       @default(now())
-  student_number        Int            @unique
-  studentAuth           StudentAuth?
-  studentDetail         StudentDetail?
-  studentSolicitations  StudentSolicitations[]
-  booking               Booking[]
-  attendanceQueue       AttendanceQueue?
-  logs                  Logs[]
+  id                   Int                    @id @default(autoincrement())
+  first_name           String?
+  last_name            String?
+  mid_name             String?
+  school_email         String?
+  personal_email       String
+  department           String?
+  course               String?
+  major                String?
+  nickname             String?
+  suffix               String?
+  thesis_title         String?
+  updated_at           DateTime               @updatedAt
+  created_at           DateTime               @default(now())
+  student_number       Int                    @unique
+  studentAuth          StudentAuth?
+  studentDetail        StudentDetail?
+  studentSolicitations StudentSolicitations[]
+  booking              Booking[]
+  attendanceQueue      AttendanceQueue?
+  logs                 Logs[]
 }
 
 model StudentDetail {
-  id              Int      @id 
+  id              Int      @id
   birth_date      DateTime
   province        String?
   city            String?
@@ -49,13 +49,13 @@ model StudentDetail {
 }
 
 model StudentSolicitations {
-  id              Int               @id @default(autoincrement())
-  student_number  Int
-  type            SolicitationType
-  slot            Int
-  title           String?
-  name            String?
-  student         Student           @relation(fields: [student_number], references: [student_number], onDelete: Cascade)
+  id             Int              @id @default(autoincrement())
+  student_number Int
+  type           SolicitationType
+  slot           Int
+  title          String?
+  name           String?
+  student        Student          @relation(fields: [student_number], references: [student_number], onDelete: Cascade)
 
   @@unique([student_number, slot])
   @@index([student_number, slot])
@@ -67,35 +67,35 @@ enum SolicitationType {
 }
 
 model StudentAuth {
-  is_verified     Boolean         @default(false)
-  is_new          Boolean         @default(true)
+  is_verified     Boolean       @default(false)
+  is_new          Boolean       @default(true)
   hashed_password String?
   last_login      DateTime?
-  student_number  Int             @id
-  status          StudentStatus   @default(REGISTERED) 
-  student         Student         @relation(fields: [student_number], references: [student_number], onDelete: Cascade)
+  student_number  Int           @id
+  status          StudentStatus @default(REGISTERED)
+  student         Student       @relation(fields: [student_number], references: [student_number], onDelete: Cascade)
 }
 
 enum StudentStatus {
-  REGISTERED 
-  APPROVED 
-  BOOKED 
-  ATTENDED 
+  REGISTERED
+  APPROVED
+  BOOKED
+  ATTENDED
   FULLY_VERIFIED
 }
-// ---------------------------------------------------------------------
 
+// ---------------------------------------------------------------------
 
 // ------------------------------- Admin Schema -------------------------
 model Admin {
-  id                Int         @id @default(autoincrement())
-  email             String?     @unique 
-  first_name        String?
-  last_name         String?
-  hashed_password   String
-  last_login        DateTime?
-  role              AdminRoles  @default(MEMBER)
-  logs              Logs[]
+  id              Int        @id @default(autoincrement())
+  email           String?    @unique
+  first_name      String?
+  last_name       String?
+  hashed_password String
+  last_login      DateTime?
+  role            AdminRoles @default(MEMBER)
+  logs            Logs[]
 }
 
 enum AdminRoles {
@@ -105,14 +105,14 @@ enum AdminRoles {
 }
 
 model Logs {
-  id          Int       @id @default(autoincrement())
-  admin_id    Int
-  action      AdminActions
-  target_id   Int?
-  created_at  DateTime  @default(now())
+  id         Int          @id @default(autoincrement())
+  admin_id   Int
+  action     AdminActions
+  target_id  Int?
+  created_at DateTime     @default(now())
 
-  admin       Admin     @relation(fields: [admin_id], references: [id], onDelete: Cascade)
-  student     Student?  @relation(fields: [target_id], references: [student_number], onDelete: SetNull, onUpdate: Cascade)
+  admin   Admin    @relation(fields: [admin_id], references: [id], onDelete: Cascade)
+  student Student? @relation(fields: [target_id], references: [student_number], onDelete: SetNull, onUpdate: Cascade)
 }
 
 enum AdminActions {
@@ -120,42 +120,43 @@ enum AdminActions {
   VERIFIED
   UPLOADED
 }
-// ---------------------------------------------------------------------
 
+// ---------------------------------------------------------------------
 
 // ------------------------------- Booking Schema -------------------------
 model BookingDay {
-  id                  Int       @id @default(autoincrement())
-  date                DateTime  @unique
-  is_open             Boolean   @default(true)
-  max_morning_cap     Int  
-  max_afternoon_cap   Int
-  bookings            Booking[]
-  attendanceQueue     AttendanceQueue[]
+  id                Int               @id @default(autoincrement())
+  date              DateTime          @unique
+  is_open           Boolean           @default(true)
+  max_morning_cap   Int
+  max_afternoon_cap Int
+  bookings          Booking[]
+  attendanceQueue   AttendanceQueue[]
 }
 
 model Booking {
-  id              Int         @id @default(autoincrement())
-  student_number  Int         
-  booking_day_id  Int         
-  period          String
-  created_at      DateTime    @default(now())
-  booking_day     BookingDay  @relation(fields: [booking_day_id], references: [id], onDelete: Cascade) 
-  student         Student     @relation(fields: [student_number], references: [student_number], onDelete: Cascade)
+  id             Int        @id @default(autoincrement())
+  student_number Int
+  booking_day_id Int
+  period         String
+  created_at     DateTime   @default(now())
+  booking_day    BookingDay @relation(fields: [booking_day_id], references: [id], onDelete: Cascade)
+  student        Student    @relation(fields: [student_number], references: [student_number], onDelete: Cascade)
 }
 
 model AttendanceQueue {
-  id              Int        @id @default(autoincrement())
-  student_number  Int        @unique
-  booking_day_id  Int
-  period          String
-  photo_url       String?
-  created_at      DateTime   @default(now())
+  id             Int      @id @default(autoincrement())
+  student_number Int      @unique
+  booking_day_id Int
+  period         String
+  photo_url      String?
+  created_at     DateTime @default(now())
 
-  student         Student    @relation(fields: [student_number], references: [student_number], onDelete: Cascade)
-  booking_day     BookingDay @relation(fields: [booking_day_id], references: [id], onDelete: Cascade)
+  student     Student    @relation(fields: [student_number], references: [student_number], onDelete: Cascade)
+  booking_day BookingDay @relation(fields: [booking_day_id], references: [id], onDelete: Cascade)
 
   @@index([created_at])
   @@index([student_number])
 }
+
 // ---------------------------------------------------------------------

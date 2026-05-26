@@ -1,6 +1,5 @@
 import { Router } from "express";
 import * as studentController from "./student_controller";
-import { verifyToken } from "../auth/auth_middleware";
 
 const router = Router();
 

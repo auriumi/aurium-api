@@ -121,7 +121,7 @@ export async function updateBooking(req: StudentRequest, res: Response) {
             })
         }
 
-        await studentService.updateBooking(id, booking_day_id, period);
+        await studentService.updateBooking(id, booking_day_id, period, student_number);
 
         return res.json({
             status: "Success"
