@@ -1,4 +1,4 @@
-import express, { Request, Response } from "express";
+import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import { rateLimit } from "express-rate-limit";
@@ -11,7 +11,9 @@ import authRoutes from "./api/auth/auth_route";
 const app = express();
 
 const corsConfig = {
-  origin: 'http://localhost:3000',
+  origin: process.env.NODE_ENV == "production"
+    ? "https://aurium-yearbook.site" //production
+    : "http://localhost:3000", //local dev
   credentials: true,
 }
 
@@ -44,11 +46,5 @@ const gen_limiter = rateLimit({
 app.use("/api/admin", admin_limiter, verifyToken, isAdmin, adminRoutes);
 app.use("/api/student", gen_limiter, verifyToken, studentRoutes);
 app.use("/api/auth", login_limiter, authRoutes);
-
-app.get("/", (req: Request, res: Response) => {
-  res.json({
-    message: "Invalid Request!"
-  })
-});
 
 export default app;
