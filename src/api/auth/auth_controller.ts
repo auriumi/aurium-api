@@ -18,6 +18,13 @@ export async function handleLogin(req: Request, res: Response) {
         });
     }
 
+    //skip admin (uses email)
+    if (!is_admin && !/^\d{1,20}$/.test(String(id).trim())) {
+        return res.status(400).json({
+            error: "Invalid ID format"
+        });
+    }
+
     if (!captcha_token) {
         return res.status(400).json({ error: "CAPTCHA token is required." });
     }
