@@ -346,10 +346,26 @@ export async function getUnverifiedStudentById(student_id: number) {
 } 
 
 //add schedule per day
+function isPastUtcDate(date: Date) {
+  const compareDate = new Date(date);
+  compareDate.setUTCHours(0, 0, 0, 0);
+
+  const today = new Date();
+  today.setUTCHours(0, 0, 0, 0);
+
+  return compareDate < today;
+}
+
 export async function addSchedule(date: string, am_cap: number, pm_cap: number) {
+  const scheduleDate = new Date(`${date}T00:00:00.000Z`);
+
+  if (isPastUtcDate(scheduleDate)) {
+    throw new Error("PAST_SCHEDULE_DATE");
+  }
+
   return prisma.bookingDay.create({
     data: {
-      date: new Date(`${date}T00:00:00.000Z`),
+      date: scheduleDate,
       max_morning_cap: am_cap,
       max_afternoon_cap: pm_cap
     }
@@ -390,6 +406,7 @@ export async function toggleScheduleState(id: number) {
       select: {
         id: true,
         is_open: true,
+        date: true,
       }
     });
 
@@ -397,6 +414,14 @@ export async function toggleScheduleState(id: number) {
       return {
         success: false,
         reason: `Booking with ID ${id} is not found`
+      };
+    }
+
+    //block invalid date inputs
+    if (!booking_day.is_open && isPastUtcDate(booking_day.date)) {
+      return {
+        success: false,
+        reason: "Cannot re-open a schedule date that has already passed."
       };
     }
 

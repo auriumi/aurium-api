@@ -206,6 +206,13 @@ export async function addSchedule(req: Request, res: Response) {
     });
 
   } catch(err) {
+    if (err instanceof Error && err.message === 'PAST_SCHEDULE_DATE') {
+      return res.status(400).json({
+        status: 'failed',
+        reason: 'Cannot create a schedule for a date that has already passed.'
+      });
+    }
+
     if ( err instanceof Prisma.PrismaClientKnownRequestError) {
       if (err.code === 'P2002') {
         return res.status(409).json({
