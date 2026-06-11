@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { generatePresignedUrl } from "./r2_service";
 import * as studentService from "./student_service";
 import * as r2Service from "./r2_service";
+import { formatApaThesisTitle } from "../../utils/thesis_title";
 
 interface StudentRequest extends Request {
     user?: {
@@ -234,4 +235,21 @@ export async function saveSolicitations(req: StudentRequest, res: Response) {
             message: "Server error nyae",
         });
     }
+}
+
+export function previewThesisTitle(req: Request, res: Response) {
+    const { title } = req.body;
+
+    if (typeof title !== "string") {
+        return res.status(400).json({
+            error: "Thesis title must be a string.",
+        });
+    }
+
+    const standardized = formatApaThesisTitle(title);
+    return res.json({
+        original: title,
+        standardized,
+        changed: standardized !== title,
+    });
 }

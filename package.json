@@ -5,6 +5,8 @@
   "scripts": {
     "dev": "nodemon",
     "build": "tsc",
+    "test:title-case": "npm run build && node --test tests/thesis_title.test.cjs",
+    "thesis-title:backfill": "npm run build && node dist/scripts/standardize_thesis_titles.js",
     "start": "node dist/index.js"
   },
   "keywords": [],
