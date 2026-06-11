@@ -81,7 +81,7 @@ function formatWordCore(core: string, forceCapitalize: boolean, isLastWord: bool
 
   const parts = core.split("-");
   return parts
-    .map((part, index) => {
+    .map((part) => {
       if (!part) {
         return part;
       }
@@ -98,8 +98,7 @@ function formatWordCore(core: string, forceCapitalize: boolean, isLastWord: bool
       const shouldCapitalize =
         forceCapitalize ||
         isLastWord ||
-        !MINOR_WORDS.has(part.toLowerCase()) ||
-        index > 0;
+        !MINOR_WORDS.has(part.toLowerCase());
 
       return shouldCapitalize ? capitalizeWord(part) : part.toLowerCase();
     })

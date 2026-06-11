@@ -39,3 +39,10 @@ test("trims and collapses repeated whitespace", () => {
     "Effects of COVID-19 on ICT Students",
   );
 });
+
+test("keeps minor words lowercase inside hyphenated compounds", () => {
+  assert.equal(
+    formatApaThesisTitle("a state-of-the-art learning system"),
+    "A State-of-the-Art Learning System",
+  );
+});
