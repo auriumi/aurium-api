@@ -5,6 +5,7 @@ const router = Router();
 
 //handle registration
 router.post("/submit", studentController.studentRegistration);
+router.post("/thesis-title/preview", studentController.previewThesisTitle);
 
 //fetch student profile respective to the id number
 router.get("/profile/fetch", studentController.getStudentById);

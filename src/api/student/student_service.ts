@@ -1,6 +1,7 @@
 import { SolicitationType, StudentStatus } from "@prisma/client";
 import prisma from "../../config/prisma";
 import { generateReadUrl } from "./r2_service";
+import { formatApaThesisTitle } from "../../utils/thesis_title";
 
 type SolicitationPayload = {
   type: SolicitationType;
@@ -22,7 +23,7 @@ export async function createStudent(body: any) {
       major: body.academics.major,
       nickname: body.nickname,
       suffix: body.suffix,
-      thesis_title: body.academics.thesis,      
+      thesis_title: formatApaThesisTitle(body.academics.thesis),
 
       studentDetail: {
         create: {

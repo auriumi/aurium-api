@@ -4,6 +4,7 @@ import bcrypt from "bcrypt";
 import { Resend } from 'resend';
 import { AdminActions, StudentStatus } from "@prisma/client";
 import { generateReadUrl } from "../student/r2_service";
+import { formatApaThesisTitle } from "../../utils/thesis_title";
 
 const resend = new Resend(process.env.RESEND_API);
 const DOMAIN = "auriumi.cloud";
@@ -814,7 +815,10 @@ export async function fv_updateStudent(studentId: number, type: string, data: an
       const studentData: Record<string, any> = {};
       for (const [key, value] of payloadEntries) {
         const fieldKey = key === "thesis" ? "thesis_title" : key;
-        studentData[fieldKey] = value;
+        studentData[fieldKey] =
+          key === "thesis" && typeof value === "string"
+            ? formatApaThesisTitle(value)
+            : value;
       }
 
       await prisma.student.update({
