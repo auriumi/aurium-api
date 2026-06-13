@@ -2,6 +2,7 @@ import { Router } from "express";
 import * as adminController from "./admin_controller";
 import { requirePermission } from "../auth/auth_middleware";
 import { Permission } from "../auth/permissions";
+import { assertRoutesGuarded } from "../auth/route_guard_audit";
 
 const router = Router();
 
@@ -51,5 +52,12 @@ router.patch("/book/update", requirePermission(Permission.BOOKING_UPDATE), admin
 // staff role management (Administrator only)
 router.get("/staff/list", requirePermission(Permission.STAFF_VIEW), adminController.fetchStaffList);
 router.patch("/staff/:id/role", requirePermission(Permission.STAFF_MANAGE_ROLE), adminController.handleUpdateAdminRole);
+
+//route guard exemptions
+assertRoutesGuarded(router, [
+    "GET /profile",
+    "POST /verify-password",
+    "PATCH /change-password",
+]);
 
 export default router;

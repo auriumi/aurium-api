@@ -38,7 +38,7 @@ export function isAdmin(req: AuthRequest, res: Response, next: NextFunction) {
 
 //role-aware guard factory
 export function requirePermission(permission: Permission) {
-    return (req: AuthRequest, res: Response, next: NextFunction) => {
+    const guard = (req: AuthRequest, res: Response, next: NextFunction) => {
         const role = req.user?.role;
         if (role && PERMISSION_MATRIX[permission].includes(role)) {
             return next();
@@ -47,4 +47,8 @@ export function requirePermission(permission: Permission) {
             error: "Forbidden! You do not have permission to perform this action."
         });
     };
+
+    //route marker read by assertRoutesGuarded()
+    (guard as unknown as { __permission: Permission }).__permission = permission;
+    return guard;
 }
