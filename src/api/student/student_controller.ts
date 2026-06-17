@@ -40,14 +40,14 @@ export async function getStudentById(req: StudentRequest, res: Response) {
         //get id from jwt paylaod
         const student_number = req.user?.student_number;
         if (!student_number) {
-            res.status(404).json({ error: "Invalid request!"});
+            return res.status(404).json({ error: "Invalid request!"});
         }
 
-        const result = await studentService.getStudentProfile(parseInt(student_number!));
+        const result = await studentService.getStudentProfile(parseInt(student_number));
         if (!result.success) {
-            res.status(404).json({ error: result.reason });
+            return res.status(404).json({ error: result.reason });
         }
-        res.json(result.student);
+        return res.json(result.student);
 
     } catch (err) {
         console.error("Error: ", err);
@@ -147,9 +147,9 @@ export async function getPhotoUploadUrl(req: StudentRequest, res: Response) {
 
     try {
         const { upload_url, photo_url } = await generatePresignedUrl(student_number, ext, mime);
-        res.json({ upload_url, photo_url });
+        return res.json({ upload_url, photo_url });
     } catch (err) {
-        res.status(500).json({ error: "Something went wrong generating URL" })
+        return res.status(500).json({ error: "Something went wrong generating URL" })
     }
 }
 
@@ -176,7 +176,7 @@ export async function savePhotoUrl(req: StudentRequest, res: Response) {
         return res.json({ sucess: true });
 
     } catch {
-        res.status(500).json({ error: "Something went wrong saving photo URL" });
+        return res.status(500).json({ error: "Something went wrong saving photo URL" });
     }
 }
 
