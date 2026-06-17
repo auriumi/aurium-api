@@ -59,7 +59,7 @@ export async function handleLogin(req: Request, res: Response) {
             path: '/'
         });
 
-        res.json({
+        return res.json({
             status: 'ok',
             is_new: result.is_new
         });
@@ -98,7 +98,7 @@ export async function handleLogout(req: Request, res: Response) {
         path: '/'
     });
 
-    res.status(200).json({
+    return res.status(200).json({
         status: "ok"
     });
 }

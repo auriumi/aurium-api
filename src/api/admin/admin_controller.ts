@@ -69,7 +69,7 @@ export async function getStaffDetails(req: AdminRequest, res: Response) {
 
   } catch (err) {
     console.error("Error: ", err);
-    res.status(500).json({
+    return res.status(500).json({
       status: 'Internal Server Error'
     });
   }
@@ -101,13 +101,13 @@ export async function handleVerify(req: AdminRequest, res: Response) {
       });
     }
 
-    res.json({
+    return res.json({
       status: "Success!"
     });
 
   } catch (err) {
     console.error("Error: ", err);
-    res.status(500).json({
+    return res.status(500).json({
       status: 'Internal Server Error'
     });
   }
@@ -138,13 +138,13 @@ export async function handleCancel(req: AdminRequest, res: Response) {
       });
     }
 
-    res.json({
+    return res.json({
       status: "Success!"
     });
 
   } catch (err) {
     console.error("Error: ", err);
-    res.status(500).json({
+    return res.status(500).json({
       status: 'Internal Server Error'
     });
   }
@@ -154,18 +154,18 @@ export async function handleCancel(req: AdminRequest, res: Response) {
 export async function fetchUnverifiedStudents(req: Request, res: Response) {
   try {
     const { page } = req.query;
-    if (!page) res.status(400).json({ error: 'Invalid request' });
+    if (!page) return res.status(400).json({ error: 'Invalid request' });
 
     const total = await adminService.getUnverifiedStudentCount();
     const student_list = await adminService.gethUnverifiedStudents(Number(page));
 
-    res.json({
+    return res.json({
       total,
       student_list
     });
   } catch (err) {
     console.error("Error: ", err);
-    res.status(500).json({
+    return res.status(500).json({
       status: 'Internal Server Error'
     });
   }
@@ -177,13 +177,13 @@ export async function searchUnverifiedById(req: Request, res: Response) {
     if (!id) return res.status(400).json({ error: 'Invalid request' });
 
     const result = await adminService.getUnverifiedStudentById(Number(id));  
-    if (!result.success) res.status(404).json({ reason: result.reason });
+    if (!result.success) return res.status(404).json({ reason: result.reason });
 
-    res.json(result.student);
+    return res.json(result.student);
 
   } catch (err) {
     console.error("Error: ", err);
-    res.status(500).json({
+    return res.status(500).json({
       status: 'Internal Server Error'
     });
   }
@@ -196,12 +196,12 @@ export async function addSchedule(req: Request, res: Response) {
     const success = await adminService.addSchedule(body.date, body.am_cap, body.pm_cap);
 
     if (!success) {
-      res.status(400).json({
+      return res.status(400).json({
         status: 'failed'
       });
     } 
 
-    res.json({
+    return res.json({
       status: 'success'
     });
 
@@ -223,7 +223,7 @@ export async function addSchedule(req: Request, res: Response) {
     }
 
     console.error("Server error: ", err);
-    res.status(500).json({
+    return res.status(500).json({
       status: 'Internal Server Error'
     });
   }
@@ -241,7 +241,7 @@ export async function handleToggleScheduleState(req: AdminRequest, res: Response
 
   try {
     const result = await adminService.toggleScheduleState(Number(booking_id));
-    if (!result.success) res.status(404).json({ reason: result.reason });
+    if (!result.success) return res.status(404).json({ reason: result.reason });
 
     return res.json({ status: 'success' });
 
@@ -497,7 +497,7 @@ export async function handleStudentPasswordReset(req: AdminRequest, res: Respons
     });
   }
 
-  res.json({ status: 'success' });
+  return res.json({ status: 'success' });
 }
 
 export async function fetchStaffList(req: AdminRequest, res: Response) {
