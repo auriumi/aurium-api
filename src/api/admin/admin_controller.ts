@@ -618,7 +618,7 @@ export async function saveImageUrl(req: AdminRequest, res: Response) {
 
 const VALID_APPROVAL_VIEWS = new Set(["PENDING", "RESOLVED", "ALL"]);
 
-//review queue (approvers only)
+//review queue
 export async function fetchImageApprovals(req: Request, res: Response) {
   try {
     const page = Number(req.query.page ?? 1);
