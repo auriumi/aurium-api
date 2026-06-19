@@ -36,6 +36,7 @@ export const Permission = {
     // Image management
     IMAGE_VIEW: "IMAGE_VIEW",
     IMAGE_UPLOAD: "IMAGE_UPLOAD",
+    IMAGE_APPROVE: "IMAGE_APPROVE",
 } as const;
 
 export type Permission = (typeof Permission)[keyof typeof Permission];
@@ -67,4 +68,5 @@ export const PERMISSION_MATRIX: Record<Permission, AdminRoles[]> = {
 
     [Permission.IMAGE_VIEW]: [ADMINISTRATOR, MODERATOR],
     [Permission.IMAGE_UPLOAD]: [ADMINISTRATOR, MODERATOR],
+    [Permission.IMAGE_APPROVE]: [ADMINISTRATOR, MODERATOR],
 };

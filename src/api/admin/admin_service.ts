@@ -2,8 +2,9 @@ import prisma from "../../config/prisma";
 import crypto from "crypto";
 import bcrypt from "bcrypt";
 import { Resend } from 'resend';
-import { AdminActions, StudentStatus, ImageType, ImageStatus } from "@prisma/client";
+import { AdminActions, StudentStatus, ImageType, ImageStatus, AdminRoles, NotificationType } from "@prisma/client";
 import { generateReadUrl, generateImageUploadUrl } from "../student/r2_service";
+import { notifyApprovers, notifyUser, notifyParticipants } from "./notification_service";
 
 const resend = new Resend(process.env.RESEND_API);
 const DOMAIN = "auriumi.cloud";
@@ -99,7 +100,8 @@ export async function getStaffProfile(id: string) {
         first_name: true,
         last_name: true,
         email: true,
-        role: true
+        role: true,
+        can_approve_images: true
       }
     });
 
@@ -687,19 +689,21 @@ export async function img_saveImage(
   try {
     const student = await prisma.student.findUnique({
       where: { student_number },
-      select: { student_number: true },
+      select: { student_number: true, first_name: true, last_name: true },
     });
     if (!student) return { success: false, reason: "Student doesn't exist!" };
 
-    await prisma.$transaction([
-      prisma.studentImage.upsert({
-        where: {
-          student_number_type_year: {
-            student_number,
-            type: type as ImageType,
-            year,
-          },
-        },
+    const key = { student_number, type: type as ImageType, year };
+
+    const existing = await prisma.studentImage.findUnique({
+      where: { student_number_type_year: key },
+      select: { id: true },
+    });
+    const isReupload = !!existing;
+
+    const image = await prisma.$transaction(async (tx) => {
+      const img = await tx.studentImage.upsert({
+        where: { student_number_type_year: key },
         create: {
           student_number,
           type: type as ImageType,
@@ -713,15 +717,33 @@ export async function img_saveImage(
           status: ImageStatus.PENDING,
           uploaded_by: admin_id,
         },
-      }),
-      prisma.logs.create({
+      });
+
+      await tx.logs.create({
+        data: { admin_id, action: AdminActions.UPLOADED, target_id: student_number },
+      });
+
+      await tx.imageComment.create({
         data: {
+          image_id: img.id,
           admin_id,
-          action: AdminActions.UPLOADED,
-          target_id: student_number,
+          is_system: true,
+          body: isReupload ? "Re-uploaded — pending review." : "Uploaded — pending review.",
         },
-      }),
-    ]);
+      });
+
+      return img;
+    });
+
+    // notify approvers (non-critical, outside the core transaction)
+    const label = type === "GRADUATION" ? "graduation" : "theme";
+    const name = studentName(student.first_name, student.last_name, student_number);
+    await notifyApprovers(
+      NotificationType.IMAGE_UPLOADED,
+      `New ${label} photo for ${name} (${year}) needs review.`,
+      image.id,
+      admin_id
+    );
 
     return { success: true };
   } catch (err) {
@@ -731,6 +753,228 @@ export async function img_saveImage(
       reason: "An unexpected error occurred. Please try again later.",
     };
   }
+}
+
+// ----- approval forum -----
+
+function studentName(first?: string | null, last?: string | null, student_number?: number) {
+  const name = `${first ?? ""} ${last ?? ""}`.trim();
+  return name || `#${student_number ?? ""}`;
+}
+
+// ADMINISTRATOR always; MODERATOR only if flagged. `role` (from JWT) is a fast-path.
+export async function img_isApprover(admin_id: number, role?: string): Promise<boolean> {
+  if (role === AdminRoles.ADMINISTRATOR) return true;
+  const admin = await prisma.admin.findUnique({
+    where: { id: admin_id },
+    select: { role: true, can_approve_images: true },
+  });
+  if (!admin) return false;
+  if (admin.role === AdminRoles.ADMINISTRATOR) return true;
+  return admin.role === AdminRoles.MODERATOR && admin.can_approve_images;
+}
+
+const STUDENT_PREVIEW_SELECT = {
+  student_number: true,
+  first_name: true,
+  last_name: true,
+  mid_name: true,
+  suffix: true,
+  course: true,
+  studentDetail: { select: { photo_url: true } },
+} as const;
+
+async function shapeRequest(img: any) {
+  return {
+    id: img.id,
+    type: img.type,
+    year: img.year,
+    status: img.status,
+    photo_url: (await generateReadUrl(img.photo_url)) ?? img.photo_url,
+    reference_photo_url: img.student?.studentDetail?.photo_url
+      ? await generateReadUrl(img.student.studentDetail.photo_url)
+      : null,
+    uploaded_by: img.uploaded_by,
+    uploader_name: studentName(img.admin?.first_name, img.admin?.last_name),
+    created_at: img.created_at,
+    updated_at: img.updated_at,
+    student: img.student
+      ? {
+          student_number: img.student.student_number,
+          first_name: img.student.first_name,
+          last_name: img.student.last_name,
+          mid_name: img.student.mid_name,
+          suffix: img.student.suffix,
+          course: img.student.course,
+        }
+      : null,
+  };
+}
+
+// review queue: PENDING (oldest first) / RESOLVED (newest first) / ALL
+export async function img_listApprovals(view: string, page: number, type: string, year: number | null) {
+  const safe_page = page > 0 ? page : 1;
+  const skip = (safe_page - 1) * I_STUDENTS_PER_PAGE;
+
+  const where: any = {};
+  if (view === "PENDING") where.status = ImageStatus.PENDING;
+  else if (view === "RESOLVED") where.status = { in: [ImageStatus.APPROVED, ImageStatus.REJECTED] };
+
+  if (type === "GRADUATION" || type === "THEME") where.type = type;
+  if (year) where.year = year;
+
+  const total_result = await prisma.studentImage.count({ where });
+
+  const images = await prisma.studentImage.findMany({
+    skip,
+    take: I_STUDENTS_PER_PAGE,
+    where,
+    orderBy: { updated_at: view === "PENDING" ? "asc" : "desc" },
+    include: {
+      student: { select: STUDENT_PREVIEW_SELECT },
+      admin: { select: { first_name: true, last_name: true } },
+      _count: { select: { comments: true } },
+    },
+  });
+
+  const shaped = await Promise.all(
+    images.map(async (img) => ({
+      ...(await shapeRequest(img)),
+      comment_count: img._count.comments,
+    }))
+  );
+
+  return { images: shaped, total_result };
+}
+
+// thread + request detail; enforces approver-or-uploader access
+export async function img_getThread(image_id: number, requester_id: number, requester_role?: string) {
+  const image = await prisma.studentImage.findUnique({
+    where: { id: image_id },
+    include: {
+      student: { select: STUDENT_PREVIEW_SELECT },
+      admin: { select: { first_name: true, last_name: true } },
+      comments: {
+        orderBy: { created_at: "asc" },
+        include: { admin: { select: { first_name: true, last_name: true, role: true } } },
+      },
+    },
+  });
+  if (!image) return { success: false, reason: "Request not found." };
+
+  const approver = await img_isApprover(requester_id, requester_role);
+  if (!approver && image.uploaded_by !== requester_id) {
+    return { success: false, forbidden: true, reason: "Forbidden." };
+  }
+
+  const request = await shapeRequest(image);
+  const comments = image.comments.map((c) => ({
+    id: c.id,
+    body: c.body,
+    is_system: c.is_system,
+    created_at: c.created_at,
+    author_name: studentName(c.admin?.first_name, c.admin?.last_name),
+    author_role: c.admin?.role,
+  }));
+
+  return { success: true, request, comments };
+}
+
+// add a comment; approver-or-uploader; notifies participants
+export async function img_addComment(image_id: number, body: string, admin_id: number, role?: string) {
+  const image = await prisma.studentImage.findUnique({
+    where: { id: image_id },
+    select: {
+      id: true,
+      uploaded_by: true,
+      type: true,
+      student: { select: { first_name: true, last_name: true, student_number: true } },
+    },
+  });
+  if (!image) return { success: false, reason: "Request not found." };
+
+  const approver = await img_isApprover(admin_id, role);
+  if (!approver && image.uploaded_by !== admin_id) {
+    return { success: false, forbidden: true, reason: "Forbidden." };
+  }
+
+  const comment = await prisma.imageComment.create({
+    data: { image_id, admin_id, body, is_system: false },
+    include: { admin: { select: { first_name: true, last_name: true, role: true } } },
+  });
+
+  const label = image.type === ImageType.GRADUATION ? "graduation" : "theme";
+  const name = studentName(image.student?.first_name, image.student?.last_name, image.student?.student_number);
+  await notifyParticipants(
+    { id: image.id, uploaded_by: image.uploaded_by },
+    NotificationType.IMAGE_COMMENT,
+    `New comment on ${label} photo for ${name}.`,
+    admin_id
+  );
+
+  return {
+    success: true,
+    comment: {
+      id: comment.id,
+      body: comment.body,
+      is_system: comment.is_system,
+      created_at: comment.created_at,
+      author_name: studentName(comment.admin?.first_name, comment.admin?.last_name),
+      author_role: comment.admin?.role,
+    },
+  };
+}
+
+// approve/reject; reject requires a reason; records a system comment + notifies uploader
+export async function img_decide(image_id: number, action: string, note: string | undefined, admin_id: number) {
+  const isApprove = action === "APPROVE";
+  if (!isApprove && action !== "REJECT") {
+    return { success: false, reason: "Invalid action." };
+  }
+  if (!isApprove && (!note || !note.trim())) {
+    return { success: false, reason: "A reason is required to reject." };
+  }
+
+  const image = await prisma.studentImage.findUnique({
+    where: { id: image_id },
+    select: {
+      id: true,
+      uploaded_by: true,
+      type: true,
+      year: true,
+      student: { select: { first_name: true, last_name: true, student_number: true } },
+    },
+  });
+  if (!image) return { success: false, reason: "Request not found." };
+
+  const newStatus = isApprove ? ImageStatus.APPROVED : ImageStatus.REJECTED;
+  const decided = isApprove ? "Approved" : "Rejected";
+  const trimmedNote = note?.trim();
+  const systemBody = trimmedNote ? `${decided} — ${trimmedNote}` : `${decided}.`;
+
+  await prisma.$transaction([
+    prisma.studentImage.update({ where: { id: image_id }, data: { status: newStatus } }),
+    prisma.imageComment.create({
+      data: { image_id, admin_id, is_system: true, body: systemBody },
+    }),
+  ]);
+
+  // notify the uploader (skip if the decider is the uploader)
+  if (image.uploaded_by !== admin_id) {
+    const label = image.type === ImageType.GRADUATION ? "graduation" : "theme";
+    const name = studentName(image.student?.first_name, image.student?.last_name, image.student?.student_number);
+    const message = isApprove
+      ? `Your ${label} photo for ${name} (${image.year}) was approved.`
+      : `Your ${label} photo for ${name} (${image.year}) was rejected: ${trimmedNote}`;
+    await notifyUser(
+      image.uploaded_by,
+      isApprove ? NotificationType.IMAGE_APPROVED : NotificationType.IMAGE_REJECTED,
+      message,
+      image.id
+    );
+  }
+
+  return { success: true };
 }
 
 // ---------------------------------------------------------------------
@@ -909,7 +1153,8 @@ export async function getAdminList() {
         last_name: true,
         email: true,
         role: true,
-        last_login: true
+        last_login: true,
+        can_approve_images: true
       },
       orderBy: { last_name: 'asc' }
     });
@@ -934,6 +1179,29 @@ export async function updateAdminRole(targetId: number, newRole: string) {
     return { success: true };
   } catch (err) {
     console.error("updateAdminRole error:", err);
+    return { success: false, reason: "Admin not found or update failed." };
+  }
+}
+
+// toggle a moderator's image-approver flag (administrators only; moderators only)
+export async function updateImageApprover(targetId: number, value: boolean) {
+  try {
+    const target = await prisma.admin.findUnique({
+      where: { id: targetId },
+      select: { role: true },
+    });
+    if (!target) return { success: false, reason: "Admin not found." };
+    if (target.role !== AdminRoles.MODERATOR) {
+      return { success: false, reason: "Only moderators can be image approvers." };
+    }
+
+    await prisma.admin.update({
+      where: { id: targetId },
+      data: { can_approve_images: value },
+    });
+    return { success: true };
+  } catch (err) {
+    console.error("updateImageApprover error:", err);
     return { success: false, reason: "Admin not found or update failed." };
   }
 }
