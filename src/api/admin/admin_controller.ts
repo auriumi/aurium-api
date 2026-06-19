@@ -529,6 +529,7 @@ function parseImageYear(raw: unknown): number | null {
 //list students with their graduation/theme image status for a year
 export async function fetchImageStudents(req: Request, res: Response) {
   try {
+    const id = Number(req.query.id); 
     const page = Number(req.query.page ?? 1);
     const dept = String(req.query.dept ?? "ALL");
     const course = String(req.query.course ?? "ALL");
@@ -541,7 +542,7 @@ export async function fetchImageStudents(req: Request, res: Response) {
     const missingRaw = String(req.query.missing ?? "ALL").toUpperCase();
     const missing = VALID_MISSING.has(missingRaw) ? missingRaw : "ALL";
 
-    const result = await adminService.img_queryStudents(page, dept, course, major, status, year, missing);
+    const result = await adminService.img_queryStudents(id, page, dept, course, major, status, year, missing);
     return res.json(result);
   } catch (err) {
     console.error("Server error: ", err);

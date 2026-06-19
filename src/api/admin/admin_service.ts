@@ -590,6 +590,7 @@ export async function img_getUploadUrl(
 // paginated students with their graduation/theme image status for a given year,
 // filterable by dept/course/major/student status + missing-image scope
 export async function img_queryStudents(
+  id: number,
   page: number,
   dept: string,
   course: string,
@@ -602,35 +603,40 @@ export async function img_queryStudents(
   const skip = (safe_page - 1) * I_STUDENTS_PER_PAGE;
 
   const where: any = {};
-  if (dept !== "ALL") where.department = dept;
-  if (course !== "ALL") where.course = course;
-  if (major !== "ALL") where.major = major;
+  
+  //if no id provided then run query as usual otherwise ignore filters <3
+  if (!id) {
+    if (dept !== "ALL") where.department = dept;
+    if (course !== "ALL") where.course = course;
+    if (major !== "ALL") where.major = major;
+    if (status !== "ALL") {
+      const status_map = STATUS_MAP[Number(status)];
+      if (status_map) where.studentAuth = { status: status_map };
+    }
 
-  if (status !== "ALL") {
-    const status_map = STATUS_MAP[Number(status)];
-    if (status_map) where.studentAuth = { status: status_map };
-  }
+    // image-presence filter, scoped to the selected year
+    const gradNone = { images: { none: { type: ImageType.GRADUATION, year } } };
+    const themeNone = { images: { none: { type: ImageType.THEME, year } } };
+    const gradSome = { images: { some: { type: ImageType.GRADUATION, year } } };
+    const themeSome = { images: { some: { type: ImageType.THEME, year } } };
 
-  // image-presence filter, scoped to the selected year
-  const gradNone = { images: { none: { type: ImageType.GRADUATION, year } } };
-  const themeNone = { images: { none: { type: ImageType.THEME, year } } };
-  const gradSome = { images: { some: { type: ImageType.GRADUATION, year } } };
-  const themeSome = { images: { some: { type: ImageType.THEME, year } } };
-
-  switch (missing) {
-    case "GRADUATION":
-      where.images = { none: { type: ImageType.GRADUATION, year } };
-      break;
-    case "THEME":
-      where.images = { none: { type: ImageType.THEME, year } };
-      break;
-    case "BOTH":
-      where.AND = [gradNone, themeNone];
-      break;
-    case "NONE": // has both already
-      where.AND = [gradSome, themeSome];
-      break;
-    // "ALL" -> no image filter
+    switch (missing) {
+      case "GRADUATION":
+        where.images = { none: { type: ImageType.GRADUATION, year } };
+        break;
+      case "THEME":
+        where.images = { none: { type: ImageType.THEME, year } };
+        break;
+      case "BOTH":
+        where.AND = [gradNone, themeNone];
+        break;
+      case "NONE": // has both already
+        where.AND = [gradSome, themeSome];
+        break;
+      // "ALL" -> no image filter
+    }
+  } else {
+    where.student_number = id;
   }
 
   const total_students = await prisma.student.count();
