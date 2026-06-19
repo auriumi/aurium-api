@@ -60,7 +60,7 @@ router.get("/images/get-upload", requirePermission(Permission.IMAGE_UPLOAD), adm
 router.post("/images/save", requirePermission(Permission.IMAGE_UPLOAD), adminController.saveImageUrl);
 
 // image approval forum
-router.get("/images/approvals", requirePermission(Permission.IMAGE_APPROVE), requireImageApprover, adminController.fetchImageApprovals);
+router.get("/images/approvals", requirePermission(Permission.IMAGE_APPROVE), adminController.fetchImageApprovals);
 router.patch("/images/:id/status", requirePermission(Permission.IMAGE_APPROVE), requireImageApprover, adminController.handleImageDecision);
 router.get("/images/:id/comments", requirePermission(Permission.IMAGE_VIEW), adminController.fetchImageThread);
 router.post("/images/:id/comments", requirePermission(Permission.IMAGE_VIEW), adminController.handleAddImageComment);
