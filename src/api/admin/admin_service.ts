@@ -2,8 +2,8 @@ import prisma from "../../config/prisma";
 import crypto from "crypto";
 import bcrypt from "bcrypt";
 import { Resend } from 'resend';
-import { AdminActions, StudentStatus } from "@prisma/client";
-import { generateReadUrl } from "../student/r2_service";
+import { AdminActions, StudentStatus, ImageType, ImageStatus } from "@prisma/client";
+import { generateReadUrl, generateImageUploadUrl } from "../student/r2_service";
 
 const resend = new Resend(process.env.RESEND_API);
 const DOMAIN = "auriumi.cloud";
@@ -12,6 +12,7 @@ const DOMAIN = "auriumi.cloud";
 const STUDENTS_PER_PAGE = 8;
 const M_STUDENTS_PER_PAGE = 9;
 const F_STUDENTS_PER_PAGE = 8;
+const I_STUDENTS_PER_PAGE = 9;
 
 const STATUS_MAP: Record<number, StudentStatus> = {
   1: StudentStatus.REGISTERED,
@@ -570,6 +571,169 @@ export async function m_exportAll(dept: string, course: string, major: string, s
     },
   });
 }
+
+// ------------------------------- Image management -------------------------
+
+// thin wrapper so the admin controller stays service-scoped
+export async function img_getUploadUrl(
+  student_number: number,
+  type: "GRADUATION" | "THEME",
+  year: number,
+  ext: string,
+  mime: string
+) {
+  return generateImageUploadUrl(student_number, type, year, ext, mime);
+}
+
+// paginated students with their graduation/theme image status for a given year,
+// filterable by dept/course/major/student status + missing-image scope
+export async function img_queryStudents(
+  page: number,
+  dept: string,
+  course: string,
+  major: string,
+  status: string,
+  year: number,
+  missing: string
+) {
+  const safe_page = page > 0 ? page : 1;
+  const skip = (safe_page - 1) * I_STUDENTS_PER_PAGE;
+
+  const where: any = {};
+  if (dept !== "ALL") where.department = dept;
+  if (course !== "ALL") where.course = course;
+  if (major !== "ALL") where.major = major;
+
+  if (status !== "ALL") {
+    const status_map = STATUS_MAP[Number(status)];
+    if (status_map) where.studentAuth = { status: status_map };
+  }
+
+  // image-presence filter, scoped to the selected year
+  const gradNone = { images: { none: { type: ImageType.GRADUATION, year } } };
+  const themeNone = { images: { none: { type: ImageType.THEME, year } } };
+  const gradSome = { images: { some: { type: ImageType.GRADUATION, year } } };
+  const themeSome = { images: { some: { type: ImageType.THEME, year } } };
+
+  switch (missing) {
+    case "GRADUATION":
+      where.images = { none: { type: ImageType.GRADUATION, year } };
+      break;
+    case "THEME":
+      where.images = { none: { type: ImageType.THEME, year } };
+      break;
+    case "BOTH":
+      where.AND = [gradNone, themeNone];
+      break;
+    case "NONE": // has both already
+      where.AND = [gradSome, themeSome];
+      break;
+    // "ALL" -> no image filter
+  }
+
+  const total_students = await prisma.student.count();
+  const total_result = await prisma.student.count({ where });
+
+  const students = await prisma.student.findMany({
+    skip,
+    take: I_STUDENTS_PER_PAGE,
+    orderBy: { id: "asc" as const },
+    where,
+    include: {
+      studentDetail: true,
+      studentAuth: { select: { status: true } },
+      images: { where: { year } },
+    },
+  });
+
+  const shaped = await Promise.all(
+    students.map(async (s) => {
+      const reference_photo_url = s.studentDetail?.photo_url
+        ? (await generateReadUrl(s.studentDetail.photo_url)) ?? null
+        : null;
+
+      const buildImage = async (type: ImageType) => {
+        const img = s.images.find((i) => i.type === type);
+        if (!img) return null;
+        return {
+          id: img.id,
+          type: img.type,
+          year: img.year,
+          status: img.status,
+          photo_url: (await generateReadUrl(img.photo_url)) ?? img.photo_url,
+          updated_at: img.updated_at,
+        };
+      };
+
+      const graduation = await buildImage(ImageType.GRADUATION);
+      const theme = await buildImage(ImageType.THEME);
+
+      const { images, ...rest } = s;
+      return { ...rest, reference_photo_url, graduation, theme };
+    })
+  );
+
+  return { students: shaped, total_students, total_result };
+}
+
+// upsert a graduation/theme image for a student (re-upload resets status to PENDING)
+export async function img_saveImage(
+  student_number: number,
+  type: "GRADUATION" | "THEME",
+  year: number,
+  photo_url: string,
+  admin_id: number
+) {
+  try {
+    const student = await prisma.student.findUnique({
+      where: { student_number },
+      select: { student_number: true },
+    });
+    if (!student) return { success: false, reason: "Student doesn't exist!" };
+
+    await prisma.$transaction([
+      prisma.studentImage.upsert({
+        where: {
+          student_number_type_year: {
+            student_number,
+            type: type as ImageType,
+            year,
+          },
+        },
+        create: {
+          student_number,
+          type: type as ImageType,
+          year,
+          photo_url,
+          uploaded_by: admin_id,
+          status: ImageStatus.PENDING,
+        },
+        update: {
+          photo_url,
+          status: ImageStatus.PENDING,
+          uploaded_by: admin_id,
+        },
+      }),
+      prisma.logs.create({
+        data: {
+          admin_id,
+          action: AdminActions.UPLOADED,
+          target_id: student_number,
+        },
+      }),
+    ]);
+
+    return { success: true };
+  } catch (err) {
+    console.error(`Failed to save image for student ${student_number}:`, err);
+    return {
+      success: false,
+      reason: "An unexpected error occurred. Please try again later.",
+    };
+  }
+}
+
+// ---------------------------------------------------------------------
 
 //get paginated students where status is 'ATTENDED'
 export async function fv_queryStudents(page: number) {

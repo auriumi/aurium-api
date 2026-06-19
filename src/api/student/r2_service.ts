@@ -28,6 +28,27 @@ export async function generatePresignedUrl(student_number: string, ext = "jpg", 
     return { upload_url, photo_url };
 }
 
+export async function generateImageUploadUrl(
+    student_number: string | number,
+    type: "GRADUATION" | "THEME",
+    year: number,
+    ext = "jpg",
+    mime = "image/jpeg"
+) {
+    const folder = type === "GRADUATION" ? "graduation_photos" : "theme_photos";
+    const key = `${folder}/${year}/${student_number}.${ext}`;
+    const command = new PutObjectCommand({
+        Bucket: BUCKET,
+        Key: key,
+        ContentType: mime,
+    });
+
+    const upload_url = await getSignedUrl(s3, command, { expiresIn: 120 });
+    const photo_url = `https://${ACC_ID}.r2.cloudflarestorage.com/${BUCKET}/${key}`;
+
+    return { upload_url, photo_url };
+}
+
 function extractKey(photo_url: string): string | null {
     try {
         const { hostname, pathname } = new URL(photo_url);

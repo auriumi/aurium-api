@@ -29,6 +29,7 @@ model Student {
   booking              Booking[]
   attendanceQueue      AttendanceQueue?
   logs                 Logs[]
+  images               StudentImage[]
 }
 
 model StudentDetail {
@@ -96,6 +97,7 @@ model Admin {
   last_login      DateTime?
   role            AdminRoles @default(MEMBER)
   logs            Logs[]
+  uploadedImages  StudentImage[]
 }
 
 enum AdminRoles {
@@ -119,6 +121,36 @@ enum AdminActions {
   APPROVED
   VERIFIED
   UPLOADED
+}
+
+model StudentImage {
+  id             Int         @id @default(autoincrement())
+  student_number Int
+  type           ImageType
+  year           Int
+  photo_url      String
+  status         ImageStatus @default(PENDING)
+  uploaded_by    Int
+  created_at     DateTime    @default(now())
+  updated_at     DateTime    @updatedAt
+
+  student Student @relation(fields: [student_number], references: [student_number], onDelete: Cascade, onUpdate: Cascade)
+  admin   Admin   @relation(fields: [uploaded_by], references: [id], onDelete: Restrict)
+
+  @@unique([student_number, type, year])
+  @@index([student_number])
+  @@index([type, year])
+}
+
+enum ImageType {
+  GRADUATION
+  THEME
+}
+
+enum ImageStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 // ---------------------------------------------------------------------

@@ -53,6 +53,11 @@ router.patch("/book/update", requirePermission(Permission.BOOKING_UPDATE), admin
 router.get("/staff/list", requirePermission(Permission.STAFF_VIEW), adminController.fetchStaffList);
 router.patch("/staff/:id/role", requirePermission(Permission.STAFF_MANAGE_ROLE), adminController.handleUpdateAdminRole);
 
+// image management (graduation / theme pictures)
+router.get("/images/students", requirePermission(Permission.IMAGE_VIEW), adminController.fetchImageStudents);
+router.get("/images/get-upload", requirePermission(Permission.IMAGE_UPLOAD), adminController.getImageUploadUrl);
+router.post("/images/save", requirePermission(Permission.IMAGE_UPLOAD), adminController.saveImageUrl);
+
 //route guard exemptions
 assertRoutesGuarded(router, [
     "GET /profile",
