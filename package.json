@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "nodemon",
     "build": "tsc",
+    "test": "npm run build && node --test tests/rate_limits.test.cjs",
     "start": "node dist/index.js"
   },
   "keywords": [],

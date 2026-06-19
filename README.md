@@ -21,3 +21,17 @@ Here are the key tools and libraries used in this project:
 **[Node.js](https://nodejs.org/)**: Provides the JavaScript runtime environment to run the backend application.
 
 **[Bcrypt](https://github.com/kelektiv/node.bcrypt.js)**: Secures user passwords by hashing them before saving to the database, ensuring password security.
+
+## Rate-limit budgets
+
+Rate limits use a three-minute window unless noted otherwise:
+
+- `GET /api/admin/queue/list`: 90 requests. The queue loads immediately and
+  polls every five seconds, producing 37 requests in a full window. This budget
+  supports two active queue displays with additional headroom.
+- Other admin `GET` and `HEAD` requests: 120 requests.
+- Admin mutation requests (`POST`, `PATCH`, `PUT`, and `DELETE`): 50 requests.
+- Authentication endpoints: 5 requests per five minutes.
+
+Queue polling, other admin reads, and admin mutations use separate counters, so
+background queue refreshes do not consume the budget for operational changes.

@@ -12,6 +12,15 @@ import authRoutes from "./api/auth/auth_route";
 
 const app = express();
 
+const ADMIN_RATE_LIMIT_WINDOW_MS = 3 * 60 * 1000;
+
+export const ADMIN_RATE_LIMITS = {
+  windowMs: ADMIN_RATE_LIMIT_WINDOW_MS,
+  queuePolls: 90,
+  reads: 120,
+  mutations: 50,
+} as const;
+
 const corsConfig = {
   origin: process.env.NODE_ENV == "production"
     ? "https://aurium-yearbook.site" //production
@@ -31,11 +40,30 @@ const login_limiter = rateLimit({
   legacyHeaders: false
 });
 
-const admin_limiter = rateLimit({
-  windowMs: 3 * 60 * 1000, //3 mins
-  limit: 50,
-  message: "Too many request, please try again later :P",
-  legacyHeaders: false
+const queue_poll_limiter = rateLimit({
+  windowMs: ADMIN_RATE_LIMITS.windowMs,
+  limit: ADMIN_RATE_LIMITS.queuePolls,
+  message: "Too many queue refresh requests, please try again later",
+  legacyHeaders: false,
+});
+
+const admin_read_limiter = rateLimit({
+  windowMs: ADMIN_RATE_LIMITS.windowMs,
+  limit: ADMIN_RATE_LIMITS.reads,
+  message: "Too many admin read requests, please try again later",
+  legacyHeaders: false,
+  skip: (req) => (
+    (req.method !== "GET" && req.method !== "HEAD")
+    || req.path === "/queue/list"
+  ),
+});
+
+const admin_mutation_limiter = rateLimit({
+  windowMs: ADMIN_RATE_LIMITS.windowMs,
+  limit: ADMIN_RATE_LIMITS.mutations,
+  message: "Too many admin changes, please try again later",
+  legacyHeaders: false,
+  skip: (req) => req.method === "GET" || req.method === "HEAD",
 });
 
 const gen_limiter = rateLimit({
@@ -46,7 +74,15 @@ const gen_limiter = rateLimit({
 });
 
 //API ROUTES
-app.use("/api/admin", admin_limiter, verifyToken, isAdmin, adminRoutes);
+app.use("/api/admin/queue/list", queue_poll_limiter);
+app.use(
+  "/api/admin",
+  admin_read_limiter,
+  admin_mutation_limiter,
+  verifyToken,
+  isAdmin,
+  adminRoutes,
+);
 app.use("/api/student", gen_limiter, verifyToken, studentRoutes);
 app.use("/api/auth", login_limiter, authRoutes);
 
