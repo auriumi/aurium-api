@@ -1,6 +1,6 @@
 import { Router } from "express";
 import * as adminController from "./admin_controller";
-import { requirePermission } from "../auth/auth_middleware";
+import { requirePermission, requireImageApprover } from "../auth/auth_middleware";
 import { Permission } from "../auth/permissions";
 import { assertRoutesGuarded } from "../auth/route_guard_audit";
 
@@ -52,12 +52,34 @@ router.patch("/book/update", requirePermission(Permission.BOOKING_UPDATE), admin
 // staff role management (Administrator only)
 router.get("/staff/list", requirePermission(Permission.STAFF_VIEW), adminController.fetchStaffList);
 router.patch("/staff/:id/role", requirePermission(Permission.STAFF_MANAGE_ROLE), adminController.handleUpdateAdminRole);
+router.patch("/staff/:id/image-approver", requirePermission(Permission.STAFF_MANAGE_ROLE), adminController.handleUpdateImageApprover);
+
+// image management (graduation / theme pictures)
+router.get("/images/students", requirePermission(Permission.IMAGE_VIEW), adminController.fetchImageStudents);
+router.get("/images/get-upload", requirePermission(Permission.IMAGE_UPLOAD), adminController.getImageUploadUrl);
+router.post("/images/save", requirePermission(Permission.IMAGE_UPLOAD), adminController.saveImageUrl);
+
+// image approval forum
+router.get("/images/approvals", requirePermission(Permission.IMAGE_APPROVE), requireImageApprover, adminController.fetchImageApprovals);
+router.patch("/images/:id/status", requirePermission(Permission.IMAGE_APPROVE), requireImageApprover, adminController.handleImageDecision);
+router.get("/images/:id/comments", requirePermission(Permission.IMAGE_VIEW), adminController.fetchImageThread);
+router.post("/images/:id/comments", requirePermission(Permission.IMAGE_VIEW), adminController.handleAddImageComment);
+
+// notifications (self-scoped)
+router.get("/notifications", adminController.fetchNotifications);
+router.get("/notifications/unread-count", adminController.fetchNotificationCount);
+router.patch("/notifications/read-all", adminController.handleMarkAllNotificationsRead);
+router.patch("/notifications/:id/read", adminController.handleMarkNotificationRead);
 
 //route guard exemptions
 assertRoutesGuarded(router, [
     "GET /profile",
     "POST /verify-password",
     "PATCH /change-password",
+    "GET /notifications",
+    "GET /notifications/unread-count",
+    "PATCH /notifications/read-all",
+    "PATCH /notifications/:id/read",
 ]);
 
 export default router;

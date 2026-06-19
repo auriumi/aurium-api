@@ -29,6 +29,7 @@ model Student {
   booking              Booking[]
   attendanceQueue      AttendanceQueue?
   logs                 Logs[]
+  images               StudentImage[]
 }
 
 model StudentDetail {
@@ -88,14 +89,18 @@ enum StudentStatus {
 
 // ------------------------------- Admin Schema -------------------------
 model Admin {
-  id              Int        @id @default(autoincrement())
-  email           String?    @unique
-  first_name      String?
-  last_name       String?
-  hashed_password String
-  last_login      DateTime?
-  role            AdminRoles @default(MEMBER)
-  logs            Logs[]
+  id                 Int            @id @default(autoincrement())
+  email              String?        @unique
+  first_name         String?
+  last_name          String?
+  hashed_password    String
+  last_login         DateTime?
+  role               AdminRoles     @default(MEMBER)
+  can_approve_images Boolean        @default(false)
+  logs               Logs[]
+  uploadedImages     StudentImage[]
+  imageComments      ImageComment[]
+  notifications      Notification[] @relation("AdminNotifications")
 }
 
 enum AdminRoles {
@@ -119,6 +124,74 @@ enum AdminActions {
   APPROVED
   VERIFIED
   UPLOADED
+}
+
+model StudentImage {
+  id             Int         @id @default(autoincrement())
+  student_number Int
+  type           ImageType
+  year           Int
+  photo_url      String
+  status         ImageStatus @default(PENDING)
+  uploaded_by    Int
+  created_at     DateTime    @default(now())
+  updated_at     DateTime    @updatedAt
+
+  student       Student        @relation(fields: [student_number], references: [student_number], onDelete: Cascade, onUpdate: Cascade)
+  admin         Admin          @relation(fields: [uploaded_by], references: [id], onDelete: Restrict)
+  comments      ImageComment[]
+  notifications Notification[]
+
+  @@unique([student_number, type, year])
+  @@index([student_number])
+  @@index([type, year])
+}
+
+enum ImageType {
+  GRADUATION
+  THEME
+}
+
+enum ImageStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model ImageComment {
+  id         Int      @id @default(autoincrement())
+  image_id   Int
+  admin_id   Int
+  body       String
+  is_system  Boolean  @default(false)
+  created_at DateTime @default(now())
+
+  image StudentImage @relation(fields: [image_id], references: [id], onDelete: Cascade)
+  admin Admin        @relation(fields: [admin_id], references: [id], onDelete: Cascade)
+
+  @@index([image_id])
+}
+
+model Notification {
+  id           Int              @id @default(autoincrement())
+  recipient_id Int
+  type         NotificationType
+  message      String
+  image_id     Int?
+  is_read      Boolean          @default(false)
+  created_at   DateTime         @default(now())
+
+  recipient Admin         @relation("AdminNotifications", fields: [recipient_id], references: [id], onDelete: Cascade)
+  image     StudentImage? @relation(fields: [image_id], references: [id], onDelete: Cascade)
+
+  @@index([recipient_id, is_read])
+}
+
+enum NotificationType {
+  IMAGE_UPLOADED
+  IMAGE_APPROVED
+  IMAGE_REJECTED
+  IMAGE_COMMENT
 }
 
 // ---------------------------------------------------------------------
