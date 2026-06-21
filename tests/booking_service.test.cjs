@@ -68,3 +68,35 @@ test("rejects booking days that do not exist", async () => {
     BOOKING_ERROR_CODES.BOOKING_DAY_NOT_FOUND,
   );
 });
+
+test("rejects closed booking days", async () => {
+  const { service } = createFixture({
+    bookingDays: [bookingDay({ is_open: false })],
+  });
+
+  await expectBookingError(
+    service.bookStudent({
+      studentNumber: 20260001,
+      bookingDayId: 1,
+      period: "AM",
+    }),
+    BOOKING_ERROR_CODES.BOOKING_DAY_CLOSED,
+  );
+});
+
+test("rejects past booking days", async () => {
+  const { service } = createFixture({
+    bookingDays: [
+      bookingDay({ date: new Date("2026-06-20T00:00:00.000Z") }),
+    ],
+  });
+
+  await expectBookingError(
+    service.bookStudent({
+      studentNumber: 20260001,
+      bookingDayId: 1,
+      period: "AM",
+    }),
+    BOOKING_ERROR_CODES.BOOKING_DAY_IN_PAST,
+  );
+});
