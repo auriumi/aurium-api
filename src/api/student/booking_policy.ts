@@ -59,3 +59,13 @@ export function requireBookingPeriod(value: unknown): BookingPeriod {
 
   return value as BookingPeriod;
 }
+
+export function isPastUtcDate(date: Date, now = new Date()) {
+  const scheduleDate = new Date(date);
+  scheduleDate.setUTCHours(0, 0, 0, 0);
+
+  const today = new Date(now);
+  today.setUTCHours(0, 0, 0, 0);
+
+  return scheduleDate < today;
+}
