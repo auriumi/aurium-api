@@ -209,7 +209,7 @@ model BookingDay {
 
 model Booking {
   id             Int        @id @default(autoincrement())
-  student_number Int
+  student_number Int        @unique
   booking_day_id Int
   period         String
   created_at     DateTime   @default(now())
