@@ -136,6 +136,27 @@ export function createBookingService(
     requireAvailableCapacity(bookingDay, period, bookedCount);
   }
 
+  async function requireOwnedBooking(
+    transaction: BookingTransaction,
+    bookingId: number,
+    studentNumber: number,
+  ) {
+    await transaction.lockBooking(bookingId, studentNumber);
+    const booking = await transaction.findBookingByIdForStudent(
+      bookingId,
+      studentNumber,
+    );
+
+    if (!booking) {
+      throw new BookingError(
+        BOOKING_ERROR_CODES.BOOKING_NOT_FOUND,
+        "The booking does not exist or does not belong to this student.",
+      );
+    }
+
+    return booking;
+  }
+
   async function bookStudent(input: CreateBookingInput) {
     const normalized = normalizeCreateBookingInput(input);
 
@@ -168,6 +189,7 @@ export function createBookingService(
     maxTransactionAttempts,
     loadBookableDay,
     requireNoExistingBooking,
+    requireOwnedBooking,
     requireSessionSpace,
     runTransaction,
     translateStoreError,
