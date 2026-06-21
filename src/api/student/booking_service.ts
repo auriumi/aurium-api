@@ -7,6 +7,7 @@ import {
   BookingError,
 } from "./booking_errors";
 import {
+  requireAvailableCapacity,
   requireBookableDay,
   requireBookingDayId,
   requireBookingPeriod,
@@ -94,11 +95,28 @@ export function createBookingService(
     }
   }
 
+  async function requireSessionSpace(
+    transaction: BookingTransaction,
+    bookingDayId: number,
+    period: BookingPeriod,
+    bookingDay: Awaited<ReturnType<typeof loadBookableDay>>,
+    excludeBookingId?: number,
+  ) {
+    const bookedCount = await transaction.countSessionBookings({
+      bookingDayId,
+      period,
+      ...(excludeBookingId === undefined ? {} : { excludeBookingId }),
+    });
+
+    requireAvailableCapacity(bookingDay, period, bookedCount);
+  }
+
   return {
     now,
     maxTransactionAttempts,
     loadBookableDay,
     requireNoExistingBooking,
+    requireSessionSpace,
     runTransaction,
   };
 }
