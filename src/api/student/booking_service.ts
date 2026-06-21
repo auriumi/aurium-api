@@ -1,4 +1,11 @@
-import type { BookingStore } from "./booking_store";
+import type {
+  BookingStore,
+  BookingTransaction,
+} from "./booking_store";
+import {
+  BOOKING_ERROR_CODES,
+  BookingError,
+} from "./booking_errors";
 
 export type CreateBookingInput = {
   studentNumber: unknown;
@@ -22,8 +29,28 @@ export function createBookingService(
   const now = options.now ?? (() => new Date());
   const maxTransactionAttempts = options.maxTransactionAttempts ?? 3;
 
+  async function runTransaction<T>(
+    operation: (transaction: BookingTransaction) => Promise<T>,
+  ): Promise<T> {
+    for (let attempt = 1; attempt <= maxTransactionAttempts; attempt += 1) {
+      try {
+        return await store.transaction(operation);
+      } catch (error) {
+        if (!store.isRetryableConflict(error)) {
+          throw error;
+        }
+      }
+    }
+
+    throw new BookingError(
+      BOOKING_ERROR_CODES.CONCURRENT_BOOKING_CONFLICT,
+      "The booking changed during this request. Please try again.",
+    );
+  }
+
   return {
     now,
     maxTransactionAttempts,
+    runTransaction,
   };
 }
