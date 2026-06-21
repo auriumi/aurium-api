@@ -21,6 +21,7 @@ jobs:
             
             git pull
             npm ci
+            npx prisma migrate deploy
             npx prisma generate
             npm run build
             npm prune --omit=dev
