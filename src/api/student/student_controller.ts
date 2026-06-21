@@ -2,6 +2,11 @@ import { Request, Response } from "express";
 import { generatePresignedUrl } from "./r2_service";
 import * as studentService from "./student_service";
 import * as r2Service from "./r2_service";
+import { isBookingError } from "./booking_errors";
+import {
+    bookingErrorResponse,
+    bookingErrorStatus,
+} from "./booking_http";
 
 interface StudentRequest extends Request {
     user?: {
@@ -69,24 +74,28 @@ export async function createBooking(req: StudentRequest, res: Response) {
         const student_number = req.user?.student_number;
         const { booking_id, period } = req.body;
 
-        if (!student_number || !booking_id || !period) {
+        if (!student_number) {
             return res.status(400).json({
                 error: "Invalid Request!",
             })
         }
 
-        if (period !== 'AM' && period !== 'PM') {
-            return res.status(400).json({
-                error: "Invalid Request!",
-            })
-        }
-
-        await studentService.createBooking(parseInt(student_number!), booking_id, period);
+        await studentService.createBooking(
+            parseInt(student_number),
+            booking_id,
+            period,
+        );
 
         return res.json({
             status: "Success"
         });
     } catch (err) {
+        if (isBookingError(err)) {
+            return res
+                .status(bookingErrorStatus(err.code))
+                .json(bookingErrorResponse(err));
+        }
+
         console.error(`Error: ${err}`);
         return res.status(500).json({
             status: "Failed",
