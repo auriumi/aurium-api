@@ -209,12 +209,14 @@ model BookingDay {
 
 model Booking {
   id             Int        @id @default(autoincrement())
-  student_number Int
+  student_number Int        @unique
   booking_day_id Int
   period         String
   created_at     DateTime   @default(now())
   booking_day    BookingDay @relation(fields: [booking_day_id], references: [id], onDelete: Cascade)
   student        Student    @relation(fields: [student_number], references: [student_number], onDelete: Cascade)
+
+  @@index([booking_day_id, period])
 }
 
 model AttendanceQueue {

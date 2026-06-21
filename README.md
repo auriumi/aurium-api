@@ -21,3 +21,22 @@ Here are the key tools and libraries used in this project:
 **[Node.js](https://nodejs.org/)**: Provides the JavaScript runtime environment to run the backend application.
 
 **[Bcrypt](https://github.com/kelektiv/node.bcrypt.js)**: Secures user passwords by hashing them before saving to the database, ensuring password security.
+
+## Booking integrity
+
+Student booking writes are protected by database transactions and row locks:
+
+- The selected booking day must exist, remain open, and not be in the past.
+- Only `AM` and `PM` sessions are accepted.
+- Capacity is counted while the booking-day row is locked, so concurrent
+  requests cannot overbook the same session.
+- A student can have only one active booking, enforced by both service logic
+  and a unique database index.
+- Booking creation and the student's `BOOKED` status update commit together.
+- Schedule changes validate capacity while excluding the student's current
+  booking from the target-session count.
+
+Deployments must apply Prisma migrations before restarting the API. The atomic
+booking migration intentionally stops with a clear error if historical duplicate
+student bookings exist; those records must be reviewed before adding the unique
+constraint.
