@@ -217,3 +217,46 @@ test("updates an owned booking to an available session", async () => {
   assert.equal(updated.period, "PM");
   assert.equal(store.bookings.length, 1);
 });
+
+test("keeps the original booking when the target session is full", async () => {
+  const { service, store } = createFixture({
+    bookingDays: [
+      bookingDay(),
+      bookingDay({
+        id: 2,
+        max_afternoon_cap: 1,
+        date: new Date("2026-06-23T00:00:00.000Z"),
+      }),
+    ],
+    bookings: [
+      {
+        id: 10,
+        student_number: 20260001,
+        booking_day_id: 1,
+        period: "AM",
+        created_at: NOW,
+      },
+      {
+        id: 11,
+        student_number: 20260002,
+        booking_day_id: 2,
+        period: "PM",
+        created_at: NOW,
+      },
+    ],
+  });
+
+  await expectBookingError(
+    service.changeBooking({
+      bookingId: 10,
+      studentNumber: 20260001,
+      bookingDayId: 2,
+      period: "PM",
+    }),
+    BOOKING_ERROR_CODES.SESSION_FULL,
+  );
+
+  const unchanged = store.bookings.find(({ id }) => id === 10);
+  assert.equal(unchanged.booking_day_id, 1);
+  assert.equal(unchanged.period, "AM");
+});
