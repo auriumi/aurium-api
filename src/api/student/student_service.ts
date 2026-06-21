@@ -1,12 +1,16 @@
 import { SolicitationType, StudentStatus } from "@prisma/client";
 import prisma from "../../config/prisma";
 import { generateReadUrl } from "./r2_service";
+import { createBookingService } from "./booking_service";
+import { prismaBookingStore } from "./prisma_booking_store";
 
 type SolicitationPayload = {
   type: SolicitationType;
   title: string;
   name: string;
 };
+
+const bookingService = createBookingService(prismaBookingStore);
 
 export async function createStudent(body: any) {
   return await prisma.student.create({
@@ -84,42 +88,20 @@ export async function fetchBooking() {
 }
 
 export async function createBooking(student_id: number, booking_id: number, period: string) {
-  try {
-    return await prisma.booking.create({
-      data: {
-        student_number: student_id,
-        booking_day_id: booking_id,
-        period: period
-      }
-    }),
-    prisma.studentAuth.update({
-      where: {
-        student_number: student_id
-      },
-      data: {
-        status: StudentStatus.BOOKED
-      }
-    });
-  } catch(err) {
-    console.error("Error: ", err);
-  }
+  return bookingService.bookStudent({
+    studentNumber: student_id,
+    bookingDayId: booking_id,
+    period,
+  });
 }
 
 export async function updateBooking(booking_id: string, booking_day_id: number, period: string, student_number: string) {
-  try {
-    return await prisma.booking.update({
-      where: {
-        id: parseInt(booking_id),
-        student_number: parseInt(student_number)
-      },
-      data: {
-        booking_day_id: booking_day_id,
-        period: period
-      }
-    });
-  } catch(err) {
-    console.error("Error: ", err);
-  }
+  return bookingService.changeBooking({
+    bookingId: booking_id,
+    studentNumber: student_number,
+    bookingDayId: booking_day_id,
+    period,
+  });
 }
 
 export async function getStudentProfile(student_number: number) {
