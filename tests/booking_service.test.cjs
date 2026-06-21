@@ -159,3 +159,30 @@ test("creates a booking and marks the student booked atomically", async () => {
   assert.equal(store.bookings.length, 1);
   assert.equal(store.studentStatuses.get(20260001), "BOOKED");
 });
+
+test("serializes concurrent requests so capacity cannot be exceeded", async () => {
+  const { service, store } = createFixture({
+    bookingDays: [bookingDay({ max_morning_cap: 1 })],
+  });
+
+  const results = await Promise.allSettled([
+    service.bookStudent({
+      studentNumber: 20260001,
+      bookingDayId: 1,
+      period: "AM",
+    }),
+    service.bookStudent({
+      studentNumber: 20260002,
+      bookingDayId: 1,
+      period: "AM",
+    }),
+  ]);
+
+  const successful = results.filter(({ status }) => status === "fulfilled");
+  const rejected = results.filter(({ status }) => status === "rejected");
+
+  assert.equal(successful.length, 1);
+  assert.equal(rejected.length, 1);
+  assert.equal(rejected[0].reason.code, BOOKING_ERROR_CODES.SESSION_FULL);
+  assert.equal(store.bookings.length, 1);
+});
