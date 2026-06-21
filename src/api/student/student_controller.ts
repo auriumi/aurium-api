@@ -112,19 +112,7 @@ export async function updateBooking(req: StudentRequest, res: Response) {
         const { id } = req.params;
         const { booking_day_id, period } = req.body;
 
-        if (typeof id !== 'string') {
-            return res.status(400).json({
-                error: "Bad Request!"
-            });
-        }
-
-        if (!student_number || !booking_day_id || !period) {
-            return res.status(400).json({
-                error: "Invalid Request!",
-            })
-        }
-
-        if (period !== 'AM' && period !== 'PM') {
+        if (!student_number) {
             return res.status(400).json({
                 error: "Invalid Request!",
             })
@@ -136,6 +124,12 @@ export async function updateBooking(req: StudentRequest, res: Response) {
             status: "Success"
         });
     } catch (err) {
+        if (isBookingError(err)) {
+            return res
+                .status(bookingErrorStatus(err.code))
+                .json(bookingErrorResponse(err));
+        }
+
         console.error(`Error: ${err}`);
         return res.status(500).json({
             status: "Failed",
