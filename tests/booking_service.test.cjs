@@ -143,3 +143,19 @@ test("rejects duplicate active bookings for a student", async () => {
     BOOKING_ERROR_CODES.DUPLICATE_BOOKING,
   );
 });
+
+test("creates a booking and marks the student booked atomically", async () => {
+  const { service, store } = createFixture();
+
+  const booking = await service.bookStudent({
+    studentNumber: 20260001,
+    bookingDayId: 1,
+    period: "PM",
+  });
+
+  assert.equal(booking.student_number, 20260001);
+  assert.equal(booking.booking_day_id, 1);
+  assert.equal(booking.period, "PM");
+  assert.equal(store.bookings.length, 1);
+  assert.equal(store.studentStatuses.get(20260001), "BOOKED");
+});
