@@ -122,3 +122,24 @@ test("rejects sessions at capacity", async () => {
     BOOKING_ERROR_CODES.SESSION_FULL,
   );
 });
+
+test("rejects duplicate active bookings for a student", async () => {
+  const { service } = createFixture({
+    bookings: [{
+      id: 1,
+      student_number: 20260001,
+      booking_day_id: 1,
+      period: "PM",
+      created_at: NOW,
+    }],
+  });
+
+  await expectBookingError(
+    service.bookStudent({
+      studentNumber: 20260001,
+      bookingDayId: 1,
+      period: "AM",
+    }),
+    BOOKING_ERROR_CODES.DUPLICATE_BOOKING,
+  );
+});
