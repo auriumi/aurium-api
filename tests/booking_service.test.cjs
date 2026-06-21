@@ -28,6 +28,7 @@ function createFixture(options = {}) {
   const store = new InMemoryBookingStore({
     bookingDays: options.bookingDays ?? [bookingDay()],
     bookings: options.bookings ?? [],
+    retryFailures: options.retryFailures ?? 0,
   });
   const service = createBookingService(store, {
     now: () => NOW,
@@ -281,4 +282,19 @@ test("rejects updates to another student's booking", async () => {
     }),
     BOOKING_ERROR_CODES.BOOKING_NOT_FOUND,
   );
+});
+
+test("retries transient serialization conflicts", async () => {
+  const { service, store } = createFixture({
+    retryFailures: 2,
+  });
+
+  await service.bookStudent({
+    studentNumber: 20260001,
+    bookingDayId: 1,
+    period: "AM",
+  });
+
+  assert.equal(store.bookings.length, 1);
+  assert.equal(store.retryFailures, 0);
 });
