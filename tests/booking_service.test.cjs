@@ -313,3 +313,26 @@ test("returns a conflict after transaction retries are exhausted", async () => {
     BOOKING_ERROR_CODES.CONCURRENT_BOOKING_CONFLICT,
   );
 });
+
+test("does not count the current booking against an update", async () => {
+  const { service } = createFixture({
+    bookingDays: [bookingDay({ max_morning_cap: 1 })],
+    bookings: [{
+      id: 10,
+      student_number: 20260001,
+      booking_day_id: 1,
+      period: "AM",
+      created_at: NOW,
+    }],
+  });
+
+  const updated = await service.changeBooking({
+    bookingId: 10,
+    studentNumber: 20260001,
+    bookingDayId: 1,
+    period: "AM",
+  });
+
+  assert.equal(updated.booking_day_id, 1);
+  assert.equal(updated.period, "AM");
+});
