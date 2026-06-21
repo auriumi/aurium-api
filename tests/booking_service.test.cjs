@@ -298,3 +298,18 @@ test("retries transient serialization conflicts", async () => {
   assert.equal(store.bookings.length, 1);
   assert.equal(store.retryFailures, 0);
 });
+
+test("returns a conflict after transaction retries are exhausted", async () => {
+  const { service } = createFixture({
+    retryFailures: 3,
+  });
+
+  await expectBookingError(
+    service.bookStudent({
+      studentNumber: 20260001,
+      bookingDayId: 1,
+      period: "AM",
+    }),
+    BOOKING_ERROR_CODES.CONCURRENT_BOOKING_CONFLICT,
+  );
+});
