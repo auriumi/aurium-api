@@ -113,3 +113,16 @@ export function requireCurrentBookingDay(
     );
   }
 }
+
+export function requireAvailableCapacity(
+  bookingDay: BookingDayRecord,
+  period: BookingPeriod,
+  bookedCount: number,
+) {
+  if (bookedCount >= capacityForPeriod(bookingDay, period)) {
+    throw new BookingError(
+      BOOKING_ERROR_CODES.SESSION_FULL,
+      `The selected ${period} session is full.`,
+    );
+  }
+}
