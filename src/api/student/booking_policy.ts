@@ -5,6 +5,7 @@ import {
 } from "./booking_errors";
 import {
   BOOKING_PERIODS,
+  type BookingDayRecord,
   type BookingPeriod,
 } from "./booking_types";
 
@@ -68,4 +69,13 @@ export function isPastUtcDate(date: Date, now = new Date()) {
   today.setUTCHours(0, 0, 0, 0);
 
   return scheduleDate < today;
+}
+
+export function capacityForPeriod(
+  bookingDay: BookingDayRecord,
+  period: BookingPeriod,
+) {
+  return period === "AM"
+    ? bookingDay.max_morning_cap
+    : bookingDay.max_afternoon_cap;
 }
