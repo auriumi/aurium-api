@@ -92,3 +92,12 @@ export function requireBookingDay(
 
   return bookingDay;
 }
+
+export function requireOpenBookingDay(bookingDay: BookingDayRecord) {
+  if (!bookingDay.is_open) {
+    throw new BookingError(
+      BOOKING_ERROR_CODES.BOOKING_DAY_CLOSED,
+      "The selected booking day is closed.",
+    );
+  }
+}
