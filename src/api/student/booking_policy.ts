@@ -101,3 +101,15 @@ export function requireOpenBookingDay(bookingDay: BookingDayRecord) {
     );
   }
 }
+
+export function requireCurrentBookingDay(
+  bookingDay: BookingDayRecord,
+  now = new Date(),
+) {
+  if (isPastUtcDate(bookingDay.date, now)) {
+    throw new BookingError(
+      BOOKING_ERROR_CODES.BOOKING_DAY_IN_PAST,
+      "The selected booking day has already passed.",
+    );
+  }
+}
