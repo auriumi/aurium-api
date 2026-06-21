@@ -87,7 +87,11 @@ export async function fetchBooking() {
   });
 }
 
-export async function createBooking(student_id: number, booking_id: number, period: string) {
+export async function createBooking(
+  student_id: unknown,
+  booking_id: unknown,
+  period: unknown,
+) {
   return bookingService.bookStudent({
     studentNumber: student_id,
     bookingDayId: booking_id,
@@ -95,7 +99,12 @@ export async function createBooking(student_id: number, booking_id: number, peri
   });
 }
 
-export async function updateBooking(booking_id: string, booking_day_id: number, period: string, student_number: string) {
+export async function updateBooking(
+  booking_id: unknown,
+  booking_day_id: unknown,
+  period: unknown,
+  student_number: unknown,
+) {
   return bookingService.changeBooking({
     bookingId: booking_id,
     studentNumber: student_number,
