@@ -260,3 +260,25 @@ test("keeps the original booking when the target session is full", async () => {
   assert.equal(unchanged.booking_day_id, 1);
   assert.equal(unchanged.period, "AM");
 });
+
+test("rejects updates to another student's booking", async () => {
+  const { service } = createFixture({
+    bookings: [{
+      id: 10,
+      student_number: 20260001,
+      booking_day_id: 1,
+      period: "AM",
+      created_at: NOW,
+    }],
+  });
+
+  await expectBookingError(
+    service.changeBooking({
+      bookingId: 10,
+      studentNumber: 20260002,
+      bookingDayId: 1,
+      period: "PM",
+    }),
+    BOOKING_ERROR_CODES.BOOKING_NOT_FOUND,
+  );
+});
