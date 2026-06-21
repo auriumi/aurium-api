@@ -14,3 +14,17 @@ export const BOOKING_ERROR_CODES = {
 
 export type BookingErrorCode =
   (typeof BOOKING_ERROR_CODES)[keyof typeof BOOKING_ERROR_CODES];
+
+export class BookingError extends Error {
+  readonly code: BookingErrorCode;
+
+  constructor(code: BookingErrorCode, message: string) {
+    super(message);
+    this.name = "BookingError";
+    this.code = code;
+  }
+}
+
+export function isBookingError(error: unknown): error is BookingError {
+  return error instanceof BookingError;
+}
