@@ -111,7 +111,28 @@ export function createBookingService(
     requireAvailableCapacity(bookingDay, period, bookedCount);
   }
 
+  async function bookStudent(input: CreateBookingInput) {
+    const normalized = normalizeCreateBookingInput(input);
+
+    return runTransaction(async (transaction) => {
+      const bookingDay = await loadBookableDay(
+        transaction,
+        normalized.bookingDayId,
+      );
+      await requireNoExistingBooking(transaction, normalized.studentNumber);
+      await requireSessionSpace(
+        transaction,
+        normalized.bookingDayId,
+        normalized.period,
+        bookingDay,
+      );
+
+      return transaction.createBooking(normalized);
+    });
+  }
+
   return {
+    bookStudent,
     now,
     maxTransactionAttempts,
     loadBookableDay,
