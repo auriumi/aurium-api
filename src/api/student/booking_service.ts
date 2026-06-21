@@ -215,13 +215,5 @@ export function createBookingService(
   return {
     bookStudent,
     changeBooking,
-    now,
-    maxTransactionAttempts,
-    loadBookableDay,
-    requireNoExistingBooking,
-    requireOwnedBooking,
-    requireSessionSpace,
-    runTransaction,
-    translateStoreError,
   };
 }
