@@ -215,6 +215,8 @@ model Booking {
   created_at     DateTime   @default(now())
   booking_day    BookingDay @relation(fields: [booking_day_id], references: [id], onDelete: Cascade)
   student        Student    @relation(fields: [student_number], references: [student_number], onDelete: Cascade)
+
+  @@index([booking_day_id, period])
 }
 
 model AttendanceQueue {
