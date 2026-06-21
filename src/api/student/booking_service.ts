@@ -183,8 +183,38 @@ export function createBookingService(
     }
   }
 
+  async function changeBooking(input: UpdateBookingInput) {
+    const normalized = normalizeUpdateBookingInput(input);
+
+    try {
+      return await runTransaction(async (transaction) => {
+        await requireOwnedBooking(
+          transaction,
+          normalized.bookingId,
+          normalized.studentNumber,
+        );
+        const bookingDay = await loadBookableDay(
+          transaction,
+          normalized.bookingDayId,
+        );
+        await requireSessionSpace(
+          transaction,
+          normalized.bookingDayId,
+          normalized.period,
+          bookingDay,
+          normalized.bookingId,
+        );
+
+        return transaction.updateBooking(normalized);
+      });
+    } catch (error) {
+      return translateStoreError(error);
+    }
+  }
+
   return {
     bookStudent,
+    changeBooking,
     now,
     maxTransactionAttempts,
     loadBookableDay,
