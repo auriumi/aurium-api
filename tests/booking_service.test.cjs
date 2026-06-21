@@ -100,3 +100,25 @@ test("rejects past booking days", async () => {
     BOOKING_ERROR_CODES.BOOKING_DAY_IN_PAST,
   );
 });
+
+test("rejects sessions at capacity", async () => {
+  const { service } = createFixture({
+    bookingDays: [bookingDay({ max_morning_cap: 1 })],
+    bookings: [{
+      id: 1,
+      student_number: 20260000,
+      booking_day_id: 1,
+      period: "AM",
+      created_at: NOW,
+    }],
+  });
+
+  await expectBookingError(
+    service.bookStudent({
+      studentNumber: 20260001,
+      bookingDayId: 1,
+      period: "AM",
+    }),
+    BOOKING_ERROR_CODES.SESSION_FULL,
+  );
+});
