@@ -126,3 +126,13 @@ export function requireAvailableCapacity(
     );
   }
 }
+
+export function requireBookableDay(
+  bookingDay: BookingDayRecord | null,
+  now = new Date(),
+) {
+  const existingBookingDay = requireBookingDay(bookingDay);
+  requireOpenBookingDay(existingBookingDay);
+  requireCurrentBookingDay(existingBookingDay, now);
+  return existingBookingDay;
+}
