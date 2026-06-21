@@ -80,10 +80,25 @@ export function createBookingService(
     return requireBookableDay(bookingDay, now());
   }
 
+  async function requireNoExistingBooking(
+    transaction: BookingTransaction,
+    studentNumber: number,
+  ) {
+    const existingBooking = await transaction.findBookingByStudent(studentNumber);
+
+    if (existingBooking) {
+      throw new BookingError(
+        BOOKING_ERROR_CODES.DUPLICATE_BOOKING,
+        "This student already has an active booking.",
+      );
+    }
+  }
+
   return {
     now,
     maxTransactionAttempts,
     loadBookableDay,
+    requireNoExistingBooking,
     runTransaction,
   };
 }
