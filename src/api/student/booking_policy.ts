@@ -25,3 +25,19 @@ export function requireStudentNumber(value: unknown) {
     "Student number",
   );
 }
+
+export function requireBookingId(value: unknown) {
+  return requirePositiveInteger(
+    value,
+    BOOKING_ERROR_CODES.INVALID_BOOKING_ID,
+    "Booking ID",
+  );
+}
+
+export function requireBookingDayId(value: unknown) {
+  return requirePositiveInteger(
+    value,
+    BOOKING_ERROR_CODES.INVALID_BOOKING_DAY_ID,
+    "Booking day ID",
+  );
+}
