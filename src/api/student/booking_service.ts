@@ -7,6 +7,7 @@ import {
   BookingError,
 } from "./booking_errors";
 import {
+  requireBookingId,
   requireAvailableCapacity,
   requireBookableDay,
   requireBookingDayId,
@@ -36,6 +37,10 @@ type NormalizedCreateBookingInput = {
   period: BookingPeriod;
 };
 
+type NormalizedUpdateBookingInput = NormalizedCreateBookingInput & {
+  bookingId: number;
+};
+
 export function normalizeCreateBookingInput(
   input: CreateBookingInput,
 ): NormalizedCreateBookingInput {
@@ -43,6 +48,15 @@ export function normalizeCreateBookingInput(
     studentNumber: requireStudentNumber(input.studentNumber),
     bookingDayId: requireBookingDayId(input.bookingDayId),
     period: requireBookingPeriod(input.period),
+  };
+}
+
+export function normalizeUpdateBookingInput(
+  input: UpdateBookingInput,
+): NormalizedUpdateBookingInput {
+  return {
+    ...normalizeCreateBookingInput(input),
+    bookingId: requireBookingId(input.bookingId),
   };
 }
 
