@@ -1,5 +1,9 @@
 class InMemoryBookingStore {
-  constructor({ bookingDays = [], bookings = [] } = {}) {
+  constructor({
+    bookingDays = [],
+    bookings = [],
+    retryFailures = 0,
+  } = {}) {
     this.bookingDays = new Map(
       bookingDays.map((bookingDay) => [bookingDay.id, { ...bookingDay }]),
     );
@@ -7,6 +11,7 @@ class InMemoryBookingStore {
     this.studentStatuses = new Map();
     this.nextBookingId = Math.max(0, ...this.bookings.map(({ id }) => id)) + 1;
     this.transactionTail = Promise.resolve();
+    this.retryFailures = retryFailures;
   }
 
   async transaction(operation) {
@@ -17,6 +22,15 @@ class InMemoryBookingStore {
     });
 
     await previousTransaction;
+
+    if (this.retryFailures > 0) {
+      this.retryFailures -= 1;
+      releaseTransaction();
+      throw Object.assign(new Error("Serialization conflict"), {
+        code: "RETRY",
+      });
+    }
+
     const snapshot = this.snapshot();
 
     try {
