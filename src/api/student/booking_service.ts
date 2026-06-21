@@ -7,6 +7,7 @@ import {
   BookingError,
 } from "./booking_errors";
 import {
+  requireBookableDay,
   requireBookingDayId,
   requireBookingPeriod,
   requireStudentNumber,
@@ -70,9 +71,19 @@ export function createBookingService(
     );
   }
 
+  async function loadBookableDay(
+    transaction: BookingTransaction,
+    bookingDayId: number,
+  ) {
+    await transaction.lockBookingDay(bookingDayId);
+    const bookingDay = await transaction.findBookingDay(bookingDayId);
+    return requireBookableDay(bookingDay, now());
+  }
+
   return {
     now,
     maxTransactionAttempts,
+    loadBookableDay,
     runTransaction,
   };
 }
