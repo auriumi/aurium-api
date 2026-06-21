@@ -6,6 +6,12 @@ import {
   BOOKING_ERROR_CODES,
   BookingError,
 } from "./booking_errors";
+import {
+  requireBookingDayId,
+  requireBookingPeriod,
+  requireStudentNumber,
+} from "./booking_policy";
+import type { BookingPeriod } from "./booking_types";
 
 export type CreateBookingInput = {
   studentNumber: unknown;
@@ -21,6 +27,22 @@ export type BookingServiceOptions = {
   now?: () => Date;
   maxTransactionAttempts?: number;
 };
+
+type NormalizedCreateBookingInput = {
+  studentNumber: number;
+  bookingDayId: number;
+  period: BookingPeriod;
+};
+
+export function normalizeCreateBookingInput(
+  input: CreateBookingInput,
+): NormalizedCreateBookingInput {
+  return {
+    studentNumber: requireStudentNumber(input.studentNumber),
+    bookingDayId: requireBookingDayId(input.bookingDayId),
+    period: requireBookingPeriod(input.period),
+  };
+}
 
 export function createBookingService(
   store: BookingStore,
