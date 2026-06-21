@@ -186,3 +186,34 @@ test("serializes concurrent requests so capacity cannot be exceeded", async () =
   assert.equal(rejected[0].reason.code, BOOKING_ERROR_CODES.SESSION_FULL);
   assert.equal(store.bookings.length, 1);
 });
+
+test("updates an owned booking to an available session", async () => {
+  const existingBooking = {
+    id: 10,
+    student_number: 20260001,
+    booking_day_id: 1,
+    period: "AM",
+    created_at: NOW,
+  };
+  const { service, store } = createFixture({
+    bookingDays: [
+      bookingDay(),
+      bookingDay({
+        id: 2,
+        date: new Date("2026-06-23T00:00:00.000Z"),
+      }),
+    ],
+    bookings: [existingBooking],
+  });
+
+  const updated = await service.changeBooking({
+    bookingId: 10,
+    studentNumber: 20260001,
+    bookingDayId: 2,
+    period: "PM",
+  });
+
+  assert.equal(updated.booking_day_id, 2);
+  assert.equal(updated.period, "PM");
+  assert.equal(store.bookings.length, 1);
+});
