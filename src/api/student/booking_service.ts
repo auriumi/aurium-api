@@ -127,7 +127,9 @@ export function createBookingService(
         bookingDay,
       );
 
-      return transaction.createBooking(normalized);
+      const booking = await transaction.createBooking(normalized);
+      await transaction.markStudentBooked(normalized.studentNumber);
+      return booking;
     });
   }
 
