@@ -72,6 +72,17 @@ export function createBookingService(
     );
   }
 
+  function translateStoreError(error: unknown): never {
+    if (store.isUniqueConstraintError(error)) {
+      throw new BookingError(
+        BOOKING_ERROR_CODES.DUPLICATE_BOOKING,
+        "This student already has an active booking.",
+      );
+    }
+
+    throw error;
+  }
+
   async function loadBookableDay(
     transaction: BookingTransaction,
     bookingDayId: number,
@@ -114,23 +125,27 @@ export function createBookingService(
   async function bookStudent(input: CreateBookingInput) {
     const normalized = normalizeCreateBookingInput(input);
 
-    return runTransaction(async (transaction) => {
-      const bookingDay = await loadBookableDay(
-        transaction,
-        normalized.bookingDayId,
-      );
-      await requireNoExistingBooking(transaction, normalized.studentNumber);
-      await requireSessionSpace(
-        transaction,
-        normalized.bookingDayId,
-        normalized.period,
-        bookingDay,
-      );
+    try {
+      return await runTransaction(async (transaction) => {
+        const bookingDay = await loadBookableDay(
+          transaction,
+          normalized.bookingDayId,
+        );
+        await requireNoExistingBooking(transaction, normalized.studentNumber);
+        await requireSessionSpace(
+          transaction,
+          normalized.bookingDayId,
+          normalized.period,
+          bookingDay,
+        );
 
-      const booking = await transaction.createBooking(normalized);
-      await transaction.markStudentBooked(normalized.studentNumber);
-      return booking;
-    });
+        const booking = await transaction.createBooking(normalized);
+        await transaction.markStudentBooked(normalized.studentNumber);
+        return booking;
+      });
+    } catch (error) {
+      return translateStoreError(error);
+    }
   }
 
   return {
@@ -141,5 +156,6 @@ export function createBookingService(
     requireNoExistingBooking,
     requireSessionSpace,
     runTransaction,
+    translateStoreError,
   };
 }
