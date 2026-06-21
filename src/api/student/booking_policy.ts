@@ -79,3 +79,16 @@ export function capacityForPeriod(
     ? bookingDay.max_morning_cap
     : bookingDay.max_afternoon_cap;
 }
+
+export function requireBookingDay(
+  bookingDay: BookingDayRecord | null,
+): BookingDayRecord {
+  if (!bookingDay) {
+    throw new BookingError(
+      BOOKING_ERROR_CODES.BOOKING_DAY_NOT_FOUND,
+      "The selected booking day does not exist.",
+    );
+  }
+
+  return bookingDay;
+}
