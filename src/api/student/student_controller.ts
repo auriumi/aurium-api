@@ -81,7 +81,12 @@ export async function createBooking(req: StudentRequest, res: Response) {
             })
         }
 
-        await studentService.createBooking(parseInt(student_number!), booking_id, period);
+        const result = await studentService.createBooking(parseInt(student_number!), Number(booking_id), period);
+        if (!result.success) {
+            return res.status(400).json({
+                error: result.reason,
+            });
+        }
 
         return res.json({
             status: "Success"
@@ -121,7 +126,12 @@ export async function updateBooking(req: StudentRequest, res: Response) {
             })
         }
 
-        await studentService.updateBooking(id, booking_day_id, period, student_number);
+        const result = await studentService.updateBooking(id, Number(booking_day_id), period, student_number);
+        if (!result.success) {
+            return res.status(400).json({
+                error: result.reason,
+            });
+        }
 
         return res.json({
             status: "Success"

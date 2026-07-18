@@ -381,6 +381,9 @@ export async function fetchSchedule() {
   return prisma.bookingDay.findMany({
     include: {
       bookings: {
+        orderBy: {
+          created_at: "asc",
+        },
         include: {
           student: {
             select: {

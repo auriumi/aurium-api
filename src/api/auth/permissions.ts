@@ -61,7 +61,7 @@ export const PERMISSION_MATRIX: Record<Permission, AdminRoles[]> = {
     [Permission.BOOKING_VIEW]: [ADMINISTRATOR, MODERATOR],
     [Permission.BOOKING_CREATE]: [ADMINISTRATOR],
     [Permission.BOOKING_TOGGLE]: [ADMINISTRATOR],
-    [Permission.BOOKING_UPDATE]: [ADMINISTRATOR],
+    [Permission.BOOKING_UPDATE]: [ADMINISTRATOR, MODERATOR],
 
     [Permission.STAFF_VIEW]: [ADMINISTRATOR],
     [Permission.STAFF_MANAGE_ROLE]: [ADMINISTRATOR],
