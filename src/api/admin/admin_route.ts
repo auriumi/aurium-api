@@ -25,7 +25,7 @@ router.get("/student/:id", requirePermission(Permission.VERIFICATION_VIEW), admi
 router.patch("/student/:id", requirePermission(Permission.STUDENT_VERIFY), adminController.handleVerify);
 
 //delete student record
-router.delete("/student/:id", requirePermission(Permission.STUDENT_DELETE), adminController.handleCancel);
+router.delete("/student/:id", requirePermission(Permission.STUDENT_DISCARD), adminController.handleCancel);
 
 //masterlist
 router.get("/masterlist/export", requirePermission(Permission.MASTERLIST_EXPORT), adminController.exportMasterlist);
