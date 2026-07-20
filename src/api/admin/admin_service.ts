@@ -985,7 +985,7 @@ export async function img_decide(image_id: number, action: string, note: string 
 
 // ---------------------------------------------------------------------
 
-//get paginated students where status is 'ATTENDED'
+//get paginated registered students
 export async function fv_queryStudents(page: number) {
   const skip = (page - 1) * F_STUDENTS_PER_PAGE;
 
@@ -994,7 +994,7 @@ export async function fv_queryStudents(page: number) {
     take: F_STUDENTS_PER_PAGE,
     where: {
       studentAuth: {
-        status: StudentStatus.ATTENDED
+        status: StudentStatus.REGISTERED
       }
     },
     orderBy: {
@@ -1007,7 +1007,7 @@ export async function fv_queryStudents(page: number) {
 
   const total_students = await prisma.studentAuth.count({
     where: {
-      status: StudentStatus.ATTENDED
+      status: StudentStatus.REGISTERED
     }
   });
 

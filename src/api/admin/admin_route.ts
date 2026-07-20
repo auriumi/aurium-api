@@ -33,7 +33,7 @@ router.get("/masterlist", requirePermission(Permission.MASTERLIST_VIEW), adminCo
 router.post("/masterlist/reset/:id", requirePermission(Permission.STUDENT_PASSWORD_RESET), adminController.handleStudentPasswordReset);
 
 //final verification
-router.get("/finalize", requirePermission(Permission.FINALIZE_VIEW), adminController.fetchAttendedStudents);
+router.get("/finalize", requirePermission(Permission.FINALIZE_VIEW), adminController.fetchApprovedStudents);
 router.patch("/finalize/:studentId", requirePermission(Permission.FINALIZE_UPDATE), adminController.handleFinalizeStudentUpdate);
 router.patch("/finalize", requirePermission(Permission.FINALIZE_STATUS), adminController.handleFinalizeStudentStatus);
 

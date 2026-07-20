@@ -348,7 +348,7 @@ export async function exportMasterlist(req: Request, res: Response) {
   }
 }
 
-export async function fetchAttendedStudents(req: Request, res: Response) {
+export async function fetchApprovedStudents(req: Request, res: Response) {
   const page = Number(req.query.page ?? 1);
   
    try {
