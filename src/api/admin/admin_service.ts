@@ -5,6 +5,12 @@ import { Resend } from 'resend';
 import { AdminActions, StudentStatus, ImageType, ImageStatus, AdminRoles, NotificationType } from "@prisma/client";
 import { generateReadUrl, generateImageUploadUrl } from "../student/r2_service";
 import { notifyApprovers, notifyUser, notifyParticipants } from "./notification_service";
+import {
+  buildBookingSlotData,
+  distributePeriodSlots,
+  isBookingPeriod,
+  isPastUtcDate,
+} from "../booking_slots";
 
 const resend = new Resend(process.env.RESEND_API);
 const DOMAIN = "auriumi.cloud";
@@ -348,40 +354,68 @@ export async function getUnverifiedStudentById(student_id: number) {
    };
 } 
 
-//add schedule per day
-function isPastUtcDate(date: Date) {
-  const compareDate = new Date(date);
-  compareDate.setUTCHours(0, 0, 0, 0);
-
-  const today = new Date();
-  today.setUTCHours(0, 0, 0, 0);
-
-  return compareDate < today;
-}
-
 export async function addSchedule(date: string, am_cap: number, pm_cap: number) {
   const scheduleDate = new Date(`${date}T00:00:00.000Z`);
+  const morningCapacity = Math.trunc(am_cap);
+  const afternoonCapacity = Math.trunc(pm_cap);
+
+  if (!Number.isInteger(morningCapacity) || !Number.isInteger(afternoonCapacity) || morningCapacity < 0 || afternoonCapacity < 0) {
+    throw new Error("INVALID_SCHEDULE_CAPACITY");
+  }
 
   if (isPastUtcDate(scheduleDate)) {
     throw new Error("PAST_SCHEDULE_DATE");
   }
 
-  return prisma.bookingDay.create({
-    data: {
-      date: scheduleDate,
-      max_morning_cap: am_cap,
-      max_afternoon_cap: pm_cap
-    }
+  return prisma.$transaction(async (tx) => {
+    const bookingDay = await tx.bookingDay.create({
+      data: {
+        date: scheduleDate,
+        max_morning_cap: morningCapacity,
+        max_afternoon_cap: afternoonCapacity,
+      },
+    });
+
+    await tx.bookingSlot.createMany({
+      data: buildBookingSlotData(bookingDay.id, morningCapacity, afternoonCapacity),
+      skipDuplicates: true,
+    });
+
+    return bookingDay;
   });
 }
 
 //fetch schedule per day
 //TODO: paginate query or cache :P
 export async function fetchSchedule() {
-  return prisma.bookingDay.findMany({
+  const bookingDays = await prisma.bookingDay.findMany({
     include: {
+      slots: {
+        orderBy: [
+          { start_time: "asc" },
+        ],
+        include: {
+          bookings: {
+            include: {
+              student: {
+                select: {
+                  first_name: true,
+                  last_name: true,
+                  student_number: true,
+                  studentAuth: {
+                    select: {
+                      status: true
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
       bookings: {
         include: {
+          booking_slot: true,
           student: {
             select: {
               first_name: true,
@@ -398,6 +432,18 @@ export async function fetchSchedule() {
       },
     },
   });
+
+  return bookingDays.map((day) => ({
+    ...day,
+    slots: day.slots.map((slot) => {
+      const booked_count = slot.bookings.length;
+      return {
+        ...slot,
+        booked_count,
+        available_count: Math.max(slot.capacity - booked_count, 0),
+      };
+    }),
+  }));
 }
 
 export async function toggleScheduleState(id: number) {
@@ -449,34 +495,117 @@ export async function toggleScheduleState(id: number) {
 
 export async function updateScheduleCapacity(id: number, session: string, new_cap: number) {
   const session_type = session === "AM" ? "max_morning_cap" : "max_afternoon_cap";
+  const nextCapacity = Math.trunc(new_cap);
+
+  if (!isBookingPeriod(session) || !Number.isInteger(nextCapacity) || nextCapacity < 0) {
+    return {
+      success: false,
+      reason: "Invalid schedule capacity request."
+    };
+  }
 
   try {
-    const booking_day = await prisma.bookingDay.findUnique({
-      where: {
-        id: id
-      },
-      select: {
-        id: true,
+    return await prisma.$transaction(async (tx) => {
+      const booking_day = await tx.bookingDay.findUnique({
+        where: {
+          id: id
+        },
+        include: {
+          slots: {
+            where: {
+              period: session,
+            },
+            include: {
+              _count: {
+                select: {
+                  bookings: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      if (!booking_day) {
+        return {
+          success: false,
+          reason: `Booking with ID ${id} is not found`
+        };
       }
+
+      await tx.bookingSlot.createMany({
+        data: buildBookingSlotData(booking_day.id, booking_day.max_morning_cap, booking_day.max_afternoon_cap),
+        skipDuplicates: true,
+      });
+
+      const slots = await tx.bookingSlot.findMany({
+        where: {
+          booking_day_id: booking_day.id,
+          period: session,
+        },
+        orderBy: {
+          start_time: "asc",
+        },
+        include: {
+          _count: {
+            select: {
+              bookings: true,
+            },
+          },
+        },
+      });
+
+      const nextSlots = distributePeriodSlots(session, nextCapacity);
+
+      for (const nextSlot of nextSlots) {
+        const existingSlot = slots.find((slot) => slot.start_time === nextSlot.start_time && slot.end_time === nextSlot.end_time);
+        const bookedCount = existingSlot?._count.bookings ?? 0;
+
+        if (nextSlot.capacity < bookedCount) {
+          return {
+            success: false,
+            reason: `${nextSlot.start_time}-${nextSlot.end_time} already has ${bookedCount} booked student(s). Increase the ${session} total capacity before saving.`
+          };
+        }
+      }
+
+      await tx.bookingDay.update({
+        where: {
+          id: booking_day.id
+        },
+        data: {
+          [session_type]: nextCapacity
+        }
+      });
+
+      await Promise.all(nextSlots.map((nextSlot) => {
+        const existingSlot = slots.find((slot) => slot.start_time === nextSlot.start_time && slot.end_time === nextSlot.end_time);
+        if (!existingSlot) {
+          return tx.bookingSlot.create({
+            data: {
+              booking_day_id: booking_day.id,
+              period: nextSlot.period,
+              start_time: nextSlot.start_time,
+              end_time: nextSlot.end_time,
+              capacity: nextSlot.capacity,
+              is_open: nextSlot.is_open,
+            },
+          });
+        }
+
+        return tx.bookingSlot.update({
+          where: {
+            id: existingSlot.id,
+          },
+          data: {
+            capacity: nextSlot.capacity,
+            is_open: nextSlot.is_open,
+          },
+        });
+      }));
+
+      return { success: true };
     });
-
-    if (!booking_day) {
-      return {
-        success: false,
-        reason: `Booking with ID ${id} is not found`
-      };
-    }
-
-    await prisma.bookingDay.update({
-      where: {
-        id: booking_day.id
-      },
-      data: {
-        [session_type]: new_cap
-      }
-    })  
-
-    return { success: true };
 
   } catch (err: any) {
     return { 
