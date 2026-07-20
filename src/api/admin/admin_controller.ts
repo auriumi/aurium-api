@@ -77,44 +77,6 @@ export async function getStaffDetails(req: AdminRequest, res: Response) {
   }
 } 
 
-//handle verification
-export async function handleVerify(req: AdminRequest, res: Response) {
-  try {
-    const { id } = req.params;
-    const admin_id = req.user?.admin_id;
-
-    if (!admin_id) {
-      return res.status(401).json({
-        error: "Unauthorized!"
-      });
-    } 
-
-    if (typeof id !== 'string') {
-      return res.status(400).json({
-        error: "Student ID is required!"
-      });
-    }
-
-    const result = await adminService.verifyStudent(id, admin_id);
-    
-    if (!result.success) {
-      return res.status(404).json({
-        message: result.reason
-      });
-    }
-
-    res.json({
-      status: "Success!"
-    });
-
-  } catch (err) {
-    console.error("Error: ", err);
-    res.status(500).json({
-      status: 'Internal Server Error'
-    });
-  }
-};
-
 //reject student approval
 export async function handleCancel(req: AdminRequest, res: Response) {
   try {
@@ -348,7 +310,7 @@ export async function exportMasterlist(req: Request, res: Response) {
   }
 }
 
-export async function fetchAttendedStudents(req: Request, res: Response) {
+export async function fetchApprovedStudents(req: Request, res: Response) {
   const page = Number(req.query.page ?? 1);
   
    try {
@@ -361,6 +323,25 @@ export async function fetchAttendedStudents(req: Request, res: Response) {
        status: 'Internal Server Error'
      });
    }
+}
+
+export async function fetchApprovedStudentsById(req: Request, res: Response) {
+  const student_id = req.params.student_id; 
+
+  if (typeof student_id !== "string" || Number.isNaN(Number(student_id))) {
+    return res.status(400).json({ reason: "Invalid student ID." });
+  }
+
+  try {
+    const result = await adminService.fv_queryStudentById(Number(student_id));
+    return res.json(result);
+
+  } catch (err) {
+    console.error("Server error: ", err);
+    return res.status(500).json({
+      status: 'Internal Server Error'
+    });
+  }
 }
 
 export async function handleFinalizeStudentUpdate(req: AdminRequest, res: Response) {
@@ -410,7 +391,7 @@ export async function handleFinalizeStudentStatus(req: AdminRequest, res: Respon
   }
 
   try {
-    const result = await adminService.fv_markFullyVerified(Number(id), Number(admin_id));
+    const result = await adminService.fv_markFullyVerified(Number(id), admin_id);
 
     if (!result.success) {
       return res.status(400).json({ reason: result.reason });
