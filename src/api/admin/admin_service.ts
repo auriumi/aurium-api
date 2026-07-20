@@ -36,6 +36,8 @@ const STUDENT_PERSONAL_FIELDS = new Set([
 const STUDENT_ACADEMIC_FIELDS = new Set([
   "course",
   "major",
+  "graduating_year",
+  "graduation_term",
   "thesis"
 ]);
 
@@ -489,7 +491,20 @@ export async function updateScheduleCapacity(id: number, session: string, new_ca
   }
 }
 
-export async function m_queryByFilter(page: number, dept: string, course: string, major: string, status: string) {
+function applyGraduationFilters(where: any, graduatingYear: string, graduationTerm: string) {
+  if (graduatingYear !== "ALL") {
+    const safeYear = Number(graduatingYear);
+    if (Number.isInteger(safeYear)) {
+      where.graduating_year = safeYear;
+    }
+  }
+
+  if (graduationTerm !== "ALL") {
+    where.graduation_term = graduationTerm;
+  }
+}
+
+export async function m_queryByFilter(page: number, dept: string, course: string, major: string, status: string, graduatingYear: string, graduationTerm: string) {
   const safe_page = page > 0 ? page : 1;
   const skip = (safe_page - 1) * M_STUDENTS_PER_PAGE;
 
@@ -497,6 +512,7 @@ export async function m_queryByFilter(page: number, dept: string, course: string
   if (dept !== "ALL") where.department = dept;
   if (course !== "ALL") where.course = course;
   if (major !== "ALL") where.major = major;
+  applyGraduationFilters(where, graduatingYear, graduationTerm);
 
   if (status !== "ALL") {
     const status_map = STATUS_MAP[Number(status)];
@@ -556,11 +572,12 @@ export async function m_queryById(student_id: number) {
   return { success: true, student };
 }
 
-export async function m_exportAll(dept: string, course: string, major: string, status: string) {
+export async function m_exportAll(dept: string, course: string, major: string, status: string, graduatingYear: string, graduationTerm: string) {
   const where: any = {};
   if (dept !== "ALL") where.department = dept;
   if (course !== "ALL") where.course = course;
   if (major !== "ALL") where.major = major;
+  applyGraduationFilters(where, graduatingYear, graduationTerm);
 
   if (status !== "ALL") {
     const status_map = STATUS_MAP[Number(status)];
@@ -1255,7 +1272,7 @@ export async function fv_updateStudent(studentId: number, type: string, data: an
       const studentData: Record<string, any> = {};
       for (const [key, value] of payloadEntries) {
         const fieldKey = key === "thesis" ? "thesis_title" : key;
-        studentData[fieldKey] = value;
+        studentData[fieldKey] = fieldKey === "graduating_year" ? Number(value) : value;
       }
 
       await prisma.student.update({

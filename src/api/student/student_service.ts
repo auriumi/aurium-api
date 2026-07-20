@@ -8,7 +8,23 @@ type SolicitationPayload = {
   name: string;
 };
 
+const DEFAULT_GRADUATING_YEAR = 2026;
+const DEFAULT_GRADUATION_TERM = "YEAR_END";
+const ALLOWED_GRADUATION_TERMS = new Set(["MIDYEAR", "YEAR_END"]);
+
+function normalizeGraduatingYear(value: unknown) {
+  const year = Number(value);
+  return Number.isInteger(year) ? year : DEFAULT_GRADUATING_YEAR;
+}
+
+function normalizeGraduationTerm(value: unknown) {
+  const term = typeof value === "string" ? value.trim().toUpperCase() : "";
+  return ALLOWED_GRADUATION_TERMS.has(term) ? term : DEFAULT_GRADUATION_TERM;
+}
+
 export async function createStudent(body: any) {
+  const academics = body.academics ?? {};
+
   return await prisma.student.create({
     data: {
       student_number: parseInt(body.id),
@@ -17,12 +33,14 @@ export async function createStudent(body: any) {
       mid_name: body.middle_name,
       school_email: body.school_email,
       personal_email: body.personal_email,
-      department: body.academics.department,
-      course: body.academics.course,
-      major: body.academics.major,
+      department: academics.department,
+      course: academics.course,
+      major: academics.major,
+      graduating_year: normalizeGraduatingYear(academics.graduating_year ?? body.graduating_year),
+      graduation_term: normalizeGraduationTerm(academics.graduation_term ?? body.graduation_term),
       nickname: body.nickname,
       suffix: body.suffix,
-      thesis_title: body.academics.thesis,      
+      thesis_title: academics.thesis,
 
       studentDetail: {
         create: {

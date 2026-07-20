@@ -298,8 +298,10 @@ export async function fetchMasterlist(req: Request, res: Response) {
     const course = String(req.query.course ?? "ALL");
     const major = String(req.query.major ?? "ALL");
     const status = String(req.query.status ?? "ALL");
+    const graduatingYear = String(req.query.graduatingYear ?? "ALL");
+    const graduationTerm = String(req.query.graduationTerm ?? "ALL");
 
-    const result = await adminService.m_queryByFilter(page, dept, course, major, status);
+    const result = await adminService.m_queryByFilter(page, dept, course, major, status, graduatingYear, graduationTerm);
     return res.json(result);
 
   } catch (err) {
@@ -312,7 +314,7 @@ export async function fetchMasterlist(req: Request, res: Response) {
 
 const ALLOWED_STUDENT_COLS = new Set([
   "student_number", "first_name", "last_name", "mid_name", "nickname", "suffix",
-  "department", "course", "major", "thesis_title", "school_email", "personal_email", "created_at",
+  "department", "course", "major", "graduating_year", "graduation_term", "thesis_title", "school_email", "personal_email", "created_at",
 ]);
 const ALLOWED_DETAIL_COLS = new Set([
   "birth_date", "province", "city", "barangay",
@@ -326,11 +328,13 @@ export async function exportMasterlist(req: Request, res: Response) {
     const course = String(req.query.course ?? "ALL");
     const major = String(req.query.major ?? "ALL");
     const status = String(req.query.status ?? "ALL");
+    const graduatingYear = String(req.query.graduatingYear ?? "ALL");
+    const graduationTerm = String(req.query.graduationTerm ?? "ALL");
 
     const rawCols = String(req.query.columns ?? "");
     const cols = rawCols.split(",").map(c => c.trim()).filter(Boolean);
 
-    const students = await adminService.m_exportAll(dept, course, major, status);
+    const students = await adminService.m_exportAll(dept, course, major, status, graduatingYear, graduationTerm);
 
     const rows = students.map(s => {
       const row: Record<string, any> = {};

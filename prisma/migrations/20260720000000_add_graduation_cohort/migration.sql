@@ -1,0 +1,2 @@
+ALTER TABLE "Student" ADD COLUMN IF NOT EXISTS "graduating_year" INTEGER;
+ALTER TABLE "Student" ADD COLUMN IF NOT EXISTS "graduation_term" TEXT;

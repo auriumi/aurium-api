@@ -17,6 +17,8 @@ model Student {
   department           String?
   course               String?
   major                String?
+  graduating_year      Int?
+  graduation_term      String?
   nickname             String?
   suffix               String?
   thesis_title         String?

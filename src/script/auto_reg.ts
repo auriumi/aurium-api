@@ -39,6 +39,8 @@ function generateStudent(i: number) {
             department: "DEPARTMENT OF COMPUTING EDUCATION",
             course: "BACHELOR OF SCIENCE IN INFORMATION TECHNOLOGY",
             major: "N/A",
+            graduating_year: 2026,
+            graduation_term: "YEAR_END",
             thesis: randomItem(theses),
         },
         guardian: {
