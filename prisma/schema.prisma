@@ -23,6 +23,9 @@ model Student {
   updated_at           DateTime               @updatedAt
   created_at           DateTime               @default(now())
   student_number       Int                    @unique
+  grad_year            Int                    @default(2026)
+  grad_term            GraduationTerm         @default(MID_YEAR)
+
   studentAuth          StudentAuth?
   studentDetail        StudentDetail?
   studentSolicitations StudentSolicitations[]
@@ -30,6 +33,11 @@ model Student {
   attendanceQueue      AttendanceQueue?
   logs                 Logs[]
   images               StudentImage[]
+}
+
+enum GraduationTerm {
+  MID_YEAR
+  END_YEAR
 }
 
 model StudentDetail {
