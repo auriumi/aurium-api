@@ -8,6 +8,7 @@ type SolicitationPayload = {
   name: string;
 };
 
+//TODO: still unsafe, need data sanitation so we pray for now :D
 export async function createStudent(body: any) {
   return await prisma.student.create({
     data: {
@@ -23,6 +24,8 @@ export async function createStudent(body: any) {
       nickname: body.nickname,
       suffix: body.suffix,
       thesis_title: body.academics.thesis,      
+      grad_term: body.grad_term,
+      grad_year: body.grad_year,
 
       studentDetail: {
         create: {
