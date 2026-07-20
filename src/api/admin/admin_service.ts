@@ -184,60 +184,6 @@ export async function resetStudentPass(id: string, email_target: string) {
   }
 }
 
-export async function verifyStudent(id: string, admin_id: string) {
-  try {
-    //student lookup
-    const student = await prisma.student.findUnique({
-      where: {
-        student_number: parseInt(id),
-      },
-      select: {
-        student_number: true,
-        school_email: true,
-        personal_email: true,
-        studentAuth: true,
-      }
-    });
-    if (!student) return { success: false, reason: "Student ID doesn't exist or already verified!" };
-
-    //generate temp pass and hash
-    const temp_pass = await generatePass();
-
-    //check if school email is null then fallback to their personal email instead
-    const email = student.school_email ? student.school_email : student.personal_email; 
-
-    //send credentials to the respective student email
-    const send_pass = await sendCreds(temp_pass.actual_pass, email);
-    if (!send_pass) return { success: false, reason: "Something went wrong when sending the password." };
-
-    //upload hashed pass to db
-    await prisma.student.update({
-      where : {
-        student_number: student.student_number
-      },
-      data: {
-        studentAuth: {
-          update: {
-            hashed_password: temp_pass.hash_pass,
-            is_verified: true,
-            status: StudentStatus.APPROVED,
-          },
-        },
-      },
-    });
-
-    //generate log if everything succeeds
-    await generateLog(parseInt(admin_id), student.student_number, AdminActions.APPROVED); 
-
-    return { success: true };
-  } catch (err: any) {
-    return { 
-      success: false, 
-      reason: "Something went wrong!"
-    };
-  }
-}
-
 export async function generateLog(admin_id: number, target_id: number, action: AdminActions) {
   return await prisma.logs.create({
     data: {
@@ -1134,36 +1080,67 @@ export async function fv_fetchAttendanceQueue() {
   return queue;
 }
 
-export async function fv_markFullyVerified(studentId: number, adminId: number) {
+export async function fv_markFullyVerified(student_id: number, admin_id: string) {
   try {
-    const auth = await prisma.studentAuth.findUnique({
-      where: { student_number: studentId },
-      select: { student_number: true },
+    const student = await prisma.student.findUnique({
+      where: { student_number: student_id },
+      select: { 
+        student_number: true,
+        school_email: true,
+        personal_email: true,
+        studentAuth: true,
+       },
     });
 
-    if (!auth) {
+    if (!student) {
       return { success: false, reason: "Student doesn't exist!" };
     }
 
     await prisma.$transaction([
       prisma.studentAuth.update({
-        where: { student_number: studentId },
+        where: { student_number: student_id },
         data: {
           status: StudentStatus.FULLY_VERIFIED,
         },
       }),
+
       prisma.logs.create({
         data: {
-          admin_id: adminId,
+          admin_id: parseInt(admin_id),
           action: AdminActions.VERIFIED,
-          target_id: studentId,
+          target_id: student_id,
         },
       }),
     ]);
 
+    //generate temp pass and hash
+    const temp_pass = await generatePass();
+
+    //check if school email is null then fallback to their personal email instead
+    const email = student.school_email ? student.school_email : student.personal_email; 
+
+    //send credentials to the respective student email
+    const send_pass = await sendCreds(temp_pass.actual_pass, email);
+    if (!send_pass) return { success: false, reason: "Something went wrong when sending the password." };
+
+    //upload hashed pass to db
+    await prisma.student.update({
+      where : {
+        student_number: student.student_number
+      },
+      data: {
+        studentAuth: {
+          update: {
+            hashed_password: temp_pass.hash_pass,
+            is_verified: true,
+          },
+        },
+      },
+    });
+
     return { success: true };
   } catch (err) {
-    console.error(`Failed to fully verify student ${studentId}:`, err);
+    console.error(`Failed to fully verify student ${student_id}:`, err);
     return {
       success: false,
       reason: "An unexpected error occurred. Please try again later.",

@@ -77,44 +77,6 @@ export async function getStaffDetails(req: AdminRequest, res: Response) {
   }
 } 
 
-//handle verification
-export async function handleVerify(req: AdminRequest, res: Response) {
-  try {
-    const { id } = req.params;
-    const admin_id = req.user?.admin_id;
-
-    if (!admin_id) {
-      return res.status(401).json({
-        error: "Unauthorized!"
-      });
-    } 
-
-    if (typeof id !== 'string') {
-      return res.status(400).json({
-        error: "Student ID is required!"
-      });
-    }
-
-    const result = await adminService.verifyStudent(id, admin_id);
-    
-    if (!result.success) {
-      return res.status(404).json({
-        message: result.reason
-      });
-    }
-
-    res.json({
-      status: "Success!"
-    });
-
-  } catch (err) {
-    console.error("Error: ", err);
-    res.status(500).json({
-      status: 'Internal Server Error'
-    });
-  }
-};
-
 //reject student approval
 export async function handleCancel(req: AdminRequest, res: Response) {
   try {
@@ -429,7 +391,7 @@ export async function handleFinalizeStudentStatus(req: AdminRequest, res: Respon
   }
 
   try {
-    const result = await adminService.fv_markFullyVerified(Number(id), Number(admin_id));
+    const result = await adminService.fv_markFullyVerified(Number(id), admin_id);
 
     if (!result.success) {
       return res.status(400).json({ reason: result.reason });
