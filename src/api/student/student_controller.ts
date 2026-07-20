@@ -87,6 +87,13 @@ export async function createBooking(req: StudentRequest, res: Response) {
             status: "Success"
         });
     } catch (err) {
+        if (err instanceof Error && err.message === "PROFILE_PHOTO_REQUIRED") {
+            return res.status(403).json({
+                status: "Failed",
+                message: "Please upload your profile picture before booking a pictorial schedule.",
+            });
+        }
+
         console.error(`Error: ${err}`);
         return res.status(500).json({
             status: "Failed",
@@ -127,6 +134,13 @@ export async function updateBooking(req: StudentRequest, res: Response) {
             status: "Success"
         });
     } catch (err) {
+        if (err instanceof Error && err.message === "PROFILE_PHOTO_REQUIRED") {
+            return res.status(403).json({
+                status: "Failed",
+                message: "Please upload your profile picture before changing your pictorial schedule.",
+            });
+        }
+
         console.error(`Error: ${err}`);
         return res.status(500).json({
             status: "Failed",

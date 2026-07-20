@@ -8,6 +8,25 @@ type SolicitationPayload = {
   name: string;
 };
 
+async function assertStudentHasProfilePhoto(student_number: number) {
+  const student = await prisma.student.findUnique({
+    where: {
+      student_number,
+    },
+    select: {
+      studentDetail: {
+        select: {
+          photo_url: true,
+        },
+      },
+    },
+  });
+
+  if (!student?.studentDetail?.photo_url?.trim()) {
+    throw new Error("PROFILE_PHOTO_REQUIRED");
+  }
+}
+
 //TODO: still unsafe, need data sanitation so we pray for now :D
 export async function createStudent(body: any) {
   return await prisma.student.create({
@@ -87,6 +106,8 @@ export async function fetchBooking() {
 }
 
 export async function createBooking(student_id: number, booking_id: number, period: string) {
+  await assertStudentHasProfilePhoto(student_id);
+
   try {
     return await prisma.booking.create({
       data: {
@@ -109,6 +130,8 @@ export async function createBooking(student_id: number, booking_id: number, peri
 }
 
 export async function updateBooking(booking_id: string, booking_day_id: number, period: string, student_number: string) {
+  await assertStudentHasProfilePhoto(parseInt(student_number));
+
   try {
     return await prisma.booking.update({
       where: {
