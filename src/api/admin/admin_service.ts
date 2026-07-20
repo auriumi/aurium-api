@@ -984,6 +984,30 @@ export async function img_decide(image_id: number, action: string, note: string 
 }
 
 // ---------------------------------------------------------------------
+//get fv_students by id
+export async function fv_queryStudentById(id: number) {
+  const student = await prisma.student.findUnique({
+    where: {
+      student_number: id,
+      studentAuth: {
+        status: StudentStatus.REGISTERED
+      },
+    },
+    include: {
+      studentDetail: true,
+    }
+  });
+
+  if (!student) {
+    return { sucesss: false, reason: "student doesn't exist" }
+  }
+
+  if (student.studentDetail?.photo_url) {
+    student.studentDetail.photo_url = await generateReadUrl(student.studentDetail.photo_url);
+  }
+
+  return { student, total_students: 1 };
+}
 
 //get paginated registered students
 export async function fv_queryStudents(page: number) {

@@ -363,6 +363,25 @@ export async function fetchApprovedStudents(req: Request, res: Response) {
    }
 }
 
+export async function fetchApprovedStudentsById(req: Request, res: Response) {
+  const student_id = req.params.student_id; 
+
+  if (typeof student_id !== "string" || Number.isNaN(Number(student_id))) {
+    return res.status(400).json({ reason: "Invalid student ID." });
+  }
+
+  try {
+    const result = await adminService.fv_queryStudentById(Number(student_id));
+    return res.json(result);
+
+  } catch (err) {
+    console.error("Server error: ", err);
+    return res.status(500).json({
+      status: 'Internal Server Error'
+    });
+  }
+}
+
 export async function handleFinalizeStudentUpdate(req: AdminRequest, res: Response) {
   const { studentId } = req.params;
   const { type } = req.query;
