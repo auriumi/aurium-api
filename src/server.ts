@@ -47,7 +47,7 @@ const gen_limiter = rateLimit({
 
 //API ROUTES
 app.use("/api/admin", admin_limiter, verifyToken, isAdmin, adminRoutes);
-app.use("/api/student", gen_limiter, verifyToken, studentRoutes);
+app.use("/api/student", gen_limiter, studentRoutes);
 app.use("/api/auth", login_limiter, authRoutes);
 
 export default app;

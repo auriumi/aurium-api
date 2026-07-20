@@ -1,10 +1,14 @@
 import { Router } from "express";
 import * as studentController from "./student_controller";
+import { verifyToken } from "../auth/auth_middleware";
 
 const router = Router();
 
 //handle registration
 router.post("/submit", studentController.studentRegistration);
+
+//TODO: quick patch, fix later
+router.use(verifyToken);
 
 //fetch student profile respective to the id number
 router.get("/profile/fetch", studentController.getStudentById);
