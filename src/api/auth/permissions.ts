@@ -8,6 +8,7 @@ export const Permission = {
     VERIFICATION_VIEW: "VERIFICATION_VIEW",
     STUDENT_VERIFY: "STUDENT_VERIFY",
     STUDENT_DELETE: "STUDENT_DELETE",
+    STUDENT_DISCARD: "STUDENT_DISCARD",
 
     // Masterlist
     MASTERLIST_VIEW: "MASTERLIST_VIEW",
@@ -45,6 +46,7 @@ export type Permission = (typeof Permission)[keyof typeof Permission];
 export const PERMISSION_MATRIX: Record<Permission, AdminRoles[]> = {
     [Permission.VERIFICATION_VIEW]: [ADMINISTRATOR, MODERATOR],
     [Permission.STUDENT_VERIFY]: [ADMINISTRATOR, MODERATOR],
+    [Permission.STUDENT_DISCARD]: [ADMINISTRATOR, MODERATOR],
     [Permission.STUDENT_DELETE]: [ADMINISTRATOR],
 
     [Permission.MASTERLIST_VIEW]: [ADMINISTRATOR, MODERATOR, MEMBER],

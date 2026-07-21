@@ -21,11 +21,8 @@ router.get("/student", requirePermission(Permission.VERIFICATION_VIEW), adminCon
 //get unverified student by id
 router.get("/student/:id", requirePermission(Permission.VERIFICATION_VIEW), adminController.searchUnverifiedById);
 
-//verify student
-router.patch("/student/:id", requirePermission(Permission.STUDENT_VERIFY), adminController.handleVerify);
-
 //delete student record
-router.delete("/student/:id", requirePermission(Permission.STUDENT_DELETE), adminController.handleCancel);
+router.delete("/student/:id", requirePermission(Permission.STUDENT_DISCARD), adminController.handleCancel);
 
 //masterlist
 router.get("/masterlist/export", requirePermission(Permission.MASTERLIST_EXPORT), adminController.exportMasterlist);
@@ -33,7 +30,8 @@ router.get("/masterlist", requirePermission(Permission.MASTERLIST_VIEW), adminCo
 router.post("/masterlist/reset/:id", requirePermission(Permission.STUDENT_PASSWORD_RESET), adminController.handleStudentPasswordReset);
 
 //final verification
-router.get("/finalize", requirePermission(Permission.FINALIZE_VIEW), adminController.fetchAttendedStudents);
+router.get("/finalize", requirePermission(Permission.FINALIZE_VIEW), adminController.fetchApprovedStudents);
+router.get("/finalize/:student_id", requirePermission(Permission.FINALIZE_VIEW), adminController.fetchApprovedStudentsById);
 router.patch("/finalize/:studentId", requirePermission(Permission.FINALIZE_UPDATE), adminController.handleFinalizeStudentUpdate);
 router.patch("/finalize", requirePermission(Permission.FINALIZE_STATUS), adminController.handleFinalizeStudentStatus);
 

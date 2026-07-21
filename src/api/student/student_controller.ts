@@ -94,34 +94,28 @@ export async function createBooking(req: StudentRequest, res: Response) {
         //get id from jwt paylaod
         const student_number = req.user?.student_number;
         const bookingSlotId = readPositiveInteger(req.body?.booking_slot_id);
-        const legacyBookingDayId = readPositiveInteger(req.body?.booking_day_id ?? req.body?.booking_id);
-        const period = typeof req.body?.period === "string" ? req.body.period : undefined;
 
-        if (!student_number || (!bookingSlotId && (!legacyBookingDayId || !period))) {
+        if (!student_number || !bookingSlotId) {
             return res.status(400).json({
                 error: "Invalid Request!",
             })
         }
 
-        const bookingRequest: {
-            bookingSlotId?: number;
-            bookingDayId?: number;
-            period?: string;
-        } = {};
-
-        if (bookingSlotId) {
-            bookingRequest.bookingSlotId = bookingSlotId;
-        } else if (legacyBookingDayId && period) {
-            bookingRequest.bookingDayId = legacyBookingDayId;
-            bookingRequest.period = period;
-        }
-
-        await studentService.createBooking(parseInt(student_number!), bookingRequest);
+        await studentService.createBooking(parseInt(student_number!), {
+            bookingSlotId,
+        });
 
         return res.json({
             status: "Success"
         });
     } catch (err) {
+        if (err instanceof Error && err.message === "PROFILE_PHOTO_REQUIRED") {
+            return res.status(403).json({
+                status: "Failed",
+                message: "Please upload your profile picture before booking a pictorial schedule.",
+            });
+        }
+
         if (err instanceof studentService.BookingRequestError) {
             return res.status(bookingErrorStatus(err.code)).json({
                 status: "Failed",
@@ -144,8 +138,6 @@ export async function updateBooking(req: StudentRequest, res: Response) {
 
         const { id } = req.params;
         const bookingSlotId = readPositiveInteger(req.body?.booking_slot_id);
-        const legacyBookingDayId = readPositiveInteger(req.body?.booking_day_id ?? req.body?.booking_id);
-        const period = typeof req.body?.period === "string" ? req.body.period : undefined;
 
         if (typeof id !== 'string') {
             return res.status(400).json({
@@ -153,31 +145,27 @@ export async function updateBooking(req: StudentRequest, res: Response) {
             });
         }
 
-        if (!student_number || (!bookingSlotId && (!legacyBookingDayId || !period))) {
+        if (!student_number || !bookingSlotId) {
             return res.status(400).json({
                 error: "Invalid Request!",
             })
         }
 
-        const bookingRequest: {
-            bookingSlotId?: number;
-            bookingDayId?: number;
-            period?: string;
-        } = {};
-
-        if (bookingSlotId) {
-            bookingRequest.bookingSlotId = bookingSlotId;
-        } else if (legacyBookingDayId && period) {
-            bookingRequest.bookingDayId = legacyBookingDayId;
-            bookingRequest.period = period;
-        }
-
-        await studentService.updateBooking(id, bookingRequest, student_number);
+        await studentService.updateBooking(id, {
+            bookingSlotId,
+        }, student_number);
 
         return res.json({
             status: "Success"
         });
     } catch (err) {
+        if (err instanceof Error && err.message === "PROFILE_PHOTO_REQUIRED") {
+            return res.status(403).json({
+                status: "Failed",
+                message: "Please upload your profile picture before changing your pictorial schedule.",
+            });
+        }
+
         if (err instanceof studentService.BookingRequestError) {
             return res.status(bookingErrorStatus(err.code)).json({
                 status: "Failed",

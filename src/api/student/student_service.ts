@@ -1,12 +1,10 @@
 import { Prisma, SolicitationType, StudentStatus } from "@prisma/client";
 import prisma from "../../config/prisma";
 import { generateReadUrl } from "./r2_service";
-import { isBookingPeriod, isPastUtcDate } from "../booking_slots";
+import { isPastUtcDate } from "../booking_slots";
 
 type BookingRequest = {
-  bookingSlotId?: number;
-  bookingDayId?: number;
-  period?: string;
+  bookingSlotId: number;
 };
 
 type BookingErrorCode =
@@ -33,6 +31,25 @@ type SolicitationPayload = {
   name: string;
 };
 
+async function assertStudentHasProfilePhoto(student_number: number) {
+  const student = await prisma.student.findUnique({
+    where: {
+      student_number,
+    },
+    select: {
+      studentDetail: {
+        select: {
+          photo_url: true,
+        },
+      },
+    },
+  });
+
+  if (!student?.studentDetail?.photo_url?.trim()) {
+    throw new Error("PROFILE_PHOTO_REQUIRED");
+  }
+}
+
 //TODO: still unsafe, need data sanitation so we pray for now :D
 export async function createStudent(body: any) {
   return await prisma.student.create({
@@ -48,7 +65,7 @@ export async function createStudent(body: any) {
       major: body.academics.major,
       nickname: body.nickname,
       suffix: body.suffix,
-      thesis_title: body.academics.thesis,      
+      thesis_title: body.academics.thesis,
       grad_term: body.grad_term,
       grad_year: body.grad_year,
 
@@ -133,10 +150,10 @@ export async function fetchBooking() {
       .filter((slot) => slot.capacity > 0);
 
     const curr_morning = slots
-      .filter((slot) => slot.period === 'AM')
+      .filter((slot) => slot.period === "AM")
       .reduce((total, slot) => total + slot.booked_count, 0);
     const curr_afternoon = slots
-      .filter((slot) => slot.period === 'PM')
+      .filter((slot) => slot.period === "PM")
       .reduce((total, slot) => total + slot.booked_count, 0);
 
     return {
@@ -209,56 +226,17 @@ async function loadBookableSlot(
   return slot;
 }
 
-async function findLegacySlot(
-  client: Prisma.TransactionClient,
-  input: BookingRequest,
-  excludeBookingId?: number,
-) {
-  if (!input.bookingDayId || !isBookingPeriod(input.period)) {
+function readBookingSlotId(request: BookingRequest) {
+  if (!Number.isInteger(request.bookingSlotId) || request.bookingSlotId <= 0) {
     throw new BookingRequestError("INVALID_BOOKING_REQUEST", "Please select a valid booking slot.");
   }
 
-  const slots = await client.bookingSlot.findMany({
-    where: {
-      booking_day_id: input.bookingDayId,
-      period: input.period,
-      is_open: true,
-      capacity: {
-        gt: 0,
-      },
-    },
-    orderBy: {
-      start_time: "asc",
-    },
-  });
-
-  for (const slot of slots) {
-    try {
-      return await loadBookableSlot(client, slot.id, excludeBookingId);
-    } catch (err) {
-      if (err instanceof BookingRequestError && err.code === "BOOKING_SLOT_FULL") {
-        continue;
-      }
-      throw err;
-    }
-  }
-
-  throw new BookingRequestError("BOOKING_SLOT_FULL", "The selected session is already full.");
-}
-
-async function resolveBookableSlot(
-  client: Prisma.TransactionClient,
-  input: BookingRequest,
-  excludeBookingId?: number,
-) {
-  if (input.bookingSlotId) {
-    return loadBookableSlot(client, input.bookingSlotId, excludeBookingId);
-  }
-
-  return findLegacySlot(client, input, excludeBookingId);
+  return request.bookingSlotId;
 }
 
 export async function createBooking(student_id: number, request: BookingRequest) {
+  await assertStudentHasProfilePhoto(student_id);
+
   return prisma.$transaction(async (tx) => {
     const existingBooking = await tx.booking.findFirst({
       where: {
@@ -270,7 +248,7 @@ export async function createBooking(student_id: number, request: BookingRequest)
       throw new BookingRequestError("BOOKING_ALREADY_EXISTS", "This student already has an active booking.");
     }
 
-    const slot = await resolveBookableSlot(tx, request);
+    const slot = await loadBookableSlot(tx, readBookingSlotId(request));
 
     await tx.booking.create({
       data: {
@@ -293,10 +271,16 @@ export async function createBooking(student_id: number, request: BookingRequest)
 }
 
 export async function updateBooking(booking_id: string, request: BookingRequest, student_number: string) {
-  return prisma.$transaction(async (tx) => {
-    const bookingId = parseInt(booking_id);
-    const studentNumber = parseInt(student_number);
+  const bookingId = parseInt(booking_id);
+  const studentNumber = parseInt(student_number);
 
+  if (!Number.isInteger(bookingId) || bookingId <= 0 || !Number.isInteger(studentNumber) || studentNumber <= 0) {
+    throw new BookingRequestError("INVALID_BOOKING_REQUEST", "Please select a valid booking slot.");
+  }
+
+  await assertStudentHasProfilePhoto(studentNumber);
+
+  return prisma.$transaction(async (tx) => {
     const booking = await tx.booking.findFirst({
       where: {
         id: bookingId,
@@ -308,7 +292,7 @@ export async function updateBooking(booking_id: string, request: BookingRequest,
       throw new BookingRequestError("BOOKING_NOT_FOUND", "The selected booking does not exist.");
     }
 
-    const slot = await resolveBookableSlot(tx, request, bookingId);
+    const slot = await loadBookableSlot(tx, readBookingSlotId(request), bookingId);
 
     return tx.booking.update({
       where: {
