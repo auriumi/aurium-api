@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import { Prisma } from "@prisma/client";
 import { generatePresignedUrl } from "./r2_service";
 import * as studentService from "./student_service";
 import * as r2Service from "./r2_service";
@@ -35,6 +36,10 @@ function bookingErrorStatus(code: studentService.BookingRequestError["code"]) {
     }
 }
 
+function isDuplicateRegistrationError(err: unknown) {
+    return err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002";
+}
+
 //create student upon registration
 export async function studentRegistration(req: Request, res: Response) {
     try {
@@ -52,6 +57,14 @@ export async function studentRegistration(req: Request, res: Response) {
             status: "Success",
         });
     } catch (err) {
+        if (isDuplicateRegistrationError(err)) {
+            return res.status(409).json({
+                status: "Failed",
+                code: "DUPLICATE_REGISTRATION",
+                message: "Duplicate submission detected. A pre-registration entry already exists for this Student ID Number.",
+            });
+        }
+
         console.error(`Error: ${err}`);
         return res.status(500).json({
             status: "Failed",
