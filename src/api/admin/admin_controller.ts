@@ -177,6 +177,13 @@ export async function addSchedule(req: Request, res: Response) {
       });
     }
 
+    if (err instanceof Error && err.message === 'INVALID_SCHEDULE_CAPACITY') {
+      return res.status(400).json({
+        status: 'failed',
+        reason: 'Capacity must be a non-negative whole number.'
+      });
+    }
+
     if ( err instanceof Prisma.PrismaClientKnownRequestError) {
       if (err.code === 'P2002') {
         return res.status(409).json({
@@ -205,7 +212,7 @@ export async function handleToggleScheduleState(req: AdminRequest, res: Response
 
   try {
     const result = await adminService.toggleScheduleState(Number(booking_id));
-    if (!result.success) res.status(404).json({ reason: result.reason });
+    if (!result.success) return res.status(404).json({ reason: result.reason });
 
     return res.json({ status: 'success' });
 

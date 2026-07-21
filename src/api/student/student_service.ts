@@ -1,6 +1,29 @@
-import { SolicitationType, StudentStatus } from "@prisma/client";
+import { Prisma, SolicitationType, StudentStatus } from "@prisma/client";
 import prisma from "../../config/prisma";
 import { generateReadUrl } from "./r2_service";
+import { isPastUtcDate } from "../booking_slots";
+
+type BookingRequest = {
+  bookingSlotId: number;
+};
+
+type BookingErrorCode =
+  | "INVALID_BOOKING_REQUEST"
+  | "BOOKING_SLOT_NOT_FOUND"
+  | "BOOKING_DAY_CLOSED"
+  | "BOOKING_DAY_PAST"
+  | "BOOKING_SLOT_FULL"
+  | "BOOKING_ALREADY_EXISTS"
+  | "BOOKING_NOT_FOUND";
+
+export class BookingRequestError extends Error {
+  code: BookingErrorCode;
+
+  constructor(code: BookingErrorCode, message: string) {
+    super(message);
+    this.code = code;
+  }
+}
 
 type SolicitationPayload = {
   type: SolicitationType;
@@ -42,7 +65,7 @@ export async function createStudent(body: any) {
       major: body.academics.major,
       nickname: body.nickname,
       suffix: body.suffix,
-      thesis_title: body.academics.thesis,      
+      thesis_title: body.academics.thesis,
       grad_term: body.grad_term,
       grad_year: body.grad_year,
 
@@ -80,43 +103,165 @@ export async function fetchBooking() {
     select: {
       id: true,
       date: true,
+      is_open: true,
       max_afternoon_cap: true,
       max_morning_cap: true,
-      bookings: {
+      slots: {
+        orderBy: {
+          start_time: "asc",
+        },
+        where: {
+          is_open: true,
+        },
         select: {
+          id: true,
+          booking_day_id: true,
           period: true,
-        }
+          start_time: true,
+          end_time: true,
+          capacity: true,
+          is_open: true,
+          _count: {
+            select: {
+              bookings: true,
+            },
+          },
+        },
       },
     }
   });
 
   return booking_days.map(day => {
-    const curr_morning = day.bookings.filter(p => p.period === 'AM').length;
-    const curr_afternoon = day.bookings.filter(p => p.period === 'PM').length;
+    const slots = day.slots
+      .map((slot) => {
+        const booked_count = slot._count.bookings;
+        return {
+          id: slot.id,
+          booking_day_id: slot.booking_day_id,
+          period: slot.period,
+          start_time: slot.start_time,
+          end_time: slot.end_time,
+          capacity: slot.capacity,
+          is_open: slot.is_open,
+          booked_count,
+          available_count: Math.max(slot.capacity - booked_count, 0),
+        };
+      })
+      .filter((slot) => slot.capacity > 0);
+
+    const curr_morning = slots
+      .filter((slot) => slot.period === "AM")
+      .reduce((total, slot) => total + slot.booked_count, 0);
+    const curr_afternoon = slots
+      .filter((slot) => slot.period === "PM")
+      .reduce((total, slot) => total + slot.booked_count, 0);
 
     return {
       id: day.id,
       date: day.date,
+      is_open: day.is_open,
       max_morning_cap: day.max_morning_cap,
       max_afternoon_cap: day.max_afternoon_cap,
       curr_morning,
-      curr_afternoon
+      curr_afternoon,
+      slots,
     };
   });
 }
 
-export async function createBooking(student_id: number, booking_id: number, period: string) {
+function bookingWhereForSlot(slotId: number, excludeBookingId?: number) {
+  const where: Prisma.BookingWhereInput = {
+    booking_slot_id: slotId,
+  };
+
+  if (excludeBookingId) {
+    where.NOT = {
+      id: excludeBookingId,
+    };
+  }
+
+  return where;
+}
+
+async function loadBookableSlot(
+  client: Prisma.TransactionClient,
+  bookingSlotId: number,
+  excludeBookingId?: number,
+) {
+  await client.$queryRaw`SELECT "id" FROM "BookingSlot" WHERE "id" = ${bookingSlotId} FOR UPDATE`;
+
+  const slot = await client.bookingSlot.findUnique({
+    where: {
+      id: bookingSlotId,
+    },
+    include: {
+      booking_day: true,
+    },
+  });
+
+  if (!slot) {
+    throw new BookingRequestError("BOOKING_SLOT_NOT_FOUND", "The selected booking slot does not exist.");
+  }
+
+  if (!slot.is_open || !slot.booking_day.is_open) {
+    throw new BookingRequestError("BOOKING_DAY_CLOSED", "The selected schedule is closed.");
+  }
+
+  if (isPastUtcDate(slot.booking_day.date)) {
+    throw new BookingRequestError("BOOKING_DAY_PAST", "The selected schedule date has already passed.");
+  }
+
+  if (slot.capacity <= 0) {
+    throw new BookingRequestError("BOOKING_SLOT_FULL", "The selected booking slot is not available.");
+  }
+
+  const bookedCount = await client.booking.count({
+    where: bookingWhereForSlot(slot.id, excludeBookingId),
+  });
+
+  if (bookedCount >= slot.capacity) {
+    throw new BookingRequestError("BOOKING_SLOT_FULL", "The selected booking slot is already full.");
+  }
+
+  return slot;
+}
+
+function readBookingSlotId(request: BookingRequest) {
+  if (!Number.isInteger(request.bookingSlotId) || request.bookingSlotId <= 0) {
+    throw new BookingRequestError("INVALID_BOOKING_REQUEST", "Please select a valid booking slot.");
+  }
+
+  return request.bookingSlotId;
+}
+
+export async function createBooking(student_id: number, request: BookingRequest) {
   await assertStudentHasProfilePhoto(student_id);
 
-  try {
-    return await prisma.booking.create({
+  return prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT "student_number" FROM "Student" WHERE "student_number" = ${student_id} FOR UPDATE`;
+
+    const existingBooking = await tx.booking.findFirst({
+      where: {
+        student_number: student_id,
+      },
+    });
+
+    if (existingBooking) {
+      throw new BookingRequestError("BOOKING_ALREADY_EXISTS", "This student already has an active booking.");
+    }
+
+    const slot = await loadBookableSlot(tx, readBookingSlotId(request));
+
+    await tx.booking.create({
       data: {
         student_number: student_id,
-        booking_day_id: booking_id,
-        period: period
+        booking_day_id: slot.booking_day_id,
+        booking_slot_id: slot.id,
+        period: slot.period
       }
-    }),
-    prisma.studentAuth.update({
+    });
+
+    return tx.studentAuth.update({
       where: {
         student_number: student_id
       },
@@ -124,28 +269,44 @@ export async function createBooking(student_id: number, booking_id: number, peri
         status: StudentStatus.BOOKED
       }
     });
-  } catch(err) {
-    console.error("Error: ", err);
-  }
+  });
 }
 
-export async function updateBooking(booking_id: string, booking_day_id: number, period: string, student_number: string) {
-  await assertStudentHasProfilePhoto(parseInt(student_number));
+export async function updateBooking(booking_id: string, request: BookingRequest, student_number: string) {
+  const bookingId = parseInt(booking_id);
+  const studentNumber = parseInt(student_number);
 
-  try {
-    return await prisma.booking.update({
+  if (!Number.isInteger(bookingId) || bookingId <= 0 || !Number.isInteger(studentNumber) || studentNumber <= 0) {
+    throw new BookingRequestError("INVALID_BOOKING_REQUEST", "Please select a valid booking slot.");
+  }
+
+  await assertStudentHasProfilePhoto(studentNumber);
+
+  return prisma.$transaction(async (tx) => {
+    const booking = await tx.booking.findFirst({
       where: {
-        id: parseInt(booking_id),
-        student_number: parseInt(student_number)
+        id: bookingId,
+        student_number: studentNumber,
+      },
+    });
+
+    if (!booking) {
+      throw new BookingRequestError("BOOKING_NOT_FOUND", "The selected booking does not exist.");
+    }
+
+    const slot = await loadBookableSlot(tx, readBookingSlotId(request), bookingId);
+
+    return tx.booking.update({
+      where: {
+        id: bookingId,
       },
       data: {
-        booking_day_id: booking_day_id,
-        period: period
+        booking_day_id: slot.booking_day_id,
+        booking_slot_id: slot.id,
+        period: slot.period
       }
     });
-  } catch(err) {
-    console.error("Error: ", err);
-  }
+  });
 }
 
 export async function getStudentProfile(student_number: number) {
@@ -170,12 +331,16 @@ export async function getStudentProfile(student_number: number) {
           }
         },
         booking: {
+          orderBy: {
+            created_at: "desc",
+          },
           include: {
             booking_day: {
               select: {
                 date: true,
               },
             },
+            booking_slot: true,
           },
         },
       },

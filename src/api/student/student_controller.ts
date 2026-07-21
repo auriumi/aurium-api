@@ -9,6 +9,32 @@ interface StudentRequest extends Request {
     }
 }
 
+function readPositiveInteger(value: unknown) {
+    if (typeof value === "number" && Number.isInteger(value) && value > 0) {
+        return value;
+    }
+
+    if (typeof value === "string" && /^\d+$/.test(value)) {
+        const parsed = Number(value);
+        return parsed > 0 ? parsed : null;
+    }
+
+    return null;
+}
+
+function bookingErrorStatus(code: studentService.BookingRequestError["code"]) {
+    switch (code) {
+        case "BOOKING_SLOT_NOT_FOUND":
+        case "BOOKING_NOT_FOUND":
+            return 404;
+        case "BOOKING_SLOT_FULL":
+        case "BOOKING_ALREADY_EXISTS":
+            return 409;
+        default:
+            return 400;
+    }
+}
+
 //create student upon registration
 export async function studentRegistration(req: Request, res: Response) {
     try {
@@ -67,21 +93,17 @@ export async function createBooking(req: StudentRequest, res: Response) {
     try {
         //get id from jwt paylaod
         const student_number = req.user?.student_number;
-        const { booking_id, period } = req.body;
+        const bookingSlotId = readPositiveInteger(req.body?.booking_slot_id);
 
-        if (!student_number || !booking_id || !period) {
+        if (!student_number || !bookingSlotId) {
             return res.status(400).json({
                 error: "Invalid Request!",
             })
         }
 
-        if (period !== 'AM' && period !== 'PM') {
-            return res.status(400).json({
-                error: "Invalid Request!",
-            })
-        }
-
-        await studentService.createBooking(parseInt(student_number!), booking_id, period);
+        await studentService.createBooking(parseInt(student_number!), {
+            bookingSlotId,
+        });
 
         return res.json({
             status: "Success"
@@ -91,6 +113,13 @@ export async function createBooking(req: StudentRequest, res: Response) {
             return res.status(403).json({
                 status: "Failed",
                 message: "Please upload your profile picture before booking a pictorial schedule.",
+            });
+        }
+
+        if (err instanceof studentService.BookingRequestError) {
+            return res.status(bookingErrorStatus(err.code)).json({
+                status: "Failed",
+                message: err.message,
             });
         }
 
@@ -108,7 +137,7 @@ export async function updateBooking(req: StudentRequest, res: Response) {
         const student_number = req.user?.student_number;
 
         const { id } = req.params;
-        const { booking_day_id, period } = req.body;
+        const bookingSlotId = readPositiveInteger(req.body?.booking_slot_id);
 
         if (typeof id !== 'string') {
             return res.status(400).json({
@@ -116,19 +145,15 @@ export async function updateBooking(req: StudentRequest, res: Response) {
             });
         }
 
-        if (!student_number || !booking_day_id || !period) {
+        if (!student_number || !bookingSlotId) {
             return res.status(400).json({
                 error: "Invalid Request!",
             })
         }
 
-        if (period !== 'AM' && period !== 'PM') {
-            return res.status(400).json({
-                error: "Invalid Request!",
-            })
-        }
-
-        await studentService.updateBooking(id, booking_day_id, period, student_number);
+        await studentService.updateBooking(id, {
+            bookingSlotId,
+        }, student_number);
 
         return res.json({
             status: "Success"
@@ -138,6 +163,13 @@ export async function updateBooking(req: StudentRequest, res: Response) {
             return res.status(403).json({
                 status: "Failed",
                 message: "Please upload your profile picture before changing your pictorial schedule.",
+            });
+        }
+
+        if (err instanceof studentService.BookingRequestError) {
+            return res.status(bookingErrorStatus(err.code)).json({
+                status: "Failed",
+                message: err.message,
             });
         }
 

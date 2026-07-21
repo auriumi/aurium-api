@@ -211,18 +211,38 @@ model BookingDay {
   is_open           Boolean           @default(true)
   max_morning_cap   Int
   max_afternoon_cap Int
+  slots             BookingSlot[]
   bookings          Booking[]
   attendanceQueue   AttendanceQueue[]
 }
 
-model Booking {
+model BookingSlot {
   id             Int        @id @default(autoincrement())
-  student_number Int
   booking_day_id Int
   period         String
-  created_at     DateTime   @default(now())
+  start_time     String
+  end_time       String
+  capacity       Int
+  is_open        Boolean    @default(true)
   booking_day    BookingDay @relation(fields: [booking_day_id], references: [id], onDelete: Cascade)
-  student        Student    @relation(fields: [student_number], references: [student_number], onDelete: Cascade)
+  bookings       Booking[]
+
+  @@unique([booking_day_id, start_time, end_time])
+  @@index([booking_day_id, period])
+}
+
+model Booking {
+  id              Int          @id @default(autoincrement())
+  student_number  Int
+  booking_day_id  Int
+  booking_slot_id Int?
+  period          String
+  created_at      DateTime     @default(now())
+  booking_day     BookingDay   @relation(fields: [booking_day_id], references: [id], onDelete: Cascade)
+  booking_slot    BookingSlot? @relation(fields: [booking_slot_id], references: [id], onDelete: SetNull)
+  student         Student      @relation(fields: [student_number], references: [student_number], onDelete: Cascade)
+
+  @@index([booking_slot_id])
 }
 
 model AttendanceQueue {
