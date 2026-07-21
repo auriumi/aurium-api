@@ -66,14 +66,16 @@ export async function getStudentById(req: StudentRequest, res: Response) {
         //get id from jwt paylaod
         const student_number = req.user?.student_number;
         if (!student_number) {
-            res.status(404).json({ error: "Invalid request!"});
+            return res.status(401).json({ error: "Invalid request!"});
         }
 
         const result = await studentService.getStudentProfile(parseInt(student_number!));
         if (!result.success) {
-            res.status(404).json({ error: result.reason });
+            const status = result.reason === "Student doesn't exist!" ? 404 : 500;
+            return res.status(status).json({ error: result.reason });
         }
-        res.json(result.student);
+
+        return res.json(result.student);
 
     } catch (err) {
         console.error("Error: ", err);
@@ -85,8 +87,16 @@ export async function getStudentById(req: StudentRequest, res: Response) {
 };
 
 export async function fetchBooking(req: Request, res: Response) {
-    const list_booking = await studentService.fetchBooking();
-    return res.json(list_booking);
+    try {
+        const list_booking = await studentService.fetchBooking();
+        return res.json(list_booking);
+    } catch (err) {
+        console.error("Fetch booking schedules error:", err);
+        return res.status(500).json({
+            status: "Failed",
+            message: "Unable to load booking schedules.",
+        });
+    }
 };
 
 export async function createBooking(req: StudentRequest, res: Response) {
