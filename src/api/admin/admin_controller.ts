@@ -212,7 +212,7 @@ export async function handleToggleScheduleState(req: AdminRequest, res: Response
 
   try {
     const result = await adminService.toggleScheduleState(Number(booking_id));
-    if (!result.success) res.status(404).json({ reason: result.reason });
+    if (!result.success) return res.status(404).json({ reason: result.reason });
 
     return res.json({ status: 'success' });
 

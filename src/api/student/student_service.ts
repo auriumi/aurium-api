@@ -238,6 +238,8 @@ export async function createBooking(student_id: number, request: BookingRequest)
   await assertStudentHasProfilePhoto(student_id);
 
   return prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT "student_number" FROM "Student" WHERE "student_number" = ${student_id} FOR UPDATE`;
+
     const existingBooking = await tx.booking.findFirst({
       where: {
         student_number: student_id,
