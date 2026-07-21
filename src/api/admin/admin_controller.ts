@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import * as adminService from "./admin_service";
 import * as notificationService from "./notification_service";
 import { Prisma } from "@prisma/client";
+import { isManagedYearbookImageUrl, normalizeImageUploadMeta } from "../student/r2_service";
 
 interface AdminRequest extends Request {
   user?: {
@@ -546,12 +547,14 @@ export async function getImageUploadUrl(req: Request, res: Response) {
   const year = parseImageYear(req.query.year);
   if (year === null) return res.status(400).json({ reason: "Invalid year." });
 
-  const ext = String(req.query.ext ?? "jpg");
-  const mime = String(req.query.mime ?? "image/jpeg");
+  const uploadMeta = normalizeImageUploadMeta(req.query.ext, req.query.mime);
+  if (!uploadMeta) {
+    return res.status(400).json({ reason: "Only JPG, PNG, and WEBP image uploads are allowed." });
+  }
 
   try {
     const { upload_url, photo_url } = await adminService.img_getUploadUrl(
-      student_number, type as "GRADUATION" | "THEME", year, ext, mime
+      student_number, type as "GRADUATION" | "THEME", year, uploadMeta.ext, uploadMeta.mime
     );
     return res.json({ upload_url, photo_url });
   } catch (err) {
@@ -579,7 +582,11 @@ export async function saveImageUrl(req: AdminRequest, res: Response) {
   const safeYear = parseImageYear(year);
   if (safeYear === null) return res.status(400).json({ reason: "Invalid year." });
 
-  if (typeof photo_url !== "string" || !photo_url.startsWith("https://")) {
+  if (
+    typeof photo_url !== "string" ||
+    !photo_url.startsWith("https://") ||
+    !isManagedYearbookImageUrl(photo_url, student_number, normalizedType as "GRADUATION" | "THEME", safeYear)
+  ) {
     return res.status(400).json({ reason: "Invalid photo URL." });
   }
 

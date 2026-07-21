@@ -4,6 +4,11 @@ import prisma from "../../config/prisma";
 
 const ACC_ID = process.env.R2_ACC_ID;
 const BUCKET = "aurium";
+const IMAGE_MIME_EXTENSIONS: Record<string, string[]> = {
+    "image/jpeg": ["jpg", "jpeg"],
+    "image/png": ["png"],
+    "image/webp": ["webp"],
+};
 
 const s3 = new S3Client({
     region: "auto",
@@ -49,6 +54,21 @@ export async function generateImageUploadUrl(
     return { upload_url, photo_url };
 }
 
+export function normalizeImageUploadMeta(extRaw: unknown, mimeRaw: unknown) {
+    const ext = String(extRaw ?? "jpg").toLowerCase().replace(/^\./, "");
+    const mime = String(mimeRaw ?? "image/jpeg").toLowerCase();
+    const allowedExts = IMAGE_MIME_EXTENSIONS[mime];
+
+    if (!allowedExts || !allowedExts.includes(ext)) {
+        return null;
+    }
+
+    return {
+        ext: ext === "jpeg" ? "jpg" : ext,
+        mime,
+    };
+}
+
 function extractKey(photo_url: string): string | null {
     try {
         const { hostname, pathname } = new URL(photo_url);
@@ -63,12 +83,34 @@ function extractKey(photo_url: string): string | null {
     }
 }
 
+export function isManagedYearbookImageUrl(
+    photo_url: string,
+    student_number: number,
+    type: "GRADUATION" | "THEME",
+    year: number
+) {
+    const key = extractKey(photo_url);
+    if (!key) return false;
+
+    const folder = type === "GRADUATION" ? "graduation_photos" : "theme_photos";
+    const escapedStudentNumber = String(student_number).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const expected = new RegExp(`^${folder}/${year}/${escapedStudentNumber}\\.(jpg|jpeg|png|webp)$`);
+
+    return expected.test(key);
+}
+
 export async function generateReadUrl(photo_url: string | null): Promise<string | null> {
     if (!photo_url) return null;
     const key = extractKey(photo_url);
     if (!key) return null;
     const command = new GetObjectCommand({ Bucket: BUCKET, Key: key });
-    return getSignedUrl(s3, command, { expiresIn: 3600 });
+
+    try {
+        return await getSignedUrl(s3, command, { expiresIn: 3600 });
+    } catch (err) {
+        console.error("Unable to generate signed read URL:", err);
+        return null;
+    }
 }
 
 export async function uploadPhotoUrl(student_number: string, photo_url: string) {

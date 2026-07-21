@@ -4,25 +4,49 @@ import jwt from 'jsonwebtoken';
 import 'dotenv/config';
 
 const jwt_sauce = process.env.JWT_SAUCE;
+const TURNSTILE_TEST_SECRET = "1x0000000000000000000000000000000AA";
 
+function getTurnstileSecret() {
+    if (process.env.TURNSTILE_SECRET_KEY) {
+        return process.env.TURNSTILE_SECRET_KEY;
+    }
+
+    if (process.env.NODE_ENV !== "production") {
+        return TURNSTILE_TEST_SECRET;
+    }
+
+    return null;
+}
 
 export async function verifyCaptcha(token: string): Promise<boolean> {
-    const secret = process.env.NODE_ENV === "development"
-        ? "1x0000000000000000000000000000000AA"
-        : process.env.TURNSTILE_SECRET_KEY!;
+    const secret = getTurnstileSecret();
+
+    if (!secret) {
+        console.error("TURNSTILE_SECRET_KEY is missing.");
+        return false;
+    }
+
+    if (process.env.NODE_ENV !== "production" && secret === TURNSTILE_TEST_SECRET) {
+        return true;
+    }
 
     const params = new URLSearchParams({
         secret,
         response: token,
     });
 
-    const res = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
-        method: "POST",
-        body: params,
-    });
+    try {
+        const res = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
+            method: "POST",
+            body: params,
+        });
 
-    const data = await res.json() as { success: boolean };
-    return data.success;
+        const data = await res.json() as { success: boolean };
+        return data.success;
+    } catch (err) {
+        console.error("CAPTCHA verification request failed:", err);
+        return false;
+    }
 }
 
 export async function handleLogin(id: string, pass: string, is_admin?: boolean) {

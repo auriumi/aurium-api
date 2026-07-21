@@ -83,8 +83,13 @@ export async function fetchBooking() {
       max_afternoon_cap: true,
       max_morning_cap: true,
       bookings: {
+        orderBy: {
+          created_at: "asc",
+        },
         select: {
+          id: true,
           period: true,
+          created_at: true,
         }
       },
     }
@@ -105,27 +110,86 @@ export async function fetchBooking() {
   });
 }
 
+function isPastUtcDate(date: Date) {
+  const compareDate = new Date(date);
+  compareDate.setUTCHours(0, 0, 0, 0);
+
+  const today = new Date();
+  today.setUTCHours(0, 0, 0, 0);
+
+  return compareDate < today;
+}
+
+async function validateBookingSlot(booking_day_id: number, period: string, excludeBookingId?: number) {
+  const bookingDay = await prisma.bookingDay.findUnique({
+    where: { id: booking_day_id },
+    select: {
+      id: true,
+      date: true,
+      is_open: true,
+      max_morning_cap: true,
+      max_afternoon_cap: true,
+    },
+  });
+
+  if (!bookingDay) return { success: false, reason: "Schedule date is not available." };
+  if (!bookingDay.is_open) return { success: false, reason: "This schedule date is already closed." };
+  if (isPastUtcDate(bookingDay.date)) return { success: false, reason: "This schedule date has already passed." };
+
+  const capacity = period === "AM" ? bookingDay.max_morning_cap : bookingDay.max_afternoon_cap;
+  if (capacity <= 0) return { success: false, reason: "This session is not open for booking." };
+
+  const booked = await prisma.booking.count({
+    where: {
+      booking_day_id,
+      period,
+      ...(excludeBookingId ? { NOT: { id: excludeBookingId } } : {}),
+    },
+  });
+
+  if (booked >= capacity) return { success: false, reason: "This session is already full." };
+
+  return { success: true };
+}
+
 export async function createBooking(student_id: number, booking_id: number, period: string) {
   await assertStudentHasProfilePhoto(student_id);
 
   try {
-    return await prisma.booking.create({
-      data: {
-        student_number: student_id,
-        booking_day_id: booking_id,
-        period: period
-      }
-    }),
-    prisma.studentAuth.update({
-      where: {
-        student_number: student_id
-      },
-      data: {
-        status: StudentStatus.BOOKED
-      }
+    const existingBooking = await prisma.booking.findFirst({
+      where: { student_number: student_id },
+      select: { id: true },
     });
+
+    if (existingBooking) {
+      return { success: false, reason: "You already have a booking." };
+    }
+
+    const slot = await validateBookingSlot(booking_id, period);
+    if (!slot.success) return slot;
+
+    await prisma.$transaction([
+      prisma.booking.create({
+        data: {
+          student_number: student_id,
+          booking_day_id: booking_id,
+          period,
+        },
+      }),
+      prisma.studentAuth.update({
+        where: {
+          student_number: student_id
+        },
+        data: {
+          status: StudentStatus.BOOKED
+        }
+      }),
+    ]);
+
+    return { success: true };
   } catch(err) {
     console.error("Error: ", err);
+    return { success: false, reason: "Something went wrong while booking your schedule." };
   }
 }
 
@@ -133,18 +197,35 @@ export async function updateBooking(booking_id: string, booking_day_id: number, 
   await assertStudentHasProfilePhoto(parseInt(student_number));
 
   try {
-    return await prisma.booking.update({
+    const bookingId = parseInt(booking_id);
+    const studentNumber = parseInt(student_number);
+
+    const existingBooking = await prisma.booking.findUnique({
+      where: { id: bookingId },
+      select: { id: true, student_number: true },
+    });
+
+    if (!existingBooking || existingBooking.student_number !== studentNumber) {
+      return { success: false, reason: "Booking not found." };
+    }
+
+    const slot = await validateBookingSlot(booking_day_id, period, bookingId);
+    if (!slot.success) return slot;
+
+    await prisma.booking.update({
       where: {
-        id: parseInt(booking_id),
-        student_number: parseInt(student_number)
+        id: bookingId,
       },
       data: {
-        booking_day_id: booking_day_id,
-        period: period
+        booking_day_id,
+        period,
       }
     });
+
+    return { success: true };
   } catch(err) {
     console.error("Error: ", err);
+    return { success: false, reason: "Something went wrong while updating your schedule." };
   }
 }
 
@@ -174,6 +255,18 @@ export async function getStudentProfile(student_number: number) {
             booking_day: {
               select: {
                 date: true,
+                max_morning_cap: true,
+                max_afternoon_cap: true,
+                bookings: {
+                  orderBy: {
+                    created_at: "asc",
+                  },
+                  select: {
+                    id: true,
+                    period: true,
+                    created_at: true,
+                  },
+                },
               },
             },
           },
