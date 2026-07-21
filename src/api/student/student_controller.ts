@@ -1,5 +1,4 @@
 import { Request, Response } from "express";
-import { generatePresignedUrl } from "./r2_service";
 import * as studentService from "./student_service";
 import * as r2Service from "./r2_service";
 
@@ -156,14 +155,27 @@ export async function getPhotoUploadUrl(req: StudentRequest, res: Response) {
         return res.status(401).json({ error: "Unauthorized" });
     }
 
-    const ext = req.query.ext as string || "jpg";
-    const mime = req.query.mime as string || "image/jpg";
+    const ext = typeof req.query.ext === "string" ? req.query.ext : "jpg";
+    const mime = typeof req.query.mime === "string" ? req.query.mime : "image/jpeg";
 
     try {
-        const { upload_url, photo_url } = await generatePresignedUrl(student_number, ext, mime);
+        const { upload_url, photo_url } = await r2Service.generatePresignedUrl(student_number, ext, mime);
         res.json({ upload_url, photo_url });
     } catch (err) {
-        res.status(500).json({ error: "Something went wrong generating URL" })
+        if (r2Service.isInvalidImageUploadError(err)) {
+            return res.status(400).json({
+                error: "Only JPG and PNG images are supported.",
+            });
+        }
+
+        if (r2Service.isR2ConfigurationError(err)) {
+            return res.status(503).json({
+                error: "Photo storage is not configured. Please check the R2 environment variables.",
+            });
+        }
+
+        console.error("Profile upload URL error:", err);
+        res.status(500).json({ error: "Something went wrong generating URL" });
     }
 }
 
@@ -174,8 +186,8 @@ export async function savePhotoUrl(req: StudentRequest, res: Response) {
     }
 
     const { photo_url } = req.body;
-    if (!photo_url || !photo_url.startsWith("https://")) {
-        return res.status(400).json({ error: "Invalid URL" });
+    if (typeof photo_url !== "string" || !r2Service.isProfilePhotoUrlForStudent(photo_url, student_number)) {
+        return res.status(400).json({ error: "Invalid profile photo URL" });
     }
 
     try {
@@ -187,9 +199,10 @@ export async function savePhotoUrl(req: StudentRequest, res: Response) {
                 reason: result.reason 
             });
         }
-        return res.json({ sucess: true });
+        return res.json({ success: true });
 
-    } catch {
+    } catch (err) {
+        console.error("Save profile photo error:", err);
         res.status(500).json({ error: "Something went wrong saving photo URL" });
     }
 }

@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import * as adminService from "./admin_service";
 import * as notificationService from "./notification_service";
 import { Prisma } from "@prisma/client";
+import { isInvalidImageUploadError, isR2ConfigurationError, isYearbookImageUrlForStudent } from "../student/r2_service";
 
 interface AdminRequest extends Request {
   user?: {
@@ -555,6 +556,16 @@ export async function getImageUploadUrl(req: Request, res: Response) {
     );
     return res.json({ upload_url, photo_url });
   } catch (err) {
+    if (isInvalidImageUploadError(err)) {
+      return res.status(400).json({ reason: "Only JPG and PNG images are supported." });
+    }
+
+    if (isR2ConfigurationError(err)) {
+      return res.status(503).json({
+        reason: "Photo storage is not configured. Please check the R2 environment variables.",
+      });
+    }
+
     console.error("Image upload URL error:", err);
     return res.status(500).json({ reason: "Something went wrong generating URL" });
   }
@@ -579,7 +590,10 @@ export async function saveImageUrl(req: AdminRequest, res: Response) {
   const safeYear = parseImageYear(year);
   if (safeYear === null) return res.status(400).json({ reason: "Invalid year." });
 
-  if (typeof photo_url !== "string" || !photo_url.startsWith("https://")) {
+  if (
+    typeof photo_url !== "string" ||
+    !isYearbookImageUrlForStudent(photo_url, student_number, normalizedType as "GRADUATION" | "THEME", safeYear)
+  ) {
     return res.status(400).json({ reason: "Invalid photo URL." });
   }
 
