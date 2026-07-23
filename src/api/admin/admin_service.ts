@@ -14,6 +14,62 @@ import {
 
 const resend = new Resend(process.env.RESEND_API);
 const DOMAIN = "auriumi.cloud";
+const DATA_CORRECTION_EXPIRY_DAYS = 7;
+
+type CorrectionFieldChange = {
+  label: string;
+  from: string;
+  to: string;
+};
+
+const CORRECTION_FIELD_LABELS: Record<string, string> = {
+  first_name: "First Name",
+  last_name: "Last Name",
+  mid_name: "Middle Name",
+  suffix: "Suffix",
+  nickname: "Nickname",
+  course: "Course",
+  major: "Major",
+  thesis: "Thesis / Capstone Title",
+  barangay: "Barangay",
+  city: "City / Municipality",
+  province: "Province",
+  contact_num: "Contact Number",
+  school_email: "School Email",
+  personal_email: "Personal Email",
+  fathers_title: "Father's Title",
+  fathers_name: "Father's Name",
+  mothers_title: "Mother's Title",
+  mothers_name: "Mother's Name",
+  guardians_title: "Guardian's Title",
+  guardians_name: "Guardian's Name",
+};
+
+function getDataCorrectionBaseUrl() {
+  return (
+    process.env.DATA_CORRECTION_BASE_URL ||
+    process.env.FRONTEND_URL ||
+    process.env.APP_URL ||
+    "https://aurium-yearbook.site"
+  ).replace(/\/$/, "");
+}
+
+function hashCorrectionToken(token: string) {
+  return crypto.createHash("sha256").update(token).digest("hex");
+}
+
+function formatCorrectionValue(value: unknown) {
+  if (value === null || value === undefined || value === "") return "N/A";
+  if (value instanceof Date) return value.toISOString().split("T")[0] ?? "N/A";
+  return String(value).trim() || "N/A";
+}
+
+function getAllowedFinalizeFields(type: FinalizeUpdateType) {
+  if (type === "personal") return STUDENT_PERSONAL_FIELDS;
+  if (type === "academic") return STUDENT_ACADEMIC_FIELDS;
+  if (type === "contact") return STUDENT_DETAIL_CONTACT_FIELDS;
+  return STUDENT_DETAIL_FAMILY_FIELDS;
+}
 
 //pagination query
 const STUDENTS_PER_PAGE = 8;
@@ -233,6 +289,280 @@ export async function sendCreds(pass: string, recipent: string) {
     },
   });
   return !error;
+}
+
+async function sendDataCorrectionEmail(recipient: string, studentName: string, confirmLink: string, changes: Record<string, CorrectionFieldChange>) {
+  const rows = Object.values(changes).map((change) => `
+    <tr>
+      <td style="padding:10px;border-bottom:1px solid #eee;font-weight:bold;color:#444">${change.label}</td>
+      <td style="padding:10px;border-bottom:1px solid #eee;color:#78716c">${change.from}</td>
+      <td style="padding:10px;border-bottom:1px solid #eee;color:#292524">${change.to}</td>
+    </tr>
+  `).join("");
+
+  const textChanges = Object.values(changes)
+    .map((change) => `${change.label}: ${change.from} -> ${change.to}`)
+    .join("\n");
+
+  const { error } = await resend.emails.send({
+    from: `Aurium <noreply@${DOMAIN}>`,
+    to: recipient,
+    subject: "Please confirm your AURIUM yearbook data correction",
+    html: `
+      <div style="font-family:Arial,sans-serif;line-height:1.6;color:#292524;max-width:680px;margin:0 auto;padding:24px">
+        <h2 style="color:#78350f;margin-bottom:8px">Confirm your yearbook data correction</h2>
+        <p>Hello ${studentName || "graduate"},</p>
+        <p>The AURIUM Yearbook Committee proposed corrections to your verified yearbook details. Please review and confirm only if everything is correct.</p>
+        <table style="width:100%;border-collapse:collapse;margin:20px 0;border:1px solid #eee">
+          <thead>
+            <tr style="background:#f8f5ef">
+              <th style="text-align:left;padding:10px">Field</th>
+              <th style="text-align:left;padding:10px">Current</th>
+              <th style="text-align:left;padding:10px">Proposed</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+        <p style="margin:28px 0">
+          <a href="${confirmLink}" style="background:#7a3b1a;color:#fff;padding:12px 18px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block">
+            Review and Confirm
+          </a>
+        </p>
+        <p>If you did not expect this correction, open the link and reject the request.</p>
+        <p style="font-size:13px;color:#78716c;margin-top:24px">This link expires in ${DATA_CORRECTION_EXPIRY_DAYS} days.</p>
+      </div>
+    `,
+    text: `Please confirm your AURIUM yearbook data correction:\n\n${textChanges}\n\nReview here: ${confirmLink}\n\nThis link expires in ${DATA_CORRECTION_EXPIRY_DAYS} days.`,
+  });
+
+  return !error;
+}
+
+function getCurrentCorrectionValue(student: any, key: string) {
+  if (key === "thesis") return student.thesis_title;
+  if (key in student) return student[key];
+  if (student.studentDetail && key in student.studentDetail) return student.studentDetail[key];
+  return "";
+}
+
+export async function createDataCorrectionRequest(studentId: number, type: string, data: any, adminId: string) {
+  try {
+    const normalizedType = String(type).toLowerCase() as FinalizeUpdateType;
+    const validTypes: FinalizeUpdateType[] = ["personal", "academic", "contact", "family"];
+
+    if (!validTypes.includes(normalizedType)) {
+      return { success: false, reason: "Invalid correction type." };
+    }
+
+    if (!data || typeof data !== "object" || Array.isArray(data)) {
+      return { success: false, reason: "Invalid correction request body." };
+    }
+
+    const payloadEntries = Object.entries(data)
+      .filter(([, value]) => value !== undefined)
+      .map(([key, value]) => [key, String(value ?? "").trim()] as const);
+
+    if (payloadEntries.length === 0) {
+      return { success: false, reason: "No fields to correct." };
+    }
+
+    const allowed = getAllowedFinalizeFields(normalizedType);
+    const invalidFields = payloadEntries
+      .map(([key]) => key)
+      .filter((key) => !allowed.has(key));
+
+    if (invalidFields.length > 0) {
+      return { success: false, reason: `Invalid field(s) for ${normalizedType}: ${invalidFields.join(", ")}` };
+    }
+
+    const student = await prisma.student.findUnique({
+      where: { student_number: studentId },
+      include: {
+        studentAuth: true,
+        studentDetail: true,
+      },
+    });
+
+    if (!student) {
+      return { success: false, reason: "Student doesn't exist!" };
+    }
+
+    if (student.studentAuth?.status !== StudentStatus.FULLY_VERIFIED) {
+      return { success: false, reason: "Correction requests are only required for fully verified students." };
+    }
+
+    const targetEmail = student.school_email || student.personal_email;
+    if (!targetEmail) {
+      return { success: false, reason: "Student has no email address for confirmation." };
+    }
+
+    const changes: Record<string, CorrectionFieldChange> = {};
+    for (const [key, nextValue] of payloadEntries) {
+      const currentValue = formatCorrectionValue(getCurrentCorrectionValue(student, key));
+      const proposedValue = formatCorrectionValue(nextValue);
+
+      if (currentValue === proposedValue) {
+        continue;
+      }
+
+      changes[key] = {
+        label: CORRECTION_FIELD_LABELS[key] || key,
+        from: currentValue,
+        to: proposedValue,
+      };
+    }
+
+    if (Object.keys(changes).length === 0) {
+      return { success: false, reason: "No changes detected." };
+    }
+
+    const rawToken = crypto.randomBytes(32).toString("hex");
+    const expiresAt = new Date(Date.now() + DATA_CORRECTION_EXPIRY_DAYS * 24 * 60 * 60 * 1000);
+    const studentName = [student.first_name, student.last_name].filter(Boolean).join(" ");
+    const confirmLink = `${getDataCorrectionBaseUrl()}/auth/confirm-correction?token=${rawToken}`;
+
+    await prisma.dataCorrectionRequest.updateMany({
+      where: {
+        student_number: student.student_number,
+        category: normalizedType,
+        status: "PENDING",
+      },
+      data: {
+        status: "EXPIRED",
+      },
+    });
+
+    const request = await prisma.dataCorrectionRequest.create({
+      data: {
+        student_number: student.student_number,
+        requested_by: Number.isNaN(Number(adminId)) ? null : Number(adminId),
+        category: normalizedType,
+        changes: {
+          type: normalizedType,
+          fields: changes,
+        },
+        token_hash: hashCorrectionToken(rawToken),
+        expires_at: expiresAt,
+      },
+    });
+
+    const sent = await sendDataCorrectionEmail(targetEmail, studentName, confirmLink, changes);
+    if (!sent) {
+      await prisma.dataCorrectionRequest.update({
+        where: { id: request.id },
+        data: { status: "EXPIRED" },
+      });
+      return { success: false, reason: "Correction request was created but email sending failed." };
+    }
+
+    return { success: true };
+  } catch (err) {
+    console.error(`Failed to create correction request for student ${studentId}:`, err);
+    return { success: false, reason: "An unexpected error occurred. Please try again later." };
+  }
+}
+
+function normalizeCorrectionResponse(request: any, student: any) {
+  const changes = request.changes as any;
+  const fields = Object.entries(changes?.fields ?? {}).map(([key, value]: [string, any]) => ({
+    key,
+    label: value.label || CORRECTION_FIELD_LABELS[key] || key,
+    from: value.from,
+    to: value.to,
+  }));
+
+  return {
+    id: request.id,
+    status: request.status,
+    category: request.category,
+    expires_at: request.expires_at,
+    student_number: request.student_number,
+    student_name: [student?.first_name, student?.last_name].filter(Boolean).join(" "),
+    fields,
+  };
+}
+
+export async function getDataCorrectionRequest(rawToken: string) {
+  try {
+    const request = await prisma.dataCorrectionRequest.findUnique({
+      where: { token_hash: hashCorrectionToken(rawToken) },
+    });
+
+    if (!request) {
+      return { success: false, reason: "Correction request not found." };
+    }
+
+    if (request.status === "PENDING" && request.expires_at.getTime() < Date.now()) {
+      await prisma.dataCorrectionRequest.update({
+        where: { id: request.id },
+        data: { status: "EXPIRED" },
+      });
+      return { success: false, reason: "This correction request has expired." };
+    }
+
+    const student = await prisma.student.findUnique({
+      where: { student_number: request.student_number },
+      select: { first_name: true, last_name: true },
+    });
+
+    return { success: true, data: normalizeCorrectionResponse(request, student) };
+  } catch (err) {
+    console.error("Failed to fetch correction request:", err);
+    return { success: false, reason: "Unable to load correction request." };
+  }
+}
+
+export async function resolveDataCorrectionRequest(rawToken: string, decision: "confirm" | "reject") {
+  try {
+    const request = await prisma.dataCorrectionRequest.findUnique({
+      where: { token_hash: hashCorrectionToken(rawToken) },
+    });
+
+    if (!request || request.status !== "PENDING" || request.expires_at.getTime() < Date.now()) {
+      if (request?.status === "PENDING") {
+        await prisma.dataCorrectionRequest.update({
+          where: { id: request.id },
+          data: { status: "EXPIRED" },
+        });
+      }
+
+      return { success: false, reason: "This correction request is invalid or expired." };
+    }
+
+    if (decision === "reject") {
+      await prisma.dataCorrectionRequest.update({
+        where: { id: request.id },
+        data: {
+          status: "REJECTED",
+          rejected_at: new Date(),
+        },
+      });
+      return { success: true };
+    }
+
+    const changes = request.changes as any;
+    const payload = Object.fromEntries(
+      Object.entries(changes?.fields ?? {}).map(([key, value]: [string, any]) => [key, value.to])
+    );
+
+    const update = await fv_updateStudent(request.student_number, request.category, payload);
+    if (!update.success) {
+      return { success: false, reason: update.reason || "Unable to apply correction." };
+    }
+
+    await prisma.dataCorrectionRequest.update({
+      where: { id: request.id },
+      data: {
+        status: "CONFIRMED",
+        confirmed_at: new Date(),
+      },
+    });
+
+    return { success: true };
+  } catch (err) {
+    console.error("Failed to resolve correction request:", err);
+    return { success: false, reason: "Unable to resolve correction request." };
+  }
 }
 
 //get total count of unverified students

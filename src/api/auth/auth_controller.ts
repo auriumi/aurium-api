@@ -1,5 +1,6 @@
 import { Response, Request } from "express";
 import * as authService from "./auth_service";
+import * as adminService from "../admin/admin_service";
 
 const is_secure = process.env.COOKIE_SECURE === "true";
 
@@ -88,6 +89,51 @@ export async function handleUpdatePassById(req: StudentRequest, res: Response) {
     return res.status(200).json({
         status: "ok"
     });
+}
+
+export async function handleGetCorrectionRequest(req: Request, res: Response) {
+    const { token } = req.params;
+
+    if (typeof token !== "string" || !token) {
+        return res.status(400).json({ reason: "Invalid correction request." });
+    }
+
+    const result = await adminService.getDataCorrectionRequest(token);
+    if (!result.success) {
+        return res.status(400).json({ reason: result.reason });
+    }
+
+    return res.json({ success: true, data: result.data });
+}
+
+export async function handleConfirmCorrectionRequest(req: Request, res: Response) {
+    const { token } = req.params;
+
+    if (typeof token !== "string" || !token) {
+        return res.status(400).json({ reason: "Invalid correction request." });
+    }
+
+    const result = await adminService.resolveDataCorrectionRequest(token, "confirm");
+    if (!result.success) {
+        return res.status(400).json({ reason: result.reason });
+    }
+
+    return res.json({ success: true });
+}
+
+export async function handleRejectCorrectionRequest(req: Request, res: Response) {
+    const { token } = req.params;
+
+    if (typeof token !== "string" || !token) {
+        return res.status(400).json({ reason: "Invalid correction request." });
+    }
+
+    const result = await adminService.resolveDataCorrectionRequest(token, "reject");
+    if (!result.success) {
+        return res.status(400).json({ reason: result.reason });
+    }
+
+    return res.json({ success: true });
 }
 
 export async function handleLogout(req: Request, res: Response) {
