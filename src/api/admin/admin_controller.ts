@@ -383,6 +383,43 @@ export async function handleFinalizeStudentUpdate(req: AdminRequest, res: Respon
   }
 }
 
+export async function handleFinalizeStudentCorrectionRequest(req: AdminRequest, res: Response) {
+  const { studentId } = req.params;
+  const { type } = req.query;
+  const admin_id = req.user?.admin_id;
+
+  if (!admin_id) {
+    return res.status(401).json({ reason: "Unauthorized." });
+  }
+
+  if (typeof studentId !== "string" || Number.isNaN(Number(studentId))) {
+    return res.status(400).json({ reason: "Invalid student ID." });
+  }
+
+  if (typeof type !== "string") {
+    return res.status(400).json({ reason: "Invalid correction type." });
+  }
+
+  if (!req.body || typeof req.body !== "object" || Array.isArray(req.body)) {
+    return res.status(400).json({ reason: "Invalid correction request body." });
+  }
+
+  try {
+    const result = await adminService.createDataCorrectionRequest(Number(studentId), type, req.body, admin_id);
+
+    if (!result.success) {
+      return res.status(400).json({ reason: result.reason });
+    }
+
+    return res.json({ success: true });
+  } catch (err) {
+    console.error("Server error: ", err);
+    return res.status(500).json({
+      status: "Internal Server Error"
+    });
+  }
+}
+
 export async function handleFinalizeStudentStatus(req: AdminRequest, res: Response) {
   const { id } = req.query;
   const admin_id = req.user?.admin_id;
