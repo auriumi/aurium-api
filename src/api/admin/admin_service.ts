@@ -39,6 +39,15 @@ const STUDENT_PERSONAL_FIELDS = new Set([
   "nickname"
 ]);
 
+const STUDENT_DETAIL_PERSONAL_FIELDS = new Set([
+  "birth_date"
+]);
+
+const FINALIZE_PERSONAL_FIELDS = new Set([
+  ...STUDENT_PERSONAL_FIELDS,
+  ...STUDENT_DETAIL_PERSONAL_FIELDS
+]);
+
 const STUDENT_ACADEMIC_FIELDS = new Set([
   "course",
   "major",
@@ -1370,7 +1379,7 @@ export async function fv_updateStudent(studentId: number, type: string, data: an
     }
 
     if (normalizedType === "personal" || normalizedType === "academic") {
-      const allowed = normalizedType === "personal" ? STUDENT_PERSONAL_FIELDS : STUDENT_ACADEMIC_FIELDS;
+      const allowed = normalizedType === "personal" ? FINALIZE_PERSONAL_FIELDS : STUDENT_ACADEMIC_FIELDS;
       const invalidFields = payloadEntries
         .map(([key]) => key)
         .filter((key) => !allowed.has(key));
@@ -1380,15 +1389,49 @@ export async function fv_updateStudent(studentId: number, type: string, data: an
       }
 
       const studentData: Record<string, any> = {};
+      const studentDetailData: Record<string, any> = {};
       for (const [key, value] of payloadEntries) {
+        if (normalizedType === "personal" && STUDENT_DETAIL_PERSONAL_FIELDS.has(key)) {
+          const parsedDate = new Date(String(value ?? "").trim());
+          if (Number.isNaN(parsedDate.getTime())) {
+            return { success: false, reason: "Invalid birth date." };
+          }
+
+          studentDetailData[key] = parsedDate;
+          continue;
+        }
+
         const fieldKey = key === "thesis" ? "thesis_title" : key;
         studentData[fieldKey] = value;
       }
 
-      await prisma.student.update({
-        where: { student_number: studentId },
-        data: studentData,
-      });
+      const updates: any[] = [];
+
+      if (Object.keys(studentData).length > 0) {
+        updates.push(
+          prisma.student.update({
+            where: { student_number: studentId },
+            data: studentData,
+          })
+        );
+      }
+
+      if (Object.keys(studentDetailData).length > 0) {
+        updates.push(
+          prisma.student.update({
+            where: { student_number: studentId },
+            data: {
+              studentDetail: {
+                update: studentDetailData,
+              },
+            },
+          })
+        );
+      }
+
+      if (updates.length > 0) {
+        await prisma.$transaction(updates);
+      }
 
       return { success: true };
     }
