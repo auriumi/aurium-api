@@ -90,6 +90,41 @@ export async function handleUpdatePassById(req: StudentRequest, res: Response) {
     });
 }
 
+export async function handleForgotPassword(req: Request, res: Response) {
+    const identifier = req.body?.identifier;
+
+    if (typeof identifier !== "string" || !identifier.trim()) {
+        return res.status(400).json({ reason: "Please enter your student ID or registered email." });
+    }
+
+    await authService.requestPasswordReset(identifier);
+
+    return res.status(200).json({
+        success: true,
+        message: "If the account exists, password reset instructions were sent to the registered email.",
+    });
+}
+
+export async function handleResetPassword(req: Request, res: Response) {
+    const token = req.body?.token;
+    const newPass = req.body?.new_pass;
+
+    if (typeof token !== "string" || !token || typeof newPass !== "string" || !newPass) {
+        return res.status(400).json({ reason: "Invalid password reset request." });
+    }
+
+    const result = await authService.resetPasswordWithToken(token, newPass);
+
+    if (!result.success) {
+        return res.status(400).json({ reason: result.reason });
+    }
+
+    return res.status(200).json({
+        success: true,
+        message: "Password has been reset successfully.",
+    });
+}
+
 export async function handleLogout(req: Request, res: Response) {
     res.clearCookie("token", {
         httpOnly: true,
