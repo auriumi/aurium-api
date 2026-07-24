@@ -25,6 +25,10 @@ export class BookingRequestError extends Error {
   }
 }
 
+export function isDuplicateRegistrationError(err: unknown) {
+  return err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002";
+}
+
 type SolicitationPayload = {
   type: SolicitationType;
   title: string;

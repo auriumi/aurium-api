@@ -52,6 +52,14 @@ export async function studentRegistration(req: Request, res: Response) {
             status: "Success",
         });
     } catch (err) {
+        if (studentService.isDuplicateRegistrationError(err)) {
+            return res.status(409).json({
+                status: "Failed",
+                code: "DUPLICATE_REGISTRATION",
+                message: "This ID number has already been registered. Please contact us if this is incorrect.",
+            });
+        }
+
         console.error(`Error: ${err}`);
         return res.status(500).json({
             status: "Failed",
