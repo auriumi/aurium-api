@@ -46,7 +46,6 @@ router.post("/book/add", requirePermission(Permission.BOOKING_CREATE), adminCont
 router.get("/book/fetch", requirePermission(Permission.BOOKING_VIEW), adminController.fetchSchedule);
 router.patch("/book/toggle", requirePermission(Permission.BOOKING_TOGGLE), adminController.handleToggleScheduleState);
 router.patch("/book/update", requirePermission(Permission.BOOKING_UPDATE), adminController.handleUpdateScheduleCapacity);
-router.patch("/book/override/:studentNumber", requirePermission(Permission.BOOKING_OVERRIDE), adminController.handleOverrideStudentBooking);
 
 // staff role management (Administrator only)
 router.get("/staff/list", requirePermission(Permission.STAFF_VIEW), adminController.fetchStaffList);

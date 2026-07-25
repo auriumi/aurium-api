@@ -255,33 +255,6 @@ export async function handleUpdateScheduleCapacity(req: AdminRequest, res: Respo
   }
 }
 
-export async function handleOverrideStudentBooking(req: AdminRequest, res: Response) {
-  const { studentNumber } = req.params;
-  const bookingSlotId = Number(req.body?.booking_slot_id);
-
-  if (!studentNumber || Number.isNaN(Number(studentNumber))) {
-    return res.status(400).json({ reason: "Invalid student ID." });
-  }
-
-  if (!Number.isInteger(bookingSlotId) || bookingSlotId <= 0) {
-    return res.status(400).json({ reason: "Please select a valid booking slot." });
-  }
-
-  try {
-    const result = await adminService.overrideStudentBooking(Number(studentNumber), bookingSlotId);
-    if (!result.success) {
-      return res.status(400).json({ reason: result.reason });
-    }
-
-    return res.json({ success: true });
-  } catch (err) {
-    console.error("Server error: ", err);
-    return res.status(500).json({
-      status: "Internal Server Error"
-    });
-  }
-}
-
 //fetch students based on filter type
 export async function fetchMasterlist(req: Request, res: Response) {
   const id = req.query.id;
