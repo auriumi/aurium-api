@@ -29,6 +29,7 @@ function bookingErrorStatus(code: studentService.BookingRequestError["code"]) {
             return 404;
         case "BOOKING_SLOT_FULL":
         case "BOOKING_ALREADY_EXISTS":
+        case "BOOKING_LOCKED":
             return 409;
         default:
             return 400;

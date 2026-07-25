@@ -14,7 +14,8 @@ type BookingErrorCode =
   | "BOOKING_DAY_PAST"
   | "BOOKING_SLOT_FULL"
   | "BOOKING_ALREADY_EXISTS"
-  | "BOOKING_NOT_FOUND";
+  | "BOOKING_NOT_FOUND"
+  | "BOOKING_LOCKED";
 
 export class BookingRequestError extends Error {
   code: BookingErrorCode;
@@ -284,33 +285,11 @@ export async function updateBooking(booking_id: string, request: BookingRequest,
     throw new BookingRequestError("INVALID_BOOKING_REQUEST", "Please select a valid booking slot.");
   }
 
-  await assertStudentHasProfilePhoto(studentNumber);
-
-  return prisma.$transaction(async (tx) => {
-    const booking = await tx.booking.findFirst({
-      where: {
-        id: bookingId,
-        student_number: studentNumber,
-      },
-    });
-
-    if (!booking) {
-      throw new BookingRequestError("BOOKING_NOT_FOUND", "The selected booking does not exist.");
-    }
-
-    const slot = await loadBookableSlot(tx, readBookingSlotId(request), bookingId);
-
-    return tx.booking.update({
-      where: {
-        id: bookingId,
-      },
-      data: {
-        booking_day_id: slot.booking_day_id,
-        booking_slot_id: slot.id,
-        period: slot.period
-      }
-    });
-  });
+  readBookingSlotId(request);
+  throw new BookingRequestError(
+    "BOOKING_LOCKED",
+    "Your pictorial schedule is already confirmed. Please contact the committee if you need help."
+  );
 }
 
 export async function getStudentProfile(student_number: number) {
