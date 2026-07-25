@@ -425,7 +425,7 @@ export async function handleFinalizeStudentStatus(req: AdminRequest, res: Respon
   }
 
   try {
-    const result = await adminService.fv_markFullyVerified(Number(id), admin_id);
+    const result = await adminService.fv_markVerified(Number(id), admin_id);
 
     if (!result.success) {
       return res.status(400).json({ reason: result.reason });
