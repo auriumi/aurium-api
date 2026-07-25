@@ -561,6 +561,154 @@ export async function updateScheduleCapacity(id: number, session: string, new_ca
   }
 }
 
+export async function overrideStudentBooking(studentNumber: number, bookingSlotId: number) {
+  if (!Number.isInteger(studentNumber) || studentNumber <= 0 || !Number.isInteger(bookingSlotId) || bookingSlotId <= 0) {
+    return {
+      success: false,
+      reason: "Invalid booking override request."
+    };
+  }
+
+  try {
+    return await prisma.$transaction(async (tx) => {
+      const student = await tx.student.findUnique({
+        where: {
+          student_number: studentNumber,
+        },
+        select: {
+          student_number: true,
+          studentAuth: {
+            select: {
+              status: true,
+            },
+          },
+          booking: {
+            orderBy: {
+              created_at: "desc",
+            },
+            take: 1,
+            select: {
+              id: true,
+              booking_slot_id: true,
+            },
+          },
+        },
+      });
+
+      if (!student) {
+        return {
+          success: false,
+          reason: "Student doesn't exist."
+        };
+      }
+
+      if (student.studentAuth?.status !== StudentStatus.BOOKED) {
+        return {
+          success: false,
+          reason: "Only booked students can be rescheduled."
+        };
+      }
+
+      const currentBooking = student.booking[0];
+      if (!currentBooking) {
+        return {
+          success: false,
+          reason: "No confirmed booking found for this student."
+        };
+      }
+
+      const slot = await tx.bookingSlot.findUnique({
+        where: {
+          id: bookingSlotId,
+        },
+        include: {
+          booking_day: true,
+        },
+      });
+
+      if (!slot) {
+        return {
+          success: false,
+          reason: "The selected booking slot does not exist."
+        };
+      }
+
+      if (!slot.is_open || !slot.booking_day.is_open) {
+        return {
+          success: false,
+          reason: "The selected schedule is closed."
+        };
+      }
+
+      if (isPastUtcDate(slot.booking_day.date)) {
+        return {
+          success: false,
+          reason: "The selected schedule date has already passed."
+        };
+      }
+
+      if (slot.capacity <= 0) {
+        return {
+          success: false,
+          reason: "The selected booking slot is not available."
+        };
+      }
+
+      if (currentBooking.booking_slot_id === slot.id) {
+        return {
+          success: true,
+        };
+      }
+
+      const bookedCount = await tx.booking.count({
+        where: {
+          booking_slot_id: slot.id,
+          NOT: {
+            id: currentBooking.id,
+          },
+        },
+      });
+
+      if (bookedCount >= slot.capacity) {
+        return {
+          success: false,
+          reason: "The selected booking slot is already full."
+        };
+      }
+
+      await tx.booking.update({
+        where: {
+          id: currentBooking.id,
+        },
+        data: {
+          booking_day_id: slot.booking_day_id,
+          booking_slot_id: slot.id,
+          period: slot.period,
+        },
+      });
+
+      await tx.studentAuth.update({
+        where: {
+          student_number: studentNumber,
+        },
+        data: {
+          status: StudentStatus.BOOKED,
+        },
+      });
+
+      return {
+        success: true,
+      };
+    });
+  } catch (err) {
+    console.error("Booking override error:", err);
+    return {
+      success: false,
+      reason: "Something went wrong while updating the booking."
+    };
+  }
+}
+
 export async function m_queryByFilter(page: number, dept: string, course: string, major: string, status: string) {
   const safe_page = page > 0 ? page : 1;
   const skip = (safe_page - 1) * M_STUDENTS_PER_PAGE;

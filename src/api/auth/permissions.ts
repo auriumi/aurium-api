@@ -29,6 +29,7 @@ export const Permission = {
     BOOKING_CREATE: "BOOKING_CREATE",
     BOOKING_TOGGLE: "BOOKING_TOGGLE",
     BOOKING_UPDATE: "BOOKING_UPDATE",
+    BOOKING_OVERRIDE: "BOOKING_OVERRIDE",
 
     // Staff management
     STAFF_VIEW: "STAFF_VIEW",
@@ -64,6 +65,7 @@ export const PERMISSION_MATRIX: Record<Permission, AdminRoles[]> = {
     [Permission.BOOKING_CREATE]: [ADMINISTRATOR],
     [Permission.BOOKING_TOGGLE]: [ADMINISTRATOR],
     [Permission.BOOKING_UPDATE]: [ADMINISTRATOR],
+    [Permission.BOOKING_OVERRIDE]: [ADMINISTRATOR, MODERATOR],
 
     [Permission.STAFF_VIEW]: [ADMINISTRATOR],
     [Permission.STAFF_MANAGE_ROLE]: [ADMINISTRATOR],
