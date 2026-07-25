@@ -33,6 +33,7 @@ model Student {
   attendanceQueue      AttendanceQueue?
   logs                 Logs[]
   images               StudentImage[]
+  dataCorrectionRequests DataCorrectionRequest[]
 }
 
 enum GraduationTerm {
@@ -109,6 +110,7 @@ model Admin {
   uploadedImages     StudentImage[]
   imageComments      ImageComment[]
   notifications      Notification[] @relation("AdminNotifications")
+  dataCorrectionRequests DataCorrectionRequest[]
 }
 
 enum AdminRoles {
@@ -200,6 +202,36 @@ enum NotificationType {
   IMAGE_APPROVED
   IMAGE_REJECTED
   IMAGE_COMMENT
+}
+
+// ---------------------------------------------------------------------
+
+model DataCorrectionRequest {
+  id             Int                         @id @default(autoincrement())
+  student_number Int
+  requested_by   Int?
+  category       String
+  changes        Json
+  token_hash     String                      @unique
+  status         DataCorrectionRequestStatus @default(PENDING)
+  expires_at     DateTime
+  confirmed_at   DateTime?
+  rejected_at    DateTime?
+  created_at     DateTime                    @default(now())
+  updated_at     DateTime                    @updatedAt
+
+  student Student @relation(fields: [student_number], references: [student_number], onDelete: Cascade, onUpdate: Cascade)
+  admin   Admin?  @relation(fields: [requested_by], references: [id], onDelete: SetNull)
+
+  @@index([student_number, status])
+  @@index([requested_by])
+}
+
+enum DataCorrectionRequestStatus {
+  PENDING
+  CONFIRMED
+  REJECTED
+  EXPIRED
 }
 
 // ---------------------------------------------------------------------
