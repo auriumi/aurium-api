@@ -595,20 +595,17 @@ export async function overrideStudentBooking(studentNumber: number, bookingSlotI
         },
       });
 
-      if (!student?.studentAuth) {
+      if (!student) {
         return {
           success: false,
           reason: "Student doesn't exist."
         };
       }
 
-      if (
-        student.studentAuth.status === StudentStatus.ATTENDED ||
-        student.studentAuth.status === StudentStatus.FULLY_VERIFIED
-      ) {
+      if (student.studentAuth?.status !== StudentStatus.BOOKED) {
         return {
           success: false,
-          reason: "This student has already attended and cannot be rescheduled."
+          reason: "Only booked students can be rescheduled."
         };
       }
 
@@ -619,9 +616,6 @@ export async function overrideStudentBooking(studentNumber: number, bookingSlotI
           reason: "No confirmed booking found for this student."
         };
       }
-
-      await tx.$queryRaw`SELECT "id" FROM "Booking" WHERE "id" = ${currentBooking.id} FOR UPDATE`;
-      await tx.$queryRaw`SELECT "id" FROM "BookingSlot" WHERE "id" = ${bookingSlotId} FOR UPDATE`;
 
       const slot = await tx.bookingSlot.findUnique({
         where: {
