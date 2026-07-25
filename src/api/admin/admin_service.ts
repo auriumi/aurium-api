@@ -1229,7 +1229,7 @@ export async function fv_markVerified(student_id: number, admin_id: string) {
       prisma.studentAuth.update({
         where: { student_number: student_id },
         data: {
-          status: StudentStatus.APPROVED,
+          status: StudentStatus.FULLY_VERIFIED,
         },
       }),
 
