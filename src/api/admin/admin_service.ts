@@ -1209,7 +1209,7 @@ export async function fv_fetchAttendanceQueue() {
   return queue;
 }
 
-export async function fv_markFullyVerified(student_id: number, admin_id: string) {
+export async function fv_markVerified(student_id: number, admin_id: string) {
   try {
     const student = await prisma.student.findUnique({
       where: { student_number: student_id },
@@ -1229,7 +1229,7 @@ export async function fv_markFullyVerified(student_id: number, admin_id: string)
       prisma.studentAuth.update({
         where: { student_number: student_id },
         data: {
-          status: StudentStatus.FULLY_VERIFIED,
+          status: StudentStatus.APPROVED,
         },
       }),
 
@@ -1269,7 +1269,7 @@ export async function fv_markFullyVerified(student_id: number, admin_id: string)
 
     return { success: true };
   } catch (err) {
-    console.error(`Failed to fully verify student ${student_id}:`, err);
+    console.error(`Failed to verify student ${student_id}:`, err);
     return {
       success: false,
       reason: "An unexpected error occurred. Please try again later.",
