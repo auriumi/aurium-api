@@ -327,6 +327,13 @@ export async function getStudentProfile(student_number: number) {
           },
         },
       },
+      omit: {
+        id: true,
+        grad_term: true,
+        grad_year: true,
+        updated_at: true,
+        created_at: true
+      }
     });
 
     if (!student) {
