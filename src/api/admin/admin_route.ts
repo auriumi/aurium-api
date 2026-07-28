@@ -15,12 +15,6 @@ router.post("/verify-password", adminController.verifyPassword);
 //change own password (self-scoped)
 router.patch("/change-password", adminController.handleChangePassword);
 
-//get all unverified students
-router.get("/student", requirePermission(Permission.VERIFICATION_VIEW), adminController.fetchUnverifiedStudents);
-
-//get unverified student by id
-router.get("/student/:id", requirePermission(Permission.VERIFICATION_VIEW), adminController.searchUnverifiedById);
-
 //delete student record
 router.delete("/student/:id", requirePermission(Permission.STUDENT_DISCARD), adminController.handleCancel);
 
