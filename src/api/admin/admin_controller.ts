@@ -1,7 +1,9 @@
 import { Request, Response } from "express";
+import { Prisma } from "@prisma/client";
+
 import * as adminService from "./admin_service";
 import * as notificationService from "./notification_service";
-import { Prisma } from "@prisma/client";
+import * as QParser from "../../utils/q_parser";
 
 interface AdminRequest extends Request {
   user?: {
@@ -288,11 +290,11 @@ export async function fetchMasterlist(req: Request, res: Response) {
   if (id) return fetchMasterlistById(req, res, Number(id));
 
   try {
-    const page = Number(req.query.page ?? 1);
-    const dept = String(req.query.dept ?? "ALL");
-    const course = String(req.query.course ?? "ALL");
-    const major = String(req.query.major ?? "ALL");
-    const status = String(req.query.status ?? "ALL");
+    const page = QParser.parsePosInt(req.query.page, 1);
+    const dept = QParser.parseString(req.query.dept, "ALL");
+    const course = QParser.parseString(req.query.course, "ALL");
+    const major = QParser.parseString(req.query.major, "ALL");
+    const status = QParser.parseString(req.query.status, "ALL");
 
     const result = await adminService.m_queryByFilter(page, dept, course, major, status);
     return res.json(result);
@@ -317,10 +319,10 @@ const ALLOWED_DETAIL_COLS = new Set([
 
 export async function exportMasterlist(req: Request, res: Response) {
   try {
-    const dept = String(req.query.dept ?? "ALL");
-    const course = String(req.query.course ?? "ALL");
-    const major = String(req.query.major ?? "ALL");
-    const status = String(req.query.status ?? "ALL");
+    const dept = QParser.parseString(req.query.dept, "ALL");
+    const course = QParser.parseString(req.query.course, "ALL");
+    const major = QParser.parseString(req.query.major, "ALL");
+    const status = QParser.parseString(req.query.status, "ALL");
 
     const rawCols = String(req.query.columns ?? "");
     const cols = rawCols.split(",").map(c => c.trim()).filter(Boolean);
@@ -345,7 +347,7 @@ export async function exportMasterlist(req: Request, res: Response) {
 }
 
 export async function fetchApprovedStudents(req: Request, res: Response) {
-  const page = Number(req.query.page ?? 1);
+  const page = QParser.parsePosInt(req.query.page, 1);
   
    try {
     const result = await adminService.fv_queryStudents(page);
@@ -535,23 +537,17 @@ export async function fetchStaffList(req: AdminRequest, res: Response) {
 const VALID_IMAGE_TYPES = new Set(["GRADUATION", "THEME"]);
 const VALID_MISSING = new Set(["ALL", "GRADUATION", "THEME", "BOTH", "NONE"]);
 
-function parseImageYear(raw: unknown): number | null {
-  const y = Number(raw);
-  if (!Number.isInteger(y) || y < 2024 || y > 2030) return null;
-  return y;
-}
-
 //list students with their graduation/theme image status for a year
 export async function fetchImageStudents(req: Request, res: Response) {
   try {
-    const id = Number(req.query.id); 
-    const page = Number(req.query.page ?? 1);
-    const dept = String(req.query.dept ?? "ALL");
-    const course = String(req.query.course ?? "ALL");
-    const major = String(req.query.major ?? "ALL");
-    const status = String(req.query.status ?? "ALL");
+    const id = Number(req.query.id);
+    const page = QParser.parsePosInt(req.query.page, 1);
+    const dept = QParser.parseString(req.query.dept, "ALL");
+    const course = QParser.parseString(req.query.course, "ALL");
+    const major = QParser.parseString(req.query.major, "ALL");
+    const status = QParser.parseString(req.query.status, "ALL");
 
-    const year = parseImageYear(req.query.year ?? new Date().getFullYear());
+    const year = QParser.parseImageYear(req.query.year ?? new Date().getFullYear());
     if (year === null) return res.status(400).json({ reason: "Invalid year." });
 
     const missingRaw = String(req.query.missing ?? "ALL").toUpperCase();
@@ -577,7 +573,7 @@ export async function getImageUploadUrl(req: Request, res: Response) {
     return res.status(400).json({ reason: "Invalid image type." });
   }
 
-  const year = parseImageYear(req.query.year);
+  const year = QParser.parseImageYear(req.query.year);
   if (year === null) return res.status(400).json({ reason: "Invalid year." });
 
   const ext = String(req.query.ext ?? "jpg");
@@ -610,7 +606,7 @@ export async function saveImageUrl(req: AdminRequest, res: Response) {
     return res.status(400).json({ reason: "Invalid image type." });
   }
 
-  const safeYear = parseImageYear(year);
+  const safeYear = QParser.parseImageYear(year);
   if (safeYear === null) return res.status(400).json({ reason: "Invalid year." });
 
   if (typeof photo_url !== "string" || !photo_url.startsWith("https://")) {
@@ -636,13 +632,13 @@ const VALID_APPROVAL_VIEWS = new Set(["PENDING", "RESOLVED", "ALL"]);
 //review queue
 export async function fetchImageApprovals(req: Request, res: Response) {
   try {
-    const page = Number(req.query.page ?? 1);
-    const viewRaw = String(req.query.view ?? "PENDING").toUpperCase();
+    const page = QParser.parsePosInt(req.query.page, 1);
+    const viewRaw = QParser.parseString(req.query.view, "PENDING").toUpperCase();
     const view = VALID_APPROVAL_VIEWS.has(viewRaw) ? viewRaw : "PENDING";
 
-    const type = String(req.query.type ?? "ALL").toUpperCase();
-    const yearParsed = parseImageYear(req.query.year);
-    const year = req.query.year ? yearParsed : null; // year optional here
+    const type = QParser.parseString(req.query.type, "ALL").toUpperCase();
+    const yearParsed = QParser.parseImageYear(req.query.year);
+    const year = req.query.year ? yearParsed : null; //year optional here
 
     const result = await adminService.img_listApprovals(view, page, type, year);
     return res.json(result);
@@ -729,8 +725,8 @@ export async function fetchNotifications(req: AdminRequest, res: Response) {
   const admin_id = req.user?.admin_id;
   if (!admin_id) return res.status(401).json({ reason: "Unauthorized" });
 
-  const page = Number(req.query.page ?? 1);
-  const unreadOnly = String(req.query.unreadOnly ?? "false") === "true";
+  const page = QParser.parsePosInt(req.query.page, 1);
+  const unreadOnly = QParser.parseString(req.query.unreadOnly, "false") === "true";
 
   try {
     const result = await notificationService.listNotifications(Number(admin_id), page, unreadOnly);
