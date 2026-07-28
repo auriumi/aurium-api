@@ -1,4 +1,4 @@
-//parse values into int otherwise return fallback
+//parse values into int otherwise return fallback (optional)
 export function parsePosInt(value: unknown, fallback: number): number {
     if (value === undefined) return fallback;
 
@@ -13,3 +13,9 @@ export function parsePosInt(value: unknown, fallback: number): number {
 export function parseString(value: unknown, fallback: string): string {
     return value === undefined ? fallback : String(value);
 };
+
+export function parseImageYear(raw: unknown): number | null {
+  const y = Number(raw);
+  if (!Number.isInteger(y) || y < 2024 || y > 2030) return null;
+  return y;
+}
