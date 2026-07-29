@@ -266,6 +266,39 @@ export async function addSchedule(date: string, am_cap: number, pm_cap: number) 
   });
 }
 
+type BookingWithStudentPhoto = {
+  student?: {
+    studentDetail?: {
+      photo_url: string | null;
+    } | null;
+    photo_url?: string | null;
+  } | null;
+};
+
+async function attachReadableStudentPhoto(
+  booking: BookingWithStudentPhoto,
+  photoCache: Map<string, Promise<string>>
+) {
+  const rawPhotoUrl = booking.student?.studentDetail?.photo_url;
+
+  if (!booking.student) return;
+
+  if (!rawPhotoUrl) {
+    booking.student.photo_url = null;
+    return;
+  }
+
+  let readablePhotoUrl = photoCache.get(rawPhotoUrl);
+  if (!readablePhotoUrl) {
+    readablePhotoUrl = generateReadUrl(rawPhotoUrl).then((url) => url ?? rawPhotoUrl);
+    photoCache.set(rawPhotoUrl, readablePhotoUrl);
+  }
+
+  const signedPhotoUrl = await readablePhotoUrl;
+  booking.student.studentDetail = { photo_url: signedPhotoUrl };
+  booking.student.photo_url = signedPhotoUrl;
+}
+
 //fetch schedule per day
 //TODO: paginate query or cache :P
 export async function fetchSchedule() {
@@ -283,6 +316,11 @@ export async function fetchSchedule() {
                   first_name: true,
                   last_name: true,
                   student_number: true,
+                  studentDetail: {
+                    select: {
+                      photo_url: true,
+                    },
+                  },
                   studentAuth: {
                     select: {
                       status: true
@@ -302,6 +340,11 @@ export async function fetchSchedule() {
               first_name: true,
               last_name: true,
               student_number: true,
+              studentDetail: {
+                select: {
+                  photo_url: true,
+                },
+              },
               studentAuth: {
                 select: {
                   status: true
@@ -313,6 +356,16 @@ export async function fetchSchedule() {
       },
     },
   });
+
+  const photoCache = new Map<string, Promise<string>>();
+  await Promise.all(
+    bookingDays.flatMap((day) => [
+      ...day.slots.flatMap((slot) =>
+        slot.bookings.map((booking) => attachReadableStudentPhoto(booking, photoCache))
+      ),
+      ...day.bookings.map((booking) => attachReadableStudentPhoto(booking, photoCache)),
+    ])
+  );
 
   return bookingDays.map((day) => ({
     ...day,
