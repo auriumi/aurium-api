@@ -1,3 +1,5 @@
+import "./instrument"
+import * as Sentry from "@sentry/node";
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
@@ -49,5 +51,7 @@ const gen_limiter = rateLimit({
 app.use("/api/admin", admin_limiter, verifyToken, isAdmin, adminRoutes);
 app.use("/api/student", gen_limiter, studentRoutes);
 app.use("/api/auth", login_limiter, authRoutes);
+
+Sentry.setupExpressErrorHandler(app);
 
 export default app;
