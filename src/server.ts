@@ -25,15 +25,15 @@ app.use(express.json());
 app.use(cookieParser());
 
 const login_limiter = rateLimit({
-  windowMs: 5 * 60 * 1000, //5 mins
-  limit: 5,
+  windowMs: 3 * 60 * 1000, //5 mins (3mins ug)
+  limit: 10,
   message: "Too many login attempts, please try again later",
   legacyHeaders: false
 });
 
 const admin_limiter = rateLimit({
-  windowMs: 3 * 60 * 1000, //3 mins
-  limit: 50,
+  windowMs: 1 * 60 * 1000, //3 mins (1mins ug)
+  limit: 100,
   message: "Too many request, please try again later :P",
   legacyHeaders: false
 });
