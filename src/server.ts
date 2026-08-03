@@ -13,6 +13,7 @@ import adminRoutes from "./api/admin/admin_route";
 import authRoutes from "./api/auth/auth_route";
 
 const app = express();
+app.set("trust proxy", 1);
 
 const corsConfig = {
   origin: process.env.NODE_ENV == "production"
@@ -27,14 +28,14 @@ app.use(express.json());
 app.use(cookieParser());
 
 const login_limiter = rateLimit({
-  windowMs: 3 * 60 * 1000, //5 mins (3mins ug)
+  windowMs: 5 * 60 * 1000, //5 mins
   limit: 10,
   message: "Too many login attempts, please try again later",
   legacyHeaders: false
 });
 
 const admin_limiter = rateLimit({
-  windowMs: 1 * 60 * 1000, //3 mins (1mins ug)
+  windowMs: 3 * 60 * 1000, //3 mins
   limit: 100,
   message: "Too many request, please try again later :P",
   legacyHeaders: false
