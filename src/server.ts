@@ -13,6 +13,7 @@ import adminRoutes from "./api/admin/admin_route";
 import authRoutes from "./api/auth/auth_route";
 
 const app = express();
+app.set("trust proxy", 1);
 
 const corsConfig = {
   origin: process.env.NODE_ENV == "production"
