@@ -99,7 +99,7 @@ export async function handleCancel(req: AdminRequest, res: Response) {
     const result = await adminService.deleteStudent(id);
     
     if (!result.success) {
-      return res.status(404).json({
+      return res.status(result.status).json({
         message: result.reason
       });
     }
