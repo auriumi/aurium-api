@@ -23,7 +23,7 @@ An authenticated staff member needs an active `RAC_CHECK` assignment covering th
 }
 ```
 
-One ID follows the same service path as a batch. `expectedVersions` is null for Not checked and the listed integer for an existing Not on list case. `sourceVersion` must match the server's current official-list label, so a list replacement forces staff to refresh. The batch is limited to 100 unique IDs. If any record is missing, outside assignment, already verified or stale, the whole batch rolls back and returns a non-success response. A successful response reports each ID's new outcome/version. Retrying the same operation ID and identical payload returns the recorded response; using the ID with another payload returns 409.
+One ID follows the same service path as a batch. `expectedVersions` is null for Not checked and the listed integer for an existing Not on list case. `sourceVersion` must match the server's current official-list label, so a list replacement forces staff to refresh. The batch is limited to 100 unique IDs. The cookie-authenticated POST also requires the configured frontend `Origin` header. If any record is missing, outside assignment, already verified or stale, the whole batch rolls back and returns a non-success response. A successful response reports each ID's new outcome/version. Retrying the same operation ID and identical payload returns the recorded response; using the ID with another payload returns 409.
 
 No student record is copied or deleted. `ReviewCase` has a restrictive foreign key to `Student`; the existing deletion endpoint also rejects enrolled graduates with 409. Audit rows retain prior outcomes, checker and source version. An old registration approval or existing photo approval is not treated as RAC verification.
 
