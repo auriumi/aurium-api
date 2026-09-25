@@ -139,7 +139,9 @@ export async function informationReviewDetail(adminId: number, reviewId: number)
         select: { id: true, track_version: true, before_snapshot: true, after_snapshot: true, created_at: true } },
       informationEvents: { where: { action: { in: [
         InformationEventAction.REJECTED_QC, InformationEventAction.REJECTED_MODERATOR,
-      ] } }, orderBy: { track_version: "desc" }, take: 1, select: { track_version: true } },
+        InformationEventAction.SUBMITTED_QC,
+      ] } }, orderBy: { track_version: "desc" }, take: 3,
+        select: { track_version: true, action: true, revision_id: true } },
       reviewCase: { select: {
         grad_year: true, grad_term: true, outcome: true, checked_at: true, source_version: true,
         student: { select: {
@@ -192,13 +194,24 @@ export async function informationReviewDetail(adminId: number, reviewId: number)
   const canEdit = editableStages.includes(track.stage) &&
     scopes.some(scope => scope.capability === ReviewCapability.INFORMATION_PROOFREADER &&
       matchesGraduateScope(scope, student));
+  const lastRejection = track.informationEvents.find(event =>
+    event.action === InformationEventAction.REJECTED_QC || event.action === InformationEventAction.REJECTED_MODERATOR);
+  const latestSubmission = track.informationEvents.find(event => event.action === InformationEventAction.SUBMITTED_QC);
   const canSubmit = canEdit && !!currentRevision && canSubmitInformation(
-    track.stage, currentRevision.track_version, track.informationEvents[0]?.track_version ?? null,
+    track.stage, currentRevision.track_version, lastRejection?.track_version ?? null,
   );
+  const canQc = !!currentRevision && latestSubmission?.revision_id === currentRevision.id &&
+    scopes.some(scope => scope.capability === ReviewCapability.INFORMATION_QC &&
+      matchesGraduateScope(scope, student));
+  const availableActions: string[] = [];
+  if (canEdit) availableActions.push("SAVE_DRAFT");
+  if (canSubmit) availableActions.push("SUBMIT_QC");
+  if (canQc && track.stage === ReviewStage.SUBMITTED_QC) availableActions.push("QC_APPROVE", "QC_REJECT");
+  if (canQc && track.stage === ReviewStage.APPROVED_QC) availableActions.push("FORWARD_MODERATOR");
   return {
     success: true, reviewId: track.id, informationStage: track.stage,
     queue: queueForStage(track.stage), version: track.version,
-    availableActions: canEdit ? ["SAVE_DRAFT", ...(canSubmit ? ["SUBMIT_QC"] : [])] : [] as string[],
+    availableActions,
     draft: currentRevision && before && after ? {
       revisionId: currentRevision.id, version: currentRevision.track_version,
       before, after,
