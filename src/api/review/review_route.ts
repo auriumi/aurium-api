@@ -18,6 +18,8 @@ router.get("/review-graduates/:studentNumber/verification-events", requirePermis
 router.post("/verification-batches", requirePermission(Permission.REVIEW_VERIFY), requireReviewOrigin, racController.createVerificationBatch);
 router.get("/information-reviews", requirePermission(Permission.REVIEW_VIEW), informationController.listReviews);
 router.get("/information-reviews/filter-options", requirePermission(Permission.REVIEW_VIEW), informationController.getFilterOptions);
+router.get("/information-reviews/:reviewId/revisions", requirePermission(Permission.REVIEW_VIEW), informationController.getDraftHistory);
+router.patch("/information-reviews/:reviewId/draft", requirePermission(Permission.REVIEW_VERIFY), requireReviewOrigin, informationController.saveDraft);
 router.get("/information-reviews/:reviewId", requirePermission(Permission.REVIEW_VIEW), informationController.getReview);
 
 assertRoutesGuarded(router);

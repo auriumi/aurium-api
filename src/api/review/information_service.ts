@@ -6,6 +6,8 @@ import { graduateScopeWhere, graduateSearchWhere } from "./review_filters";
 import { matchesGraduateScope, type ReviewScope } from "./review_scope";
 import { queueForStage, stagesForQueue, type InformationListQuery } from "./information_contract";
 import type { Cycle } from "./rac_contract";
+import { editableProfileFields } from "./information_draft_contract";
+import { storedSnapshot } from "./information_draft_service";
 
 const informationCapabilities = [
   ReviewCapability.INFORMATION_PROOFREADER,
@@ -20,7 +22,7 @@ async function informationScopes(adminId: number) {
   }
   const assignments = await prisma.reviewAssignment.findMany({
     where: { admin_id: adminId, capability: { in: informationCapabilities }, revoked_at: null },
-    select: { department: true, course: true, major: true },
+    select: { capability: true, department: true, course: true, major: true },
   });
   if (assignments.length === 0) {
     throw new ReviewRequestError(403, "FORBIDDEN", "Information review assignment required.");
@@ -132,6 +134,8 @@ export async function informationReviewDetail(adminId: number, reviewId: number)
     } },
     select: {
       id: true, stage: true, version: true,
+      revisions: { orderBy: { track_version: "desc" }, take: 1,
+        select: { id: true, track_version: true, before_snapshot: true, after_snapshot: true, created_at: true } },
       reviewCase: { select: {
         grad_year: true, grad_term: true, outcome: true, checked_at: true, source_version: true,
         student: { select: {
@@ -177,10 +181,23 @@ export async function informationReviewDetail(adminId: number, reviewId: number)
     }
   }
   const booking = student.booking[0];
+  const currentRevision = track.revisions[0];
+  const before = currentRevision ? storedSnapshot(currentRevision.before_snapshot) : null;
+  const after = currentRevision ? storedSnapshot(currentRevision.after_snapshot) : null;
+  const editableStages: ReviewStage[] = [ReviewStage.DRAFT, ReviewStage.REJECTED_QC, ReviewStage.REJECTED_MODERATOR];
+  const canEdit = editableStages.includes(track.stage) &&
+    scopes.some(scope => scope.capability === ReviewCapability.INFORMATION_PROOFREADER &&
+      matchesGraduateScope(scope, student));
   return {
     success: true, reviewId: track.id, informationStage: track.stage,
     queue: queueForStage(track.stage), version: track.version,
-    availableActions: [] as string[],
+    availableActions: canEdit ? ["SAVE_DRAFT"] : [] as string[],
+    draft: currentRevision && before && after ? {
+      revisionId: currentRevision.id, version: currentRevision.track_version,
+      before, after,
+      changedFields: editableProfileFields.filter(field => before[field] !== after[field]),
+      savedAt: currentRevision.created_at,
+    } : null,
     verification: {
       outcome: reviewCase.outcome, checkedAt: reviewCase.checked_at,
       sourceVersion: reviewCase.source_version,
