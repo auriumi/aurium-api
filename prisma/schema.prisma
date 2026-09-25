@@ -33,6 +33,7 @@ model Student {
   attendanceQueue      AttendanceQueue?
   logs                 Logs[]
   images               StudentImage[]
+  reviewCases          ReviewCase[]
 }
 
 enum GraduationTerm {
@@ -112,6 +113,9 @@ model Admin {
   reviewAssignments  ReviewAssignment[] @relation("ReviewAssignee")
   reviewGrants       ReviewAssignment[] @relation("ReviewGrantor")
   reviewRevocations  ReviewAssignment[] @relation("ReviewRevoker")
+  checkedReviewCases ReviewCase[] @relation("RacChecker")
+  reviewOperations   ReviewOperation[] @relation("ReviewOperationActor")
+  reviewEvents       ReviewEvent[] @relation("ReviewEventActor")
 }
 
 enum ReviewCapability {
@@ -144,6 +148,101 @@ model ReviewAssignment {
 
   @@index([admin_id, revoked_at])
   @@index([capability, revoked_at])
+}
+
+enum RacOutcome {
+  VERIFIED
+  NOT_LISTED
+}
+
+enum ReviewTrackType {
+  INFORMATION
+  PHOTOS
+}
+
+enum ReviewStage {
+  DRAFT
+  SUBMITTED_QC
+  REJECTED_QC
+  APPROVED_QC
+  SUBMITTED_MODERATOR
+  REJECTED_MODERATOR
+  LOCKED
+}
+
+enum ReviewEventAction {
+  RAC_VERIFIED
+  RAC_NOT_LISTED
+}
+
+// One RAC/SAO result per graduate and graduation cycle. No case means unchecked.
+model ReviewCase {
+  id          Int            @id @default(autoincrement())
+  student_id  Int
+  grad_year   Int
+  grad_term   GraduationTerm
+  outcome     RacOutcome
+  checked_by  Int
+  checked_at  DateTime       @default(now())
+  source_version String       @db.VarChar(100)
+  version     Int            @default(1)
+
+  student Student @relation(fields: [student_id], references: [id], onDelete: Restrict)
+  checker Admin   @relation("RacChecker", fields: [checked_by], references: [id], onDelete: Restrict)
+  tracks  ReviewTrack[]
+  events  ReviewEvent[]
+
+  @@unique([student_id, grad_year, grad_term])
+  @@index([outcome, grad_year, grad_term])
+  @@index([checked_by])
+}
+
+model ReviewTrack {
+  id       Int             @id @default(autoincrement())
+  case_id  Int
+  type     ReviewTrackType
+  stage    ReviewStage     @default(DRAFT)
+  version  Int             @default(1)
+
+  reviewCase ReviewCase @relation(fields: [case_id], references: [id], onDelete: Restrict)
+
+  @@unique([case_id, type])
+}
+
+// One operation row makes retry keys unique even when two batches have no
+// graduate in common. The response is stored only after the whole batch passes.
+model ReviewOperation {
+  id           Int      @id @default(autoincrement())
+  actor_id     Int
+  client_key   String   @db.Uuid
+  request_hash String
+  response     Json?
+  created_at   DateTime @default(now())
+
+  actor  Admin         @relation("ReviewOperationActor", fields: [actor_id], references: [id], onDelete: Restrict)
+  events ReviewEvent[]
+
+  @@unique([actor_id, client_key])
+}
+
+model ReviewEvent {
+  id               Int               @id @default(autoincrement())
+  case_id          Int
+  actor_id         Int
+  operation_id     Int
+  action           ReviewEventAction
+  previous_outcome RacOutcome?
+  new_outcome      RacOutcome
+  source_version   String            @db.VarChar(100)
+  created_at       DateTime          @default(now())
+
+  reviewCase ReviewCase      @relation(fields: [case_id], references: [id], onDelete: Restrict)
+  actor      Admin           @relation("ReviewEventActor", fields: [actor_id], references: [id], onDelete: Restrict)
+  operation  ReviewOperation @relation(fields: [operation_id], references: [id], onDelete: Restrict)
+
+  @@unique([operation_id, case_id])
+  @@index([case_id, created_at])
+  @@index([actor_id])
 }
 
 enum AdminRoles {
