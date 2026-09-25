@@ -109,6 +109,41 @@ model Admin {
   uploadedImages     StudentImage[]
   imageComments      ImageComment[]
   notifications      Notification[] @relation("AdminNotifications")
+  reviewAssignments  ReviewAssignment[] @relation("ReviewAssignee")
+  reviewGrants       ReviewAssignment[] @relation("ReviewGrantor")
+  reviewRevocations  ReviewAssignment[] @relation("ReviewRevoker")
+}
+
+enum ReviewCapability {
+  RAC_CHECK
+  INFORMATION_PROOFREADER
+  INFORMATION_QC
+  PHOTO_UPLOADER
+  PHOTO_QC
+  FINAL_MODERATOR
+  IT_CORRECTION
+}
+
+// Review capabilities are separate from the existing broad AdminRoles.
+// Revocation keeps the original assignment and its attribution.
+model ReviewAssignment {
+  id          Int              @id @default(autoincrement())
+  admin_id    Int
+  capability  ReviewCapability
+  department  String?
+  course      String?
+  major       String?
+  granted_by  Int
+  granted_at  DateTime         @default(now())
+  revoked_by  Int?
+  revoked_at  DateTime?
+
+  assignee Admin  @relation("ReviewAssignee", fields: [admin_id], references: [id], onDelete: Restrict)
+  grantor  Admin  @relation("ReviewGrantor", fields: [granted_by], references: [id], onDelete: Restrict)
+  revoker  Admin? @relation("ReviewRevoker", fields: [revoked_by], references: [id], onDelete: Restrict)
+
+  @@index([admin_id, revoked_at])
+  @@index([capability, revoked_at])
 }
 
 enum AdminRoles {
