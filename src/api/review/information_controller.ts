@@ -2,6 +2,8 @@ import { Request, Response } from "express";
 import { readCycle } from "./rac_contract";
 import { informationQueues, type InformationQueue } from "./information_contract";
 import { informationFilterOptions, informationReviewDetail, listInformationReviews } from "./information_service";
+import { readDraftSave } from "./information_draft_contract";
+import { informationDraftHistory, saveInformationDraft } from "./information_draft_service";
 import { ReviewRequestError } from "./review_error";
 
 interface StaffRequest extends Request {
@@ -76,4 +78,29 @@ export async function getReview(req: StaffRequest, res: Response) {
   }
   try { return res.json(await informationReviewDetail(adminId, reviewId)); }
   catch (error) { return sendError(error, res, "Information detail error:"); }
+}
+
+export async function getDraftHistory(req: StaffRequest, res: Response) {
+  res.setHeader("Cache-Control", "private, no-store");
+  const adminId = staffId(req);
+  if (!adminId) return res.status(401).json({ success: false, code: "UNAUTHORIZED", reason: "Unauthorized." });
+  const reviewId = Number(req.params.reviewId);
+  if (!Number.isSafeInteger(reviewId) || reviewId <= 0 || reviewId > 2147483647) {
+    return res.status(400).json({ success: false, code: "INVALID_REQUEST", reason: "Invalid review ID." });
+  }
+  try { return res.json(await informationDraftHistory(adminId, reviewId)); }
+  catch (error) { return sendError(error, res, "Information revision history error:"); }
+}
+
+export async function saveDraft(req: StaffRequest, res: Response) {
+  res.setHeader("Cache-Control", "private, no-store");
+  const adminId = staffId(req);
+  if (!adminId) return res.status(401).json({ success: false, code: "UNAUTHORIZED", reason: "Unauthorized." });
+  const reviewId = Number(req.params.reviewId);
+  const draft = readDraftSave(req.body);
+  if (!Number.isSafeInteger(reviewId) || reviewId <= 0 || reviewId > 2147483647 || !draft) {
+    return res.status(400).json({ success: false, code: "INVALID_REQUEST", reason: "Invalid draft change." });
+  }
+  try { return res.json(await saveInformationDraft(adminId, reviewId, draft)); }
+  catch (error) { return sendError(error, res, "Information draft save error:"); }
 }
