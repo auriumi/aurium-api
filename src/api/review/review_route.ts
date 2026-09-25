@@ -20,6 +20,7 @@ router.get("/information-reviews", requirePermission(Permission.REVIEW_VIEW), in
 router.get("/information-reviews/filter-options", requirePermission(Permission.REVIEW_VIEW), informationController.getFilterOptions);
 router.get("/information-reviews/:reviewId/revisions", requirePermission(Permission.REVIEW_VIEW), informationController.getDraftHistory);
 router.patch("/information-reviews/:reviewId/draft", requirePermission(Permission.REVIEW_VERIFY), requireReviewOrigin, informationController.saveDraft);
+router.post("/information-reviews/:reviewId/submission", requirePermission(Permission.REVIEW_VERIFY), requireReviewOrigin, informationController.submitReview);
 router.get("/information-reviews/:reviewId", requirePermission(Permission.REVIEW_VIEW), informationController.getReview);
 
 assertRoutesGuarded(router);
