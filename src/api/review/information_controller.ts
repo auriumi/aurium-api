@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
-import { RacOutcome } from "@prisma/client";
-import { readCycle, readVerificationBatch, type VerificationStatus } from "./rac_contract";
-import { listVerificationGraduates, verificationFilterOptions, verificationHistory, verifyGraduateBatch } from "./rac_service";
+import { readCycle } from "./rac_contract";
+import { informationQueues, type InformationQueue } from "./information_contract";
+import { informationFilterOptions, informationReviewDetail, listInformationReviews } from "./information_service";
 import { ReviewRequestError } from "./review_error";
 
 interface StaffRequest extends Request {
@@ -28,42 +28,28 @@ function sendError(error: unknown, res: Response, label: string) {
   return res.status(500).json({ success: false, code: "INTERNAL_ERROR", reason: "Internal Server Error" });
 }
 
-export async function listGraduates(req: StaffRequest, res: Response) {
+export async function listReviews(req: StaffRequest, res: Response) {
   res.setHeader("Cache-Control", "private, no-store");
   const adminId = staffId(req);
   if (!adminId) return res.status(401).json({ success: false, code: "UNAUTHORIZED", reason: "Unauthorized." });
   const cycle = readCycle(req.query.year, req.query.term);
   const page = Number(req.query.page ?? 1);
-  const status = req.query.verification ?? "UNCHECKED";
+  const queue = req.query.queue ?? "ALL";
   const department = readText(req.query.department, 120);
   const course = readText(req.query.program, 120);
   const major = readText(req.query.major, 120);
   const search = readText(req.query.search, 80);
   if (!cycle || !Number.isSafeInteger(page) || page < 1 || page > 10000 ||
-      typeof status !== "string" || !["ALL", "UNCHECKED", ...Object.values(RacOutcome)].includes(status) ||
+      typeof queue !== "string" || !informationQueues.includes(queue as InformationQueue) ||
       department === undefined || course === undefined || major === undefined || search === undefined ||
       (course && !department) || (major && !course)) {
-    return res.status(400).json({ success: false, code: "INVALID_FILTER", reason: "Invalid review filters." });
+    return res.status(400).json({ success: false, code: "INVALID_FILTER", reason: "Invalid information filters." });
   }
   try {
-    const result = await listVerificationGraduates(adminId, {
-      ...cycle, page, status: status as VerificationStatus, department, course, major, search: search ?? "",
-    });
-    return res.json(result);
-  } catch (error) { return sendError(error, res, "RAC list error:"); }
-}
-
-export async function getHistory(req: StaffRequest, res: Response) {
-  res.setHeader("Cache-Control", "private, no-store");
-  const adminId = staffId(req);
-  if (!adminId) return res.status(401).json({ success: false, code: "UNAUTHORIZED", reason: "Unauthorized." });
-  const cycle = readCycle(req.query.year, req.query.term);
-  const studentNumber = Number(req.params.studentNumber);
-  if (!cycle || !Number.isSafeInteger(studentNumber) || studentNumber <= 0 || studentNumber > 2147483647) {
-    return res.status(400).json({ success: false, code: "INVALID_REQUEST", reason: "Invalid graduate or cycle." });
-  }
-  try { return res.json(await verificationHistory(adminId, studentNumber, cycle)); }
-  catch (error) { return sendError(error, res, "RAC history error:"); }
+    return res.json(await listInformationReviews(adminId, {
+      ...cycle, page, queue: queue as InformationQueue, department, course, major, search: search ?? "",
+    }));
+  } catch (error) { return sendError(error, res, "Information list error:"); }
 }
 
 export async function getFilterOptions(req: StaffRequest, res: Response) {
@@ -76,15 +62,18 @@ export async function getFilterOptions(req: StaffRequest, res: Response) {
   if (!cycle || department === undefined || course === undefined || (course && !department)) {
     return res.status(400).json({ success: false, code: "INVALID_FILTER", reason: "Invalid academic filters." });
   }
-  try { return res.json(await verificationFilterOptions(adminId, cycle, department, course)); }
-  catch (error) { return sendError(error, res, "RAC filter options error:"); }
+  try { return res.json(await informationFilterOptions(adminId, cycle, department, course)); }
+  catch (error) { return sendError(error, res, "Information options error:"); }
 }
 
-export async function createVerificationBatch(req: StaffRequest, res: Response) {
+export async function getReview(req: StaffRequest, res: Response) {
+  res.setHeader("Cache-Control", "private, no-store");
   const adminId = staffId(req);
   if (!adminId) return res.status(401).json({ success: false, code: "UNAUTHORIZED", reason: "Unauthorized." });
-  const batch = readVerificationBatch(req.body);
-  if (!batch) return res.status(400).json({ success: false, code: "INVALID_REQUEST", reason: "Select 1–100 eligible graduates and refresh the list." });
-  try { return res.json(await verifyGraduateBatch(adminId, batch)); }
-  catch (error) { return sendError(error, res, "RAC verification error:"); }
+  const reviewId = Number(req.params.reviewId);
+  if (!Number.isSafeInteger(reviewId) || reviewId <= 0 || reviewId > 2147483647) {
+    return res.status(400).json({ success: false, code: "INVALID_REQUEST", reason: "Invalid review ID." });
+  }
+  try { return res.json(await informationReviewDetail(adminId, reviewId)); }
+  catch (error) { return sendError(error, res, "Information detail error:"); }
 }
