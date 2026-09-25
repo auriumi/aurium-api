@@ -2,7 +2,8 @@ import { ReviewStage } from "@prisma/client";
 import type { Cycle } from "./rac_contract";
 
 export const informationQueues = [
-  "ALL", "PENDING", "SUBMITTED_QC", "REJECTED_QC", "APPROVED_QC", "COMPLETED", "REJECTED_MODERATOR",
+  "ALL", "PENDING", "SUBMITTED_QC", "REJECTED_QC", "APPROVED_QC",
+  "SUBMITTED_MODERATOR", "COMPLETED", "REJECTED_MODERATOR",
 ] as const;
 export type InformationQueue = typeof informationQueues[number];
 

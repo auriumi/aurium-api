@@ -85,9 +85,14 @@ export async function listInformationReviews(adminId: number, query: Information
 
   const counts = {
     ALL: all, PENDING: 0, SUBMITTED_QC: 0, REJECTED_QC: 0,
-    APPROVED_QC: 0, COMPLETED: 0, REJECTED_MODERATOR: 0,
+    APPROVED_QC: 0, SUBMITTED_MODERATOR: 0, COMPLETED: 0, REJECTED_MODERATOR: 0,
   };
-  for (const entry of stageCounts) counts[queueForStage(entry.stage)] += entry._count._all;
+  for (const entry of stageCounts) {
+    counts[queueForStage(entry.stage)] += entry._count._all;
+    if (entry.stage === ReviewStage.SUBMITTED_MODERATOR) {
+      counts.SUBMITTED_MODERATOR += entry._count._all;
+    }
+  }
 
   return {
     success: true,
