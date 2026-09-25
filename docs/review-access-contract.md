@@ -1,0 +1,13 @@
+# Aurium review access contract
+
+This is the first implementation slice of the confirmed review prototype. It does not give the existing `ADMINISTRATOR`, `MODERATOR`, or `MEMBER` roles automatic review powers. A currently authenticated staff account needs a live `ReviewAssignment` for each review action. Assignments can be global or limited to department, course, and major. Course requires department; major requires course. There can be at most one active final moderator assignment.
+
+`GET /api/admin/review-capabilities` returns only the current staff member's active assignments. An administrator can grant with `POST /api/admin/review-assignments` using `{ "adminId": 123, "capability": "RAC_CHECK", "scope": { "department": "Computing Education" } }` and revoke with `PATCH /api/admin/review-assignments/456` using `{ "active": false }`. A successful grant returns the new assignment ID. Assignment changes retain the grantor/revoker and time; no delete endpoint exists. The administrator's current database role is rechecked on each change, so a stale JWT role cannot keep granting access. Existing staff management permissions remain in force.
+
+Cookie-authenticated review writes require an `Origin` header matching the same frontend origin configured for CORS. Requests without that header or from another origin return 403. API clients and integration tests must send the configured origin when using these write routes.
+
+For RAC/SAO, a staff member with `RAC_CHECK` can see and verify only graduates in their assigned academic scope. A global scope has all three fields null. Department/program/major filters refine the view and never expand that scope. Every later mutation must recheck its action's capability and graduate scope server-side. The final moderator must have a global assignment, created for John Mie's actual account during controlled pilot provisioning; no name-based implicit permission is used.
+
+This migration only adds an enum, an assignment table, indexes, and constraints. It does not alter existing student or admin rows. Before applying it to any real database, reconcile the deployed Prisma schema and migration history, capture a backup, and rehearse a restore on an isolated database. No production database was accessed while preparing this change.
+
+The next feature PR will add the RAC/SAO verification state and audit history, plus a scoped read/batch API. Later PRs add information/photo revisions and lock protection. Review staff should not be assigned in production until the actions they need are deployed and tested.

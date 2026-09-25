@@ -39,6 +39,9 @@ export const Permission = {
     IMAGE_VIEW: "IMAGE_VIEW",
     IMAGE_UPLOAD: "IMAGE_UPLOAD",
     IMAGE_APPROVE: "IMAGE_APPROVE",
+    REVIEW_VIEW: "REVIEW_VIEW",
+    REVIEW_VERIFY: "REVIEW_VERIFY",
+    REVIEW_ASSIGN: "REVIEW_ASSIGN",
 } as const;
 
 export type Permission = (typeof Permission)[keyof typeof Permission];
@@ -73,4 +76,9 @@ export const PERMISSION_MATRIX: Record<Permission, AdminRoles[]> = {
     [Permission.IMAGE_VIEW]: [ADMINISTRATOR, MODERATOR],
     [Permission.IMAGE_UPLOAD]: [ADMINISTRATOR, MODERATOR],
     [Permission.IMAGE_APPROVE]: [ADMINISTRATOR, MODERATOR],
+    // A role check only reaches the review module. It checks fresh, scoped
+    // ReviewAssignment rows before returning records or changing review data.
+    [Permission.REVIEW_VIEW]: [ADMINISTRATOR, MODERATOR, MEMBER],
+    [Permission.REVIEW_VERIFY]: [ADMINISTRATOR, MODERATOR, MEMBER],
+    [Permission.REVIEW_ASSIGN]: [ADMINISTRATOR],
 };
