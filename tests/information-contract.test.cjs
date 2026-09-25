@@ -5,6 +5,7 @@ const { graduateScopeWhere, graduateSearchWhere } = require('../dist/api/review/
 
 test('information queues keep forwarded QC records visible without treating them as completed', () => {
   assert.deepEqual(stagesForQueue('APPROVED_QC'), ['APPROVED_QC', 'SUBMITTED_MODERATOR']);
+  assert.deepEqual(stagesForQueue('SUBMITTED_MODERATOR'), ['SUBMITTED_MODERATOR']);
   assert.deepEqual(stagesForQueue('COMPLETED'), ['LOCKED']);
   assert.equal(queueForStage('SUBMITTED_MODERATOR'), 'APPROVED_QC');
   assert.equal(queueForStage('REJECTED_MODERATOR'), 'REJECTED_MODERATOR');

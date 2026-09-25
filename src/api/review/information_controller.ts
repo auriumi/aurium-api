@@ -8,6 +8,8 @@ import { readInformationSubmission } from "./information_submission_contract";
 import { submitInformationReview } from "./information_submission_service";
 import { readInformationQcRequest } from "./information_qc_contract";
 import { decideInformationQc, informationDecisionHistory } from "./information_qc_service";
+import { readInformationModeratorRequest } from "./information_moderator_contract";
+import { decideInformationModerator } from "./information_moderator_service";
 import { ReviewRequestError } from "./review_error";
 
 interface StaffRequest extends Request {
@@ -145,4 +147,17 @@ export async function getDecisionHistory(req: StaffRequest, res: Response) {
   }
   try { return res.json(await informationDecisionHistory(adminId, reviewId)); }
   catch (error) { return sendError(error, res, "Information decision history error:"); }
+}
+
+export async function decideModerator(req: StaffRequest, res: Response) {
+  res.setHeader("Cache-Control", "private, no-store");
+  const adminId = staffId(req);
+  if (!adminId) return res.status(401).json({ success: false, code: "UNAUTHORIZED", reason: "Unauthorized." });
+  const reviewId = Number(req.params.reviewId);
+  const decision = readInformationModeratorRequest(req.body);
+  if (!Number.isSafeInteger(reviewId) || reviewId <= 0 || reviewId > 2147483647 || !decision) {
+    return res.status(400).json({ success: false, code: "INVALID_REQUEST", reason: "Invalid moderator decision or rejection reason." });
+  }
+  try { return res.json(await decideInformationModerator(adminId, reviewId, decision)); }
+  catch (error) { return sendError(error, res, "Information moderator decision error:"); }
 }
