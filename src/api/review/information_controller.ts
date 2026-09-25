@@ -6,6 +6,8 @@ import { readDraftSave } from "./information_draft_contract";
 import { informationDraftHistory, saveInformationDraft } from "./information_draft_service";
 import { readInformationSubmission } from "./information_submission_contract";
 import { submitInformationReview } from "./information_submission_service";
+import { readInformationQcRequest } from "./information_qc_contract";
+import { decideInformationQc, informationDecisionHistory } from "./information_qc_service";
 import { ReviewRequestError } from "./review_error";
 
 interface StaffRequest extends Request {
@@ -118,4 +120,29 @@ export async function submitReview(req: StaffRequest, res: Response) {
   }
   try { return res.json(await submitInformationReview(adminId, reviewId, submission)); }
   catch (error) { return sendError(error, res, "Information submission error:"); }
+}
+
+export async function decideQc(req: StaffRequest, res: Response) {
+  res.setHeader("Cache-Control", "private, no-store");
+  const adminId = staffId(req);
+  if (!adminId) return res.status(401).json({ success: false, code: "UNAUTHORIZED", reason: "Unauthorized." });
+  const reviewId = Number(req.params.reviewId);
+  const decision = readInformationQcRequest(req.body);
+  if (!Number.isSafeInteger(reviewId) || reviewId <= 0 || reviewId > 2147483647 || !decision) {
+    return res.status(400).json({ success: false, code: "INVALID_REQUEST", reason: "Invalid QC decision or rejection reason." });
+  }
+  try { return res.json(await decideInformationQc(adminId, reviewId, decision)); }
+  catch (error) { return sendError(error, res, "Information QC decision error:"); }
+}
+
+export async function getDecisionHistory(req: StaffRequest, res: Response) {
+  res.setHeader("Cache-Control", "private, no-store");
+  const adminId = staffId(req);
+  if (!adminId) return res.status(401).json({ success: false, code: "UNAUTHORIZED", reason: "Unauthorized." });
+  const reviewId = Number(req.params.reviewId);
+  if (!Number.isSafeInteger(reviewId) || reviewId <= 0 || reviewId > 2147483647) {
+    return res.status(400).json({ success: false, code: "INVALID_REQUEST", reason: "Invalid review ID." });
+  }
+  try { return res.json(await informationDecisionHistory(adminId, reviewId)); }
+  catch (error) { return sendError(error, res, "Information decision history error:"); }
 }
