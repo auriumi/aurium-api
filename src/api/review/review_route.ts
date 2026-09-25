@@ -23,6 +23,7 @@ router.get("/information-reviews/:reviewId/decision-events", requirePermission(P
 router.patch("/information-reviews/:reviewId/draft", requirePermission(Permission.REVIEW_VERIFY), requireReviewOrigin, informationController.saveDraft);
 router.post("/information-reviews/:reviewId/submission", requirePermission(Permission.REVIEW_VERIFY), requireReviewOrigin, informationController.submitReview);
 router.post("/information-reviews/:reviewId/qc-decision", requirePermission(Permission.REVIEW_VERIFY), requireReviewOrigin, informationController.decideQc);
+router.post("/information-reviews/:reviewId/moderator-decision", requirePermission(Permission.REVIEW_VERIFY), requireReviewOrigin, informationController.decideModerator);
 router.get("/information-reviews/:reviewId", requirePermission(Permission.REVIEW_VIEW), informationController.getReview);
 
 assertRoutesGuarded(router);

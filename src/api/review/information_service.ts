@@ -208,6 +208,17 @@ export async function informationReviewDetail(adminId: number, reviewId: number)
   if (canSubmit) availableActions.push("SUBMIT_QC");
   if (canQc && track.stage === ReviewStage.SUBMITTED_QC) availableActions.push("QC_APPROVE", "QC_REJECT");
   if (canQc && track.stage === ReviewStage.APPROVED_QC) availableActions.push("FORWARD_MODERATOR");
+  if (track.stage === ReviewStage.SUBMITTED_MODERATOR &&
+      scopes.some(scope => scope.capability === ReviewCapability.FINAL_MODERATOR &&
+        matchesGraduateScope(scope, student))) {
+    const moderators = await prisma.reviewAssignment.findMany({
+      where: { capability: ReviewCapability.FINAL_MODERATOR, revoked_at: null },
+      select: { admin_id: true }, distinct: ["admin_id"], take: 2,
+    });
+    if (moderators.length === 1 && moderators[0]?.admin_id === adminId) {
+      availableActions.push("MODERATOR_APPROVE", "MODERATOR_REJECT");
+    }
+  }
   return {
     success: true, reviewId: track.id, informationStage: track.stage,
     queue: queueForStage(track.stage), version: track.version,
