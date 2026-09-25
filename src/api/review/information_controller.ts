@@ -4,6 +4,8 @@ import { informationQueues, type InformationQueue } from "./information_contract
 import { informationFilterOptions, informationReviewDetail, listInformationReviews } from "./information_service";
 import { readDraftSave } from "./information_draft_contract";
 import { informationDraftHistory, saveInformationDraft } from "./information_draft_service";
+import { readInformationSubmission } from "./information_submission_contract";
+import { submitInformationReview } from "./information_submission_service";
 import { ReviewRequestError } from "./review_error";
 
 interface StaffRequest extends Request {
@@ -103,4 +105,17 @@ export async function saveDraft(req: StaffRequest, res: Response) {
   }
   try { return res.json(await saveInformationDraft(adminId, reviewId, draft)); }
   catch (error) { return sendError(error, res, "Information draft save error:"); }
+}
+
+export async function submitReview(req: StaffRequest, res: Response) {
+  res.setHeader("Cache-Control", "private, no-store");
+  const adminId = staffId(req);
+  if (!adminId) return res.status(401).json({ success: false, code: "UNAUTHORIZED", reason: "Unauthorized." });
+  const reviewId = Number(req.params.reviewId);
+  const submission = readInformationSubmission(req.body);
+  if (!Number.isSafeInteger(reviewId) || reviewId <= 0 || reviewId > 2147483647 || !submission) {
+    return res.status(400).json({ success: false, code: "INVALID_REQUEST", reason: "Invalid information submission." });
+  }
+  try { return res.json(await submitInformationReview(adminId, reviewId, submission)); }
+  catch (error) { return sendError(error, res, "Information submission error:"); }
 }

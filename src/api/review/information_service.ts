@@ -1,4 +1,4 @@
-import { AdminRoles, Prisma, RacOutcome, ReviewCapability, ReviewStage, ReviewTrackType } from "@prisma/client";
+import { AdminRoles, InformationEventAction, Prisma, RacOutcome, ReviewCapability, ReviewStage, ReviewTrackType } from "@prisma/client";
 import prisma from "../../config/prisma";
 import { generateReadUrl } from "../student/r2_service";
 import { ReviewRequestError } from "./review_error";
@@ -8,6 +8,7 @@ import { queueForStage, stagesForQueue, type InformationListQuery } from "./info
 import type { Cycle } from "./rac_contract";
 import { editableProfileFields } from "./information_draft_contract";
 import { storedSnapshot } from "./information_draft_service";
+import { canSubmitInformation } from "./information_submission_contract";
 
 const informationCapabilities = [
   ReviewCapability.INFORMATION_PROOFREADER,
@@ -136,6 +137,9 @@ export async function informationReviewDetail(adminId: number, reviewId: number)
       id: true, stage: true, version: true,
       revisions: { orderBy: { track_version: "desc" }, take: 1,
         select: { id: true, track_version: true, before_snapshot: true, after_snapshot: true, created_at: true } },
+      informationEvents: { where: { action: { in: [
+        InformationEventAction.REJECTED_QC, InformationEventAction.REJECTED_MODERATOR,
+      ] } }, orderBy: { track_version: "desc" }, take: 1, select: { track_version: true } },
       reviewCase: { select: {
         grad_year: true, grad_term: true, outcome: true, checked_at: true, source_version: true,
         student: { select: {
@@ -188,10 +192,13 @@ export async function informationReviewDetail(adminId: number, reviewId: number)
   const canEdit = editableStages.includes(track.stage) &&
     scopes.some(scope => scope.capability === ReviewCapability.INFORMATION_PROOFREADER &&
       matchesGraduateScope(scope, student));
+  const canSubmit = canEdit && !!currentRevision && canSubmitInformation(
+    track.stage, currentRevision.track_version, track.informationEvents[0]?.track_version ?? null,
+  );
   return {
     success: true, reviewId: track.id, informationStage: track.stage,
     queue: queueForStage(track.stage), version: track.version,
-    availableActions: canEdit ? ["SAVE_DRAFT"] : [] as string[],
+    availableActions: canEdit ? ["SAVE_DRAFT", ...(canSubmit ? ["SUBMIT_QC"] : [])] : [] as string[],
     draft: currentRevision && before && after ? {
       revisionId: currentRevision.id, version: currentRevision.track_version,
       before, after,
