@@ -116,6 +116,7 @@ model Admin {
   checkedReviewCases ReviewCase[] @relation("RacChecker")
   reviewOperations   ReviewOperation[] @relation("ReviewOperationActor")
   reviewEvents       ReviewEvent[] @relation("ReviewEventActor")
+  reviewRevisions    ReviewRevision[] @relation("ReviewRevisionAuthor")
 }
 
 enum ReviewCapability {
@@ -205,6 +206,7 @@ model ReviewTrack {
   version  Int             @default(1)
 
   reviewCase ReviewCase @relation(fields: [case_id], references: [id], onDelete: Restrict)
+  revisions  ReviewRevision[]
 
   @@unique([case_id, type])
 }
@@ -219,10 +221,32 @@ model ReviewOperation {
   response     Json?
   created_at   DateTime @default(now())
 
-  actor  Admin         @relation("ReviewOperationActor", fields: [actor_id], references: [id], onDelete: Restrict)
-  events ReviewEvent[]
+  actor    Admin           @relation("ReviewOperationActor", fields: [actor_id], references: [id], onDelete: Restrict)
+  events   ReviewEvent[]
+  revision ReviewRevision?
 
   @@unique([actor_id, client_key])
+}
+
+// Immutable information drafts. Both snapshots contain only the fields that
+// a proofreader may edit; the live graduate record changes only at final approval.
+model ReviewRevision {
+  id              Int      @id @default(autoincrement())
+  track_id        Int
+  track_version   Int
+  before_snapshot Json
+  after_snapshot  Json
+  canonical_hash  String   @db.VarChar(64)
+  created_by      Int
+  operation_id    Int      @unique
+  created_at      DateTime @default(now())
+
+  track     ReviewTrack     @relation(fields: [track_id], references: [id], onDelete: Restrict)
+  author    Admin           @relation("ReviewRevisionAuthor", fields: [created_by], references: [id], onDelete: Restrict)
+  operation ReviewOperation @relation(fields: [operation_id], references: [id], onDelete: Restrict)
+
+  @@unique([track_id, track_version])
+  @@index([created_by])
 }
 
 model ReviewEvent {
