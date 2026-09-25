@@ -167,8 +167,15 @@ export async function informationReviewDetail(adminId: number, reviewId: number)
   }
 
   // Never expose the storage key or unsigned object URL to the browser.
-  const referencePhotoUrl = student.studentDetail?.photo_url
-    ? await generateReadUrl(student.studentDetail.photo_url) : null;
+  let referencePhotoUrl: string | null = null;
+  if (student.studentDetail?.photo_url) {
+    try {
+      referencePhotoUrl = await generateReadUrl(student.studentDetail.photo_url);
+    } catch {
+      // The profile remains available if object storage cannot sign this photo.
+      console.error("Unable to sign information reference photo for review", reviewId);
+    }
+  }
   const booking = student.booking[0];
   return {
     success: true, reviewId: track.id, informationStage: track.stage,
