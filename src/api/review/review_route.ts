@@ -29,9 +29,12 @@ router.get("/information-reviews/:reviewId", requirePermission(Permission.REVIEW
 router.get("/photo-reviews", requirePermission(Permission.REVIEW_VIEW), photoController.list);
 router.get("/photo-reviews/filter-options", requirePermission(Permission.REVIEW_VIEW), photoController.filterOptions);
 router.get("/photo-reviews/:reviewId", requirePermission(Permission.REVIEW_VIEW), photoController.detail);
+router.get("/photo-reviews/:reviewId/decision-events", requirePermission(Permission.REVIEW_VIEW), photoController.decisionHistory);
 router.post("/photo-reviews/:reviewId/uploads", requirePermission(Permission.REVIEW_VERIFY), requireReviewOrigin, photoController.beginUpload);
 router.post("/photo-reviews/:reviewId/uploads/:assetId/finalize", requirePermission(Permission.REVIEW_VERIFY), requireReviewOrigin, photoController.finalizeUpload);
 router.post("/photo-reviews/:reviewId/submission", requirePermission(Permission.REVIEW_VERIFY), requireReviewOrigin, photoController.submit);
+router.post("/photo-reviews/:reviewId/qc-decision", requirePermission(Permission.REVIEW_VERIFY), requireReviewOrigin, photoController.qcDecision);
+router.post("/photo-reviews/:reviewId/moderator-decision", requirePermission(Permission.REVIEW_VERIFY), requireReviewOrigin, photoController.moderatorDecision);
 
 assertRoutesGuarded(router);
 

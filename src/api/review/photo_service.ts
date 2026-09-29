@@ -29,7 +29,7 @@ async function scopesFor(adminId: number, capabilities = photoCapabilities,
   return assignments;
 }
 
-async function assignedPhotoTrack(client: Prisma.TransactionClient | typeof prisma, adminId: number, reviewId: number,
+export async function assignedPhotoTrack(client: Prisma.TransactionClient | typeof prisma, adminId: number, reviewId: number,
   capabilities: ReviewCapability[] = [ReviewCapability.PHOTO_UPLOADER]) {
   const scopes = await scopesFor(adminId, capabilities, client);
   const track = await client.reviewTrack.findUnique({
@@ -116,7 +116,7 @@ export async function photoFilterOptions(adminId: number, cycle: Cycle, departme
 
 export async function photoReviewDetail(adminId: number, reviewId: number) {
   const { track, student: owner } = await assignedPhotoTrack(prisma, adminId, reviewId, photoCapabilities);
-  const [student, graduationAsset, themeAsset, pair, rejection] = await Promise.all([
+  const [student, graduationAsset, themeAsset, pair, rejection, submitted, approved, forwarded, assignments] = await Promise.all([
     prisma.student.findUnique({ where: { id: owner.id }, select: {
       student_number: true, first_name: true, mid_name: true, last_name: true, suffix: true, nickname: true,
       school_email: true, personal_email: true, department: true, course: true, major: true,
@@ -146,6 +146,15 @@ export async function photoReviewDetail(adminId: number, reviewId: number) {
     prisma.photoReviewEvent.findFirst({ where: { track_id: reviewId, action: {
       in: [PhotoEventAction.REJECTED_QC, PhotoEventAction.REJECTED_MODERATOR] } },
       orderBy: { track_version: "desc" }, select: { track_version: true } }),
+    prisma.photoReviewEvent.findFirst({ where: { track_id: reviewId, action: PhotoEventAction.SUBMITTED_QC },
+      orderBy: { track_version: "desc" }, select: { pair_id: true } }),
+    prisma.photoReviewEvent.findFirst({ where: { track_id: reviewId, action: PhotoEventAction.APPROVED_QC },
+      orderBy: { track_version: "desc" }, select: { pair_id: true } }),
+    prisma.photoReviewEvent.findFirst({ where: { track_id: reviewId, action: PhotoEventAction.SUBMITTED_MODERATOR },
+      orderBy: { track_version: "desc" }, select: { pair_id: true } }),
+    prisma.reviewAssignment.findMany({ where: { admin_id: adminId,
+      capability: { in: photoCapabilities }, revoked_at: null },
+      select: { capability: true, department: true, course: true, major: true } }),
   ]);
   if (!student || student.grad_year !== owner.grad_year || student.grad_term !== owner.grad_term) {
     throw new ReviewRequestError(409, "SOURCE_CHANGED", "The graduate cycle changed. Refresh the review.");
@@ -159,14 +168,28 @@ export async function photoReviewDetail(adminId: number, reviewId: number) {
     try { referencePhotoUrl = await generateReadUrl(student.studentDetail.photo_url); }
     catch { console.error("Unable to sign photo review reference", reviewId); }
   }
-  const canUpload = editableStages.includes(track.stage) &&
-    (await prisma.reviewAssignment.findMany({ where: { admin_id: adminId,
-      capability: ReviewCapability.PHOTO_UPLOADER, revoked_at: null },
-      select: { department: true, course: true, major: true } })).some(scope => matchesGraduateScope(scope, owner));
+  const hasRole = (capability: ReviewCapability) => assignments.some(scope =>
+    scope.capability === capability && matchesGraduateScope(scope, owner));
+  const canUpload = editableStages.includes(track.stage) && hasRole(ReviewCapability.PHOTO_UPLOADER);
+  const actions: string[] = canUpload ? ["UPLOAD", ...(canSubmitPair(track.stage,
+    pair?.track_version ?? null, track.version, rejection?.track_version ?? null) ? ["SUBMIT_QC"] : [])] : [];
+  if (pair && submitted?.pair_id === pair.id && hasRole(ReviewCapability.PHOTO_QC)) {
+    if (track.stage === ReviewStage.SUBMITTED_QC) actions.push("QC_APPROVE", "QC_REJECT");
+    if (track.stage === ReviewStage.APPROVED_QC && approved?.pair_id === pair.id) actions.push("FORWARD_MODERATOR");
+  }
+  if (pair && track.stage === ReviewStage.SUBMITTED_MODERATOR &&
+      approved?.pair_id === pair.id && forwarded?.pair_id === pair.id &&
+      hasRole(ReviewCapability.FINAL_MODERATOR)) {
+    const moderators = await prisma.reviewAssignment.findMany({ where: {
+      capability: ReviewCapability.FINAL_MODERATOR, revoked_at: null },
+      select: { admin_id: true }, distinct: ["admin_id"], take: 2 });
+    if (moderators.length === 1 && moderators[0]?.admin_id === adminId) {
+      actions.push("MODERATOR_APPROVE", "MODERATOR_REJECT");
+    }
+  }
   const booking = student.booking[0];
   return { success: true, reviewId, stage: track.stage, version: track.version,
-    availableActions: canUpload ? ["UPLOAD", ...(canSubmitPair(track.stage, pair?.track_version ?? null,
-      track.version, rejection?.track_version ?? null) ? ["SUBMIT_QC"] : [])] : [],
+    availableActions: actions,
     pair: pair ? { revisionId: pair.id, version: pair.track_version,
       graduationAssetId: pair.graduation_asset_id, themeAssetId: pair.theme_asset_id } : null,
     photos: { graduation, theme, reference: referencePhotoUrl,
