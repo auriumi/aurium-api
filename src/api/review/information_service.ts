@@ -209,6 +209,7 @@ export async function informationReviewDetail(adminId: number, reviewId: number)
     scopes.some(scope => scope.capability === ReviewCapability.INFORMATION_QC &&
       matchesGraduateScope(scope, student));
   const availableActions: string[] = [];
+  if (currentRevision && track.stage !== ReviewStage.LOCKED) availableActions.push("COMMENT");
   if (canEdit) availableActions.push("SAVE_DRAFT");
   if (canSubmit) availableActions.push("SUBMIT_QC");
   if (canQc && track.stage === ReviewStage.SUBMITTED_QC) availableActions.push("QC_APPROVE", "QC_REJECT");
