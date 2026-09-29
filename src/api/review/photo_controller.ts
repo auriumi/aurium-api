@@ -3,6 +3,8 @@ import { ReviewStage } from "@prisma/client";
 import { readCycle } from "./rac_contract";
 import { readPhotoFinalize, readPhotoSubmission, readPhotoUpload } from "./photo_contract";
 import { beginPhotoUpload, finalizePhotoUpload, listPhotoReviews, photoFilterOptions, photoReviewDetail, submitPhotoPair } from "./photo_service";
+import { readPhotoDecision } from "./photo_decision_contract";
+import { decidePhotoReview, photoDecisionHistory } from "./photo_decision_service";
 import { ReviewRequestError } from "./review_error";
 
 interface StaffRequest extends Request { user?: { admin_id?: string | number } }
@@ -100,4 +102,33 @@ export async function submit(req: StaffRequest, res: Response) {
   if (!validId(reviewId) || !input) return res.status(400).json({ success: false, reason: "Invalid photo submission." });
   try { return res.json(await submitPhotoPair(adminId, reviewId, input)); }
   catch (error) { return fail(error, res, "Photo submission error:"); }
+}
+
+export async function decisionHistory(req: StaffRequest, res: Response) {
+  res.setHeader("Cache-Control", "private, no-store");
+  const adminId = staffId(req);
+  const reviewId = Number(req.params.reviewId);
+  if (!validId(adminId)) return res.status(401).json({ success: false, reason: "Unauthorized." });
+  if (!validId(reviewId)) return res.status(400).json({ success: false, reason: "Invalid review ID." });
+  try { return res.json(await photoDecisionHistory(adminId, reviewId)); }
+  catch (error) { return fail(error, res, "Photo history error:"); }
+}
+
+export function qcDecision(req: StaffRequest, res: Response) {
+  return decision(req, res, "qc");
+}
+
+export function moderatorDecision(req: StaffRequest, res: Response) {
+  return decision(req, res, "moderator");
+}
+
+async function decision(req: StaffRequest, res: Response, role: "qc" | "moderator") {
+  res.setHeader("Cache-Control", "private, no-store");
+  const adminId = staffId(req);
+  const reviewId = Number(req.params.reviewId);
+  const input = readPhotoDecision(req.body, role);
+  if (!validId(adminId)) return res.status(401).json({ success: false, reason: "Unauthorized." });
+  if (!validId(reviewId) || !input) return res.status(400).json({ success: false, reason: "Invalid photo decision." });
+  try { return res.json(await decidePhotoReview(adminId, reviewId, role, input)); }
+  catch (error) { return fail(error, res, "Photo decision error:"); }
 }
