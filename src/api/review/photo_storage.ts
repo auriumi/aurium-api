@@ -2,8 +2,8 @@ import { createHash, randomUUID } from "node:crypto";
 import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { ReviewRequestError } from "./review_error";
+import { R2_BUCKET } from "../../config/r2_bucket";
 
-const bucket = "aurium";
 const maxBytes = 8 * 1024 * 1024;
 const minBytes = 64;
 export const photoMimes = ["image/jpeg", "image/png", "image/webp"] as const;
@@ -24,12 +24,12 @@ export function stagingKey(trackId: number) {
 
 export async function signedPhotoUpload(key: string, mime: PhotoMime) {
   return getSignedUrl(storage, new PutObjectCommand({
-    Bucket: bucket, Key: key, ContentType: mime,
+    Bucket: R2_BUCKET, Key: key, ContentType: mime,
   }), { expiresIn: 120 });
 }
 
 export async function signedPhotoRead(key: string) {
-  return getSignedUrl(storage, new GetObjectCommand({ Bucket: bucket, Key: key }), { expiresIn: 900 });
+  return getSignedUrl(storage, new GetObjectCommand({ Bucket: R2_BUCKET, Key: key }), { expiresIn: 900 });
 }
 
 export function matchesPhotoSignature(bytes: Uint8Array, expectedMime: PhotoMime) {
@@ -53,7 +53,7 @@ export function matchesPhotoSignature(bytes: Uint8Array, expectedMime: PhotoMime
 export async function sealPhoto(stagedKey: string, expectedMime: PhotoMime, trackId: number, type: string) {
   let body;
   try {
-    body = await storage.send(new GetObjectCommand({ Bucket: bucket, Key: stagedKey }));
+    body = await storage.send(new GetObjectCommand({ Bucket: R2_BUCKET, Key: stagedKey }));
   } catch {
     throw new ReviewRequestError(409, "UPLOAD_MISSING", "The uploaded photo is unavailable. Upload it again.");
   }
@@ -77,7 +77,7 @@ export async function sealPhoto(stagedKey: string, expectedMime: PhotoMime, trac
   }
   const finalKey = `review-final/photos/${trackId}/${type.toLowerCase()}/${randomUUID()}`;
   await storage.send(new PutObjectCommand({
-    Bucket: bucket, Key: finalKey, Body: bytes, ContentType: expectedMime,
+    Bucket: R2_BUCKET, Key: finalKey, Body: bytes, ContentType: expectedMime,
   }));
   return { finalKey, byteSize: size, sha256: createHash("sha256").update(bytes).digest("hex") };
 }
