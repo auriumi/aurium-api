@@ -2,6 +2,8 @@ name: Review checks
 
 on:
   pull_request:
+  push:
+    branches: ['codex/review-integration-sep30-api']
   workflow_dispatch:
 
 permissions:
