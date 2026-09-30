@@ -300,13 +300,13 @@ enum PhotoUploadStatus {
 }
 
 enum PhotoEventAction {
-  COMMENTED
   SUBMITTED_QC
   REJECTED_QC
   APPROVED_QC
   SUBMITTED_MODERATOR
   REJECTED_MODERATOR
   LOCKED
+  COMMENTED
 }
 
 // Browser uploads land in a short-lived staging key. Only the server writes
