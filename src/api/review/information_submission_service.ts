@@ -4,6 +4,7 @@ import { profileHash } from "./information_draft_contract";
 import { assignedTrack, snapshot } from "./information_draft_service";
 import { ReviewRequestError } from "./review_error";
 import { canSubmitInformation, submissionHash, type InformationSubmission } from "./information_submission_contract";
+import { requiresMakerChange } from "./correction_contract";
 
 export async function submitInformationReview(adminId: number, reviewId: number, input: InformationSubmission) {
   const requestHash = submissionHash(reviewId, input);
@@ -42,6 +43,12 @@ export async function submitInformationReview(adminId: number, reviewId: number,
       });
       if (!latest || latest.id !== input.revisionId) {
         throw new ReviewRequestError(409, "STALE_REVISION", "Save and review the latest correction before submitting.");
+      }
+      const reopening = await tx.correctionRequest.findFirst({ where: {
+        track_id: reviewId, status: "APPROVED",
+      }, orderBy: [{ created_at: "desc" }, { id: "desc" }], select: { reopened_version: true } });
+      if (requiresMakerChange("APPROVED", reopening?.reopened_version, latest.track_version)) {
+        throw new ReviewRequestError(409, "CORRECTION_REQUIRED", "Save a correction before resubmitting the reopened review.");
       }
       const lastRejection = await tx.informationReviewEvent.findFirst({
         where: { track_id: reviewId, action: { in: [
