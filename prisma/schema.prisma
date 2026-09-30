@@ -300,6 +300,7 @@ enum PhotoUploadStatus {
 }
 
 enum PhotoEventAction {
+  COMMENTED
   SUBMITTED_QC
   REJECTED_QC
   APPROVED_QC
