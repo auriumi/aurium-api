@@ -823,6 +823,16 @@ export async function img_queryStudents(
 
   const shaped = await Promise.all(
     students.map(async (s) => {
+      const reviewCase = s.reviewCases.find(item => item.grad_term === s.grad_term) ?? s.reviewCases[0];
+      const { images, reviewCases, ...rest } = s;
+      if (reviewCase) {
+        return { ...rest, reference_photo_url: null, graduation: null, theme: null,
+          reviewManaged: true,
+          photoReview: reviewCase.tracks[0] ? {
+            reviewId: reviewCase.tracks[0].id, stage: reviewCase.tracks[0].stage,
+          } : null,
+        };
+      }
       const reference_photo_url = s.studentDetail?.photo_url
         ? (await generateReadUrl(s.studentDetail.photo_url)) ?? null
         : null;
@@ -843,13 +853,8 @@ export async function img_queryStudents(
       const graduation = await buildImage(ImageType.GRADUATION);
       const theme = await buildImage(ImageType.THEME);
 
-      const reviewCase = s.reviewCases.find(item => item.grad_term === s.grad_term) ?? s.reviewCases[0];
-      const { images, reviewCases, ...rest } = s;
       return { ...rest, reference_photo_url, graduation, theme,
-        reviewManaged: !!reviewCase,
-        photoReview: reviewCase?.tracks[0] ? {
-          reviewId: reviewCase.tracks[0].id, stage: reviewCase.tracks[0].stage,
-        } : null,
+        reviewManaged: false, photoReview: null,
       };
     })
   );
