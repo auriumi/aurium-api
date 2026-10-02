@@ -20,7 +20,11 @@ export function readPhotoFinalize(input: unknown) {
   return { expectedVersion: Number(value.expectedVersion) };
 }
 
-export const readPhotoSubmission = readInformationSubmission;
+export function readPhotoSubmission(input: unknown) {
+  const submission = readInformationSubmission(input);
+  // Unlike information review, photos always require an uploaded pair.
+  return submission && submission.revisionId !== null ? submission : null;
+}
 
 export function canSubmitPair(stage: ReviewStage, pairVersion: number | null,
   trackVersion: number, rejectionVersion: number | null) {

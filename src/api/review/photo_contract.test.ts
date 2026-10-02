@@ -1,7 +1,13 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { canSubmitPair, readPhotoUpload } from "./photo_contract";
+import { canSubmitPair, readPhotoUpload, readPhotoSubmission } from "./photo_contract";
 import { matchesPhotoSignature } from "./photo_storage";
+
+test("photo submission always requires an uploaded pair revision", () => {
+  const input = { expectedVersion: 1, revisionId: null, operationId: "932bc2f2-77fb-4afe-8c6e-49b075b25bce" };
+  assert.equal(readPhotoSubmission(input), null);
+  assert.equal(readPhotoSubmission({ ...input, revisionId: 1 })?.revisionId, 1);
+});
 
 test("photo upload contract rejects unsafe types and unexpected fields", () => {
   assert.equal(readPhotoUpload({ type: "GRADUATION", mime: "image/svg+xml", expectedVersion: 1 }), null);

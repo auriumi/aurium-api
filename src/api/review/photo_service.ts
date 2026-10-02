@@ -61,37 +61,45 @@ function assertEditable(stage: ReviewStage, version: number, expectedVersion: nu
 export async function listPhotoReviews(adminId: number, cycle: Cycle, page: number, search: string,
   department: string | null, course: string | null, major: string | null, stage: ReviewStage | "ALL") {
   const scopes = await scopesFor(adminId);
-  const where: Prisma.ReviewTrackWhereInput = {
-    type: ReviewTrackType.PHOTOS,
-    reviewCase: { is: {
-      grad_year: cycle.year, grad_term: cycle.term, outcome: RacOutcome.VERIFIED,
-      student: { is: { AND: [graduateScopeWhere(scopes), graduateSearchWhere(search),
-        ...(department ? [{ department }] : []), ...(course ? [{ course }] : []),
-        ...(major === "__no_major__" ? [{ major: null }] : major ? [{ major }] : []),
-      ] } },
-    } },
-  };
-  const stageWhere: Prisma.ReviewTrackWhereInput = stage === "ALL" ? where : { AND: [where, { stage }] };
-  const [rows, total, counts] = await Promise.all([
-    prisma.reviewTrack.findMany({ where: stageWhere, skip: (page - 1) * 25, take: 25,
-      orderBy: [{ reviewCase: { student: { first_name: "asc" } } }, { id: "asc" }],
-      select: { id: true, stage: true, version: true, reviewCase: { select: { student: { select: {
-        student_number: true, first_name: true, mid_name: true, last_name: true, suffix: true,
+  const base: Prisma.StudentWhereInput = { AND: [
+    { grad_year: cycle.year, grad_term: cycle.term }, graduateScopeWhere(scopes), graduateSearchWhere(search),
+    ...(department ? [{ department }] : []), ...(course ? [{ course }] : []),
+    ...(major === "__no_major__" ? [{ major: null }] : major ? [{ major }] : []),
+  ] };
+  const cycleCase = { grad_year: cycle.year, grad_term: cycle.term };
+  const where: Prisma.StudentWhereInput = stage === "ALL" ? base : { AND: [base, {
+    reviewCases: { some: { ...cycleCase, outcome: RacOutcome.VERIFIED,
+      tracks: { some: { type: ReviewTrackType.PHOTOS, stage } } } },
+  }] };
+  const [rows, total, all, counts] = await Promise.all([
+    prisma.student.findMany({ where, skip: (page - 1) * 25, take: 25,
+      orderBy: [{ first_name: "asc" }, { id: "asc" }],
+      select: { student_number: true, first_name: true, mid_name: true, last_name: true, suffix: true,
         department: true, course: true, major: true,
-      } } } } },
+        reviewCases: { where: cycleCase, take: 1, select: { outcome: true,
+          tracks: { where: { type: ReviewTrackType.PHOTOS }, take: 1,
+            select: { id: true, stage: true, version: true } } } },
+      },
     }),
-    prisma.reviewTrack.count({ where: stageWhere }),
-    prisma.reviewTrack.groupBy({ by: ["stage"], where, _count: { _all: true } }),
+    prisma.student.count({ where }),
+    prisma.student.count({ where: base }),
+    prisma.reviewTrack.groupBy({ by: ["stage"], where: { type: ReviewTrackType.PHOTOS,
+      reviewCase: { is: { ...cycleCase, outcome: RacOutcome.VERIFIED, student: { is: base } } },
+    }, _count: { _all: true } }),
   ]);
-  return { success: true, rows: rows.map(row => ({
-    reviewId: row.id, stage: row.stage, version: row.version,
-    studentNumber: row.reviewCase.student.student_number,
-    firstName: row.reviewCase.student.first_name, middleName: row.reviewCase.student.mid_name,
-    lastName: row.reviewCase.student.last_name, suffix: row.reviewCase.student.suffix,
-    department: row.reviewCase.student.department, program: row.reviewCase.student.course,
-    major: row.reviewCase.student.major,
-  })), page, pageSize: 25, total,
-  counts: Object.fromEntries(counts.map(item => [item.stage, item._count._all])),
+  return { success: true, rows: rows.map(student => {
+    const reviewCase = student.reviewCases[0];
+    const track = reviewCase?.outcome === RacOutcome.VERIFIED ? reviewCase.tracks[0] : null;
+    return {
+      reviewId: track?.id ?? null, stage: track?.stage ?? null, version: track?.version ?? null,
+      verification: reviewCase?.outcome ?? "UNCHECKED",
+      studentNumber: student.student_number,
+      firstName: student.first_name, middleName: student.mid_name,
+      lastName: student.last_name, suffix: student.suffix,
+      department: student.department, program: student.course, major: student.major,
+    };
+  }), page, pageSize: 25, total,
+  counts: { ALL: all, ...Object.fromEntries(counts.map(item => [item.stage, item._count._all])) },
   };
 }
 
@@ -99,8 +107,6 @@ export async function photoFilterOptions(adminId: number, cycle: Cycle, departme
   const scopes = await scopesFor(adminId);
   const base: Prisma.StudentWhereInput = { grad_year: cycle.year, grad_term: cycle.term,
     AND: [graduateScopeWhere(scopes)],
-    reviewCases: { some: { grad_year: cycle.year, grad_term: cycle.term, outcome: RacOutcome.VERIFIED,
-      tracks: { some: { type: ReviewTrackType.PHOTOS } } } },
   };
   const [departments, courses, majors] = await Promise.all([
     prisma.student.findMany({ where: base, distinct: ["department"], select: { department: true } }),
