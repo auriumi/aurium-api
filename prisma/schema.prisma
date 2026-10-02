@@ -263,6 +263,7 @@ model ReviewRevision {
   before_snapshot Json
   after_snapshot  Json
   canonical_hash  String   @db.VarChar(64)
+  is_reopen_baseline Boolean @default(false)
   created_by      Int
   operation_id    Int      @unique
   created_at      DateTime @default(now())
