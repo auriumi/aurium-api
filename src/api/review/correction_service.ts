@@ -157,11 +157,13 @@ export async function decideCorrection(adminId: number, correctionId: number, in
           if (!correction.information_revision_id) throw new ReviewRequestError(409, "REVISION_MISSING", "Locked information revision is missing.");
           const [lockedRevision, current] = await Promise.all([
             tx.reviewRevision.findUnique({ where: { id: correction.information_revision_id }, select: {
-              after_snapshot: true, canonical_hash: true,
+              after_snapshot: true,
             } }),
             tx.student.findUnique({ where: { id: student.id }, select: profileSelect }),
           ]);
-          if (!lockedRevision || !current || lockedRevision.canonical_hash !== profileHash(snapshot(current)) ||
+          // canonical_hash captured the live profile *before* the approved edit.
+          // After publication, compare the locked approved snapshot with live data.
+          if (!lockedRevision || !current ||
               profileHash(storedSnapshot(lockedRevision.after_snapshot)) !== profileHash(snapshot(current))) {
             throw new ReviewRequestError(409, "SOURCE_CHANGED", "The live profile no longer matches the approved revision.");
           }
@@ -170,7 +172,8 @@ export async function decideCorrection(adminId: number, correctionId: number, in
             track_id: track.id, track_version: reopenedVersion,
             before_snapshot: baseline as Prisma.InputJsonObject,
             after_snapshot: baseline as Prisma.InputJsonObject,
-            canonical_hash: profileHash(baseline), created_by: adminId, operation_id: operation.id,
+            canonical_hash: profileHash(baseline), is_reopen_baseline: true,
+            created_by: adminId, operation_id: operation.id,
           }, select: { id: true } });
           await tx.informationReviewEvent.create({ data: {
             track_id: track.id, track_version: reopenedVersion, revision_id: revision.id,
