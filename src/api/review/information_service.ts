@@ -192,8 +192,8 @@ export async function informationReviewDetail(adminId: number, reviewId: number)
   const canEdit = editableStages.includes(track.stage) &&
     scopes.some(scope => scope.capability === ReviewCapability.INFORMATION_PROOFREADER &&
       matchesGraduateScope(scope, student));
-  const canSubmit = canEdit && !!currentRevision && canSubmitInformation(
-    track.stage, currentRevision.track_version, track.informationEvents[0]?.track_version ?? null,
+  const canSubmit = canEdit && canSubmitInformation(
+    track.stage, currentRevision?.track_version ?? track.version, track.informationEvents[0]?.track_version ?? null,
   );
   return {
     success: true, reviewId: track.id, informationStage: track.stage,

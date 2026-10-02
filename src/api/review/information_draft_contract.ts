@@ -32,6 +32,17 @@ function validDate(value: string): boolean {
     value >= "1900-01-01" && date.getTime() <= Date.now();
 }
 
+function validField(key: EditableProfileField, raw: unknown) {
+  if (raw === null) return !requiredFields.has(key) && key !== "birthDate";
+  if (typeof raw !== "string" || raw !== raw.trim() || /[\u0000-\u001f\u007f]/.test(raw)) return false;
+  if (key === "birthDate") return validDate(raw);
+  return raw.length <= (maxLengths[key] ?? 120) && (!requiredFields.has(key) || !!raw);
+}
+
+export function validEditableProfile(profile: EditableProfile) {
+  return editableProfileFields.every(field => validField(field, profile[field]));
+}
+
 export function readDraftSave(input: unknown): DraftSave | null {
   if (!input || typeof input !== "object" || Array.isArray(input)) return null;
   const value = input as Record<string, unknown>;
@@ -48,16 +59,8 @@ export function readDraftSave(input: unknown): DraftSave | null {
   const changes: Partial<EditableProfile> = {};
   for (const key of keys as EditableProfileField[]) {
     const raw = rawChanges[key];
-    if (raw === null) {
-      if (requiredFields.has(key) || key === "birthDate") return null;
-      changes[key] = null;
-      continue;
-    }
-    if (typeof raw !== "string" || raw !== raw.trim() || /[\u0000-\u001f\u007f]/.test(raw)) return null;
-    if (key === "birthDate") {
-      if (!validDate(raw)) return null;
-    } else if (raw.length > (maxLengths[key] ?? 120) || (requiredFields.has(key) && !raw)) return null;
-    changes[key] = raw || null;
+    if (!validField(key, raw)) return null;
+    changes[key] = raw === null || raw === "" ? null : raw as string;
   }
   return {
     expectedVersion: Number(value.expectedVersion),

@@ -1,6 +1,6 @@
 import { InformationEventAction, Prisma, ReviewCapability, ReviewStage, ReviewTrackType } from "@prisma/client";
 import prisma from "../../config/prisma";
-import { profileHash } from "./information_draft_contract";
+import { profileHash, validEditableProfile } from "./information_draft_contract";
 import { assignedTrack, snapshot } from "./information_draft_service";
 import { ReviewRequestError } from "./review_error";
 import { canSubmitInformation, submissionHash, type InformationSubmission } from "./information_submission_contract";
@@ -40,7 +40,8 @@ export async function submitInformationReview(adminId: number, reviewId: number,
         where: { track_id: reviewId }, orderBy: { track_version: "desc" },
         select: { id: true, track_version: true, canonical_hash: true },
       });
-      if (!latest || latest.id !== input.revisionId) {
+      const initialReview = !latest && input.revisionId === null && track.stage === ReviewStage.DRAFT;
+      if (!initialReview && (!latest || latest.id !== input.revisionId)) {
         throw new ReviewRequestError(409, "STALE_REVISION", "Save and review the latest correction before submitting.");
       }
       const lastRejection = await tx.informationReviewEvent.findFirst({
@@ -49,11 +50,16 @@ export async function submitInformationReview(adminId: number, reviewId: number,
         ] } },
         orderBy: { track_version: "desc" }, select: { track_version: true },
       });
-      if (!canSubmitInformation(track.stage, latest.track_version, lastRejection?.track_version ?? null)) {
+      if (!canSubmitInformation(track.stage, latest?.track_version ?? track.version, lastRejection?.track_version ?? null)) {
         throw new ReviewRequestError(409, "STAGE_CHANGED", "A returned review needs a new saved correction before resubmission.");
       }
-      if (latest.canonical_hash !== profileHash(snapshot(student))) {
+      const canonical = snapshot(student);
+      const canonicalHash = profileHash(canonical);
+      if (latest && latest.canonical_hash !== canonicalHash) {
         throw new ReviewRequestError(409, "SOURCE_CHANGED", "The live profile changed. A moderator must reconcile it before submission.");
+      }
+      if (initialReview && !validEditableProfile(canonical)) {
+        throw new ReviewRequestError(409, "INVALID_PROFILE", "Complete the required profile information before submitting to QC.");
       }
 
       const operation = await tx.reviewOperation.create({
@@ -66,15 +72,25 @@ export async function submitInformationReview(adminId: number, reviewId: number,
       });
       if (updated.count !== 1) throw new ReviewRequestError(409, "STALE_REVIEW", "The review changed. Refresh before submitting.");
       const version = track.version + 1;
+      // A correct profile still needs an immutable snapshot for QC and final approval.
+      const revision = latest ?? await tx.reviewRevision.create({
+        data: {
+          track_id: reviewId, track_version: version,
+          before_snapshot: canonical as Prisma.InputJsonObject,
+          after_snapshot: canonical as Prisma.InputJsonObject,
+          canonical_hash: canonicalHash, created_by: adminId, operation_id: operation.id,
+        },
+        select: { id: true },
+      });
       await tx.informationReviewEvent.create({
         data: {
-          track_id: reviewId, track_version: version, revision_id: latest.id,
+          track_id: reviewId, track_version: version, revision_id: revision.id,
           actor_id: adminId, operation_id: operation.id,
           action: InformationEventAction.SUBMITTED_QC,
           from_stage: track.stage, to_stage: ReviewStage.SUBMITTED_QC,
         },
       });
-      const response = { success: true, reviewId, revisionId: latest.id, version, stage: ReviewStage.SUBMITTED_QC };
+      const response = { success: true, reviewId, revisionId: revision.id, version, stage: ReviewStage.SUBMITTED_QC };
       await tx.reviewOperation.update({ where: { id: operation.id }, data: { response } });
       return response;
     }, { maxWait: 5000, timeout: 15000 });
