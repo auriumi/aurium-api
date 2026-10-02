@@ -208,9 +208,9 @@ export async function informationReviewDetail(adminId: number, reviewId: number)
   const lastRejection = track.informationEvents.find(event =>
     event.action === InformationEventAction.REJECTED_QC || event.action === InformationEventAction.REJECTED_MODERATOR);
   const latestSubmission = track.informationEvents.find(event => event.action === InformationEventAction.SUBMITTED_QC);
-  const canSubmit = canEdit && !!currentRevision && canSubmitInformation(
-    track.stage, currentRevision.track_version, lastRejection?.track_version ?? null,
-  ) && !requiresMakerChange(correction?.status, correction?.reopened_version, currentRevision.track_version);
+  const canSubmit = canEdit && canSubmitInformation(
+    track.stage, currentRevision?.track_version ?? track.version, lastRejection?.track_version ?? null,
+  ) && !requiresMakerChange(correction?.status, correction?.reopened_version, currentRevision?.track_version);
   const canQc = !!currentRevision && latestSubmission?.revision_id === currentRevision.id &&
     scopes.some(scope => scope.capability === ReviewCapability.INFORMATION_QC &&
       matchesGraduateScope(scope, student));
