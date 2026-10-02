@@ -155,6 +155,13 @@ export async function verifyGraduateBatch(adminId: number, batch: VerificationBa
         data: { actor_id: adminId, client_key: batch.operationId, request_hash: requestHash },
         select: { id: true },
       });
+      // Serialize verification with legacy image writes for these graduates.
+      // Both paths lock Student rows before checking or changing review state.
+      await tx.$queryRaw`
+        SELECT id FROM "Student"
+        WHERE student_number IN (${Prisma.join(sortedNumbers)})
+        ORDER BY student_number FOR UPDATE
+      `;
       const students = await tx.student.findMany({
         where: { student_number: { in: sortedNumbers }, grad_year: batch.year, grad_term: batch.term },
         select: { id: true, student_number: true, department: true, course: true, major: true },
