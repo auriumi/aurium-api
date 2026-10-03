@@ -40,8 +40,7 @@ export async function listGraduates(req: StaffRequest, res: Response) {
   const search = readText(req.query.search, 80);
   if (!cycle || !Number.isSafeInteger(page) || page < 1 || page > 10000 ||
       typeof status !== "string" || !["ALL", "UNCHECKED", ...Object.values(RacOutcome)].includes(status) ||
-      department === undefined || course === undefined || major === undefined || search === undefined ||
-      (course && !department) || (major && !course)) {
+      department === undefined || course === undefined || major === undefined || search === undefined) {
     return res.status(400).json({ success: false, code: "INVALID_FILTER", reason: "Invalid review filters." });
   }
   try {
@@ -72,7 +71,7 @@ export async function getFilterOptions(req: StaffRequest, res: Response) {
   const cycle = readCycle(req.query.year, req.query.term);
   const department = readText(req.query.department, 120);
   const course = readText(req.query.program, 120);
-  if (!cycle || department === undefined || course === undefined || (course && !department)) {
+  if (!cycle || department === undefined || course === undefined) {
     return res.status(400).json({ success: false, code: "INVALID_FILTER", reason: "Invalid academic filters." });
   }
   try { return res.json(await verificationFilterOptions(adminId, cycle, department, course)); }
