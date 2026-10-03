@@ -5,6 +5,7 @@ import { assertRoutesGuarded } from "../auth/route_guard_audit";
 import * as controller from "./review_controller";
 import * as racController from "./rac_controller";
 import * as informationController from "./information_controller";
+import * as photoController from "./photo_controller";
 import { requireReviewOrigin } from "./review_origin";
 
 const router = Router();
@@ -25,6 +26,12 @@ router.post("/information-reviews/:reviewId/submission", requirePermission(Permi
 router.post("/information-reviews/:reviewId/qc-decision", requirePermission(Permission.REVIEW_VERIFY), requireReviewOrigin, informationController.decideQc);
 router.post("/information-reviews/:reviewId/moderator-decision", requirePermission(Permission.REVIEW_VERIFY), requireReviewOrigin, informationController.decideModerator);
 router.get("/information-reviews/:reviewId", requirePermission(Permission.REVIEW_VIEW), informationController.getReview);
+router.get("/photo-reviews", requirePermission(Permission.REVIEW_VIEW), photoController.list);
+router.get("/photo-reviews/filter-options", requirePermission(Permission.REVIEW_VIEW), photoController.filterOptions);
+router.get("/photo-reviews/:reviewId", requirePermission(Permission.REVIEW_VIEW), photoController.detail);
+router.post("/photo-reviews/:reviewId/uploads", requirePermission(Permission.REVIEW_VERIFY), requireReviewOrigin, photoController.beginUpload);
+router.post("/photo-reviews/:reviewId/uploads/:assetId/finalize", requirePermission(Permission.REVIEW_VERIFY), requireReviewOrigin, photoController.finalizeUpload);
+router.post("/photo-reviews/:reviewId/submission", requirePermission(Permission.REVIEW_VERIFY), requireReviewOrigin, photoController.submit);
 
 assertRoutesGuarded(router);
 
