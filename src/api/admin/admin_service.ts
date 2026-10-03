@@ -2,9 +2,10 @@ import prisma from "../../config/prisma";
 import crypto from "crypto";
 import bcrypt from "bcrypt";
 import { Resend } from 'resend';
-import { AdminActions, StudentStatus, ImageType, ImageStatus, AdminRoles, NotificationType, Prisma, RacOutcome } from "@prisma/client";
+import { AdminActions, StudentStatus, ImageType, ImageStatus, AdminRoles, NotificationType, Prisma, RacOutcome, ReviewTrackType } from "@prisma/client";
 import { generateReadUrl, generateImageUploadUrl } from "../student/r2_service";
 import { notifyApprovers, notifyUser, notifyParticipants } from "./notification_service";
+import { legacyImageFilter } from "./image_management_filter";
 import {
   buildBookingSlotData,
   distributePeriodSlots,
@@ -797,27 +798,7 @@ export async function img_queryStudents(
       if (status_map) where.studentAuth = { status: status_map };
     }
 
-    // image-presence filter, scoped to the selected year
-    const gradNone = { images: { none: { type: ImageType.GRADUATION, year } } };
-    const themeNone = { images: { none: { type: ImageType.THEME, year } } };
-    const gradSome = { images: { some: { type: ImageType.GRADUATION, year } } };
-    const themeSome = { images: { some: { type: ImageType.THEME, year } } };
-
-    switch (missing) {
-      case "GRADUATION":
-        where.images = { none: { type: ImageType.GRADUATION, year } };
-        break;
-      case "THEME":
-        where.images = { none: { type: ImageType.THEME, year } };
-        break;
-      case "BOTH":
-        where.AND = [gradNone, themeNone];
-        break;
-      case "NONE": // has both already
-        where.AND = [gradSome, themeSome];
-        break;
-      // "ALL" -> no image filter
-    }
+    Object.assign(where, legacyImageFilter(missing, year));
   } else {
     where.student_number = id;
   }
@@ -834,11 +815,24 @@ export async function img_queryStudents(
       studentDetail: true,
       studentAuth: { select: { status: true } },
       images: { where: { year } },
+      reviewCases: { where: { grad_year: year, outcome: RacOutcome.VERIFIED },
+        select: { grad_term: true, tracks: { where: { type: ReviewTrackType.PHOTOS },
+          select: { id: true, stage: true } } } },
     },
   });
 
   const shaped = await Promise.all(
     students.map(async (s) => {
+      const reviewCase = s.reviewCases.find(item => item.grad_term === s.grad_term) ?? s.reviewCases[0];
+      const { images, reviewCases, ...rest } = s;
+      if (reviewCase) {
+        return { ...rest, reference_photo_url: null, graduation: null, theme: null,
+          reviewManaged: true,
+          photoReview: reviewCase.tracks[0] ? {
+            reviewId: reviewCase.tracks[0].id, stage: reviewCase.tracks[0].stage,
+          } : null,
+        };
+      }
       const reference_photo_url = s.studentDetail?.photo_url
         ? (await generateReadUrl(s.studentDetail.photo_url)) ?? null
         : null;
@@ -859,8 +853,9 @@ export async function img_queryStudents(
       const graduation = await buildImage(ImageType.GRADUATION);
       const theme = await buildImage(ImageType.THEME);
 
-      const { images, ...rest } = s;
-      return { ...rest, reference_photo_url, graduation, theme };
+      return { ...rest, reference_photo_url, graduation, theme,
+        reviewManaged: false, photoReview: null,
+      };
     })
   );
 
