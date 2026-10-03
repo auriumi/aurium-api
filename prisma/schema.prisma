@@ -121,6 +121,8 @@ model Admin {
   photoAssets       PhotoAsset[] @relation("PhotoAssetUploader")
   photoPairs        PhotoPairRevision[] @relation("PhotoPairAuthor")
   photoEvents       PhotoReviewEvent[] @relation("PhotoEventActor")
+  correctionRequests CorrectionRequest[] @relation("CorrectionRequester")
+  correctionDecisions CorrectionRequest[] @relation("CorrectionDecider")
 }
 
 enum ReviewCapability {
@@ -188,6 +190,7 @@ enum InformationEventAction {
   SUBMITTED_MODERATOR
   REJECTED_MODERATOR
   LOCKED
+  REOPENED
 }
 
 // One RAC/SAO result per graduate and graduation cycle. No case means unchecked.
@@ -225,6 +228,7 @@ model ReviewTrack {
   photoAssets PhotoAsset[]
   photoPairs PhotoPairRevision[]
   photoEvents PhotoReviewEvent[]
+  correctionRequests CorrectionRequest[]
 
   @@unique([case_id, type])
 }
@@ -244,6 +248,8 @@ model ReviewOperation {
   revision ReviewRevision?
   informationEvent InformationReviewEvent?
   photoEvent PhotoReviewEvent?
+  correctionRequest CorrectionRequest? @relation("CorrectionRequestOperation")
+  correctionDecision CorrectionRequest? @relation("CorrectionDecisionOperation")
 
   @@unique([actor_id, client_key])
 }
@@ -265,6 +271,7 @@ model ReviewRevision {
   author    Admin           @relation("ReviewRevisionAuthor", fields: [created_by], references: [id], onDelete: Restrict)
   operation ReviewOperation @relation(fields: [operation_id], references: [id], onDelete: Restrict)
   informationEvents InformationReviewEvent[]
+  correctionRequests CorrectionRequest[] @relation("CorrectionInformationRevision")
 
   @@unique([track_id, track_version])
   @@unique([id, track_id])
@@ -307,6 +314,7 @@ enum PhotoEventAction {
   REJECTED_MODERATOR
   LOCKED
   COMMENTED
+  REOPENED
 }
 
 // Browser uploads land in a short-lived staging key. Only the server writes
@@ -350,6 +358,7 @@ model PhotoPairRevision {
   themeAsset      PhotoAsset  @relation("ThemeAsset", fields: [theme_asset_id, track_id], references: [id, track_id], onDelete: Restrict)
   author          Admin       @relation("PhotoPairAuthor", fields: [created_by], references: [id], onDelete: Restrict)
   events          PhotoReviewEvent[]
+  correctionRequests CorrectionRequest[] @relation("CorrectionPhotoPair")
 
   @@unique([track_id, track_version])
   @@unique([id, track_id])
@@ -376,6 +385,47 @@ model PhotoReviewEvent {
 
   @@unique([track_id, track_version])
   @@index([actor_id])
+}
+
+enum CorrectionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// A decision never changes the locked revision it references. Approval opens a
+// new maker draft while retaining this request and every prior review event.
+model CorrectionRequest {
+  id                       Int              @id @default(autoincrement())
+  track_id                 Int
+  locked_version           Int
+  information_revision_id  Int?
+  photo_pair_id            Int?
+  requested_by             Int
+  request_operation_id     Int              @unique
+  reason                   String
+  status                   CorrectionStatus @default(PENDING)
+  decided_by               Int?
+  decision_operation_id    Int?             @unique
+  decision_note            String?
+  decided_at               DateTime?
+  reopened_version         Int?
+  created_at               DateTime         @default(now())
+
+  track                ReviewTrack        @relation(fields: [track_id], references: [id], onDelete: Restrict)
+  informationRevision  ReviewRevision?    @relation("CorrectionInformationRevision", fields: [information_revision_id, track_id], references: [id, track_id], onDelete: Restrict)
+  photoPair            PhotoPairRevision? @relation("CorrectionPhotoPair", fields: [photo_pair_id, track_id], references: [id, track_id], onDelete: Restrict)
+  requester            Admin              @relation("CorrectionRequester", fields: [requested_by], references: [id], onDelete: Restrict)
+  decider              Admin?             @relation("CorrectionDecider", fields: [decided_by], references: [id], onDelete: Restrict)
+  requestOperation     ReviewOperation    @relation("CorrectionRequestOperation", fields: [request_operation_id], references: [id], onDelete: Restrict)
+  decisionOperation    ReviewOperation?   @relation("CorrectionDecisionOperation", fields: [decision_operation_id], references: [id], onDelete: Restrict)
+
+  @@index([track_id, created_at])
+  @@index([status, created_at])
+  @@index([information_revision_id])
+  @@index([photo_pair_id])
+  @@index([requested_by])
+  @@index([decided_by])
 }
 
 model ReviewEvent {
