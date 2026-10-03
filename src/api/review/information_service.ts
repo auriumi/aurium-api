@@ -9,11 +9,13 @@ import type { Cycle } from "./rac_contract";
 import { editableProfileFields } from "./information_draft_contract";
 import { storedSnapshot } from "./information_draft_service";
 import { canSubmitInformation } from "./information_submission_contract";
+import { requiresMakerChange } from "./correction_contract";
 
 const informationCapabilities = [
   ReviewCapability.INFORMATION_PROOFREADER,
   ReviewCapability.INFORMATION_QC,
   ReviewCapability.FINAL_MODERATOR,
+  ReviewCapability.IT_CORRECTION,
 ];
 
 async function informationScopes(adminId: number) {
@@ -140,6 +142,9 @@ export async function informationReviewDetail(adminId: number, reviewId: number)
     } },
     select: {
       id: true, stage: true, version: true,
+      correctionRequests: { orderBy: [{ created_at: "desc" }, { id: "desc" }], take: 1,
+        select: { id: true, status: true, reason: true, created_at: true,
+          decided_at: true, decision_note: true, reopened_version: true } },
       revisions: { orderBy: { track_version: "desc" }, take: 1,
         select: { id: true, track_version: true, before_snapshot: true, after_snapshot: true, created_at: true } },
       informationEvents: { where: { action: { in: [
@@ -193,6 +198,7 @@ export async function informationReviewDetail(adminId: number, reviewId: number)
   }
   const booking = student.booking[0];
   const currentRevision = track.revisions[0];
+  const correction = track.correctionRequests[0] ?? null;
   const before = currentRevision ? storedSnapshot(currentRevision.before_snapshot) : null;
   const after = currentRevision ? storedSnapshot(currentRevision.after_snapshot) : null;
   const editableStages: ReviewStage[] = [ReviewStage.DRAFT, ReviewStage.REJECTED_QC, ReviewStage.REJECTED_MODERATOR];
@@ -204,11 +210,16 @@ export async function informationReviewDetail(adminId: number, reviewId: number)
   const latestSubmission = track.informationEvents.find(event => event.action === InformationEventAction.SUBMITTED_QC);
   const canSubmit = canEdit && !!currentRevision && canSubmitInformation(
     track.stage, currentRevision.track_version, lastRejection?.track_version ?? null,
-  );
+  ) && !requiresMakerChange(correction?.status, correction?.reopened_version, currentRevision.track_version);
   const canQc = !!currentRevision && latestSubmission?.revision_id === currentRevision.id &&
     scopes.some(scope => scope.capability === ReviewCapability.INFORMATION_QC &&
       matchesGraduateScope(scope, student));
   const availableActions: string[] = [];
+  if (track.stage === ReviewStage.LOCKED && correction?.status !== "PENDING" &&
+      scopes.some(scope => scope.capability !== ReviewCapability.IT_CORRECTION &&
+        matchesGraduateScope(scope, student))) {
+    availableActions.push("REQUEST_CORRECTION");
+  }
   if (canEdit) availableActions.push("SAVE_DRAFT");
   if (canSubmit) availableActions.push("SUBMIT_QC");
   if (canQc && track.stage === ReviewStage.SUBMITTED_QC) availableActions.push("QC_APPROVE", "QC_REJECT");
@@ -228,6 +239,7 @@ export async function informationReviewDetail(adminId: number, reviewId: number)
     success: true, reviewId: track.id, informationStage: track.stage,
     queue: queueForStage(track.stage), version: track.version,
     availableActions,
+    correction,
     draft: currentRevision && before && after ? {
       revisionId: currentRevision.id, version: currentRevision.track_version,
       before, after,

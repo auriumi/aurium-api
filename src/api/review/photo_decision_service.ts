@@ -93,6 +93,7 @@ export async function decidePhotoReview(adminId: number, reviewId: number,
 export async function photoDecisionHistory(adminId: number, reviewId: number) {
   await assignedPhotoTrack(prisma, adminId, reviewId, [
     ReviewCapability.PHOTO_UPLOADER, ReviewCapability.PHOTO_QC, ReviewCapability.FINAL_MODERATOR,
+    ReviewCapability.IT_CORRECTION,
   ]);
   const events = await prisma.photoReviewEvent.findMany({
     where: { track_id: reviewId }, orderBy: { track_version: "desc" }, take: 30,
