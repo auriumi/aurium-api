@@ -9,7 +9,7 @@ import {
 
 const editableStages: ReviewStage[] = [ReviewStage.DRAFT, ReviewStage.REJECTED_QC, ReviewStage.REJECTED_MODERATOR];
 
-const profileSelect = {
+export const profileSelect = {
   id: true, first_name: true, mid_name: true, last_name: true, suffix: true,
   nickname: true, department: true, course: true, major: true, thesis_title: true,
   grad_year: true, grad_term: true,
@@ -22,7 +22,7 @@ const profileSelect = {
 
 type ProfileStudent = Prisma.StudentGetPayload<{ select: typeof profileSelect }>;
 
-function snapshot(student: ProfileStudent): EditableProfile {
+export function snapshot(student: ProfileStudent): EditableProfile {
   const detail = student.studentDetail;
   return {
     firstName: student.first_name, middleName: student.mid_name, lastName: student.last_name,
@@ -46,7 +46,7 @@ export function storedSnapshot(value: Prisma.JsonValue): EditableProfile {
   return Object.fromEntries(editableProfileFields.map(field => [field, value[field]])) as EditableProfile;
 }
 
-async function assignedTrack(
+export async function assignedTrack(
   client: Prisma.TransactionClient | typeof prisma, adminId: number, reviewId: number,
   capabilities: readonly ReviewCapability[],
 ) {
