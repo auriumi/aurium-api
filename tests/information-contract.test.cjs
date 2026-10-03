@@ -3,11 +3,21 @@ const assert = require('node:assert/strict');
 const { stagesForQueue, queueForStage } = require('../dist/api/review/information_contract.js');
 const { graduateScopeWhere, graduateSearchWhere } = require('../dist/api/review/review_filters.js');
 
-test('information queues keep forwarded QC records visible without treating them as completed', () => {
-  assert.deepEqual(stagesForQueue('APPROVED_QC'), ['APPROVED_QC', 'SUBMITTED_MODERATOR']);
+test('information queues separate QC approval from forwarding to the moderator', () => {
+  assert.deepEqual(stagesForQueue('APPROVED_QC'), ['APPROVED_QC']);
+  assert.deepEqual(stagesForQueue('SUBMITTED_MODERATOR'), ['SUBMITTED_MODERATOR']);
   assert.deepEqual(stagesForQueue('COMPLETED'), ['LOCKED']);
-  assert.equal(queueForStage('SUBMITTED_MODERATOR'), 'APPROVED_QC');
+  assert.equal(queueForStage('SUBMITTED_MODERATOR'), 'SUBMITTED_MODERATOR');
   assert.equal(queueForStage('REJECTED_MODERATOR'), 'REJECTED_MODERATOR');
+});
+
+test('each review stage belongs to exactly one action queue', () => {
+  const { ReviewStage } = require('@prisma/client');
+  const { informationQueues } = require('../dist/api/review/information_contract.js');
+  for (const stage of Object.values(ReviewStage)) {
+    const containingQueues = informationQueues.filter(queue => queue !== 'ALL' && stagesForQueue(queue).includes(stage));
+    assert.deepEqual(containingQueues, [queueForStage(stage)], stage);
+  }
 });
 
 test('graduate search keeps multiple given-name terms and exact student numbers', () => {
