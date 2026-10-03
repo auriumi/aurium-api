@@ -122,7 +122,7 @@ export async function photoFilterOptions(adminId: number, cycle: Cycle, departme
 
 export async function photoReviewDetail(adminId: number, reviewId: number) {
   const { track, student: owner } = await assignedPhotoTrack(prisma, adminId, reviewId, photoCapabilities);
-  const [student, graduationAsset, themeAsset, pair, rejection] = await Promise.all([
+  const [student, graduationAsset, themeAsset, pair] = await Promise.all([
     prisma.student.findUnique({ where: { id: owner.id }, select: {
       student_number: true, first_name: true, mid_name: true, last_name: true, suffix: true, nickname: true,
       school_email: true, personal_email: true, department: true, course: true, major: true,
@@ -149,9 +149,6 @@ export async function photoReviewDetail(adminId: number, reviewId: number) {
     prisma.photoPairRevision.findFirst({ where: { track_id: reviewId },
       orderBy: { track_version: "desc" }, select: { id: true, track_version: true,
         graduation_asset_id: true, theme_asset_id: true } }),
-    prisma.photoReviewEvent.findFirst({ where: { track_id: reviewId, action: {
-      in: [PhotoEventAction.REJECTED_QC, PhotoEventAction.REJECTED_MODERATOR] } },
-      orderBy: { track_version: "desc" }, select: { track_version: true } }),
   ]);
   if (!student || student.grad_year !== owner.grad_year || student.grad_term !== owner.grad_term) {
     throw new ReviewRequestError(409, "SOURCE_CHANGED", "The graduate cycle changed. Refresh the review.");
@@ -172,7 +169,7 @@ export async function photoReviewDetail(adminId: number, reviewId: number) {
   const booking = student.booking[0];
   return { success: true, reviewId, stage: track.stage, version: track.version,
     availableActions: canUpload ? ["UPLOAD", ...(canSubmitPair(track.stage, pair?.track_version ?? null,
-      track.version, rejection?.track_version ?? null) ? ["SUBMIT_QC"] : [])] : [],
+      track.version) ? ["SUBMIT_QC"] : [])] : [],
     pair: pair ? { revisionId: pair.id, version: pair.track_version,
       graduationAssetId: pair.graduation_asset_id, themeAssetId: pair.theme_asset_id } : null,
     photos: { graduation, theme, reference: referencePhotoUrl,
@@ -263,11 +260,8 @@ export async function submitPhotoPair(adminId: number, reviewId: number, input: 
     }
     const pair = await tx.photoPairRevision.findFirst({ where: { track_id: reviewId },
       orderBy: { track_version: "desc" }, select: { id: true, track_version: true } });
-    const rejection = await tx.photoReviewEvent.findFirst({ where: { track_id: reviewId, action: {
-      in: [PhotoEventAction.REJECTED_QC, PhotoEventAction.REJECTED_MODERATOR] } },
-      orderBy: { track_version: "desc" }, select: { track_version: true } });
     if (!pair || pair.id !== input.revisionId || !canSubmitPair(track.stage, pair.track_version,
-      track.version, rejection?.track_version ?? null)) {
+      track.version)) {
       throw new ReviewRequestError(409, "PAIR_INCOMPLETE", "Both current photos are required before submission.");
     }
     const operation = await tx.reviewOperation.create({ data: {
