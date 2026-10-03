@@ -21,10 +21,8 @@ export function readInformationSubmission(input: unknown): InformationSubmission
   };
 }
 
-export function canSubmitInformation(stage: ReviewStage, revisionVersion: number, lastRejectionVersion: number | null) {
-  if (stage === ReviewStage.DRAFT) return true;
-  return (stage === ReviewStage.REJECTED_QC || stage === ReviewStage.REJECTED_MODERATOR) &&
-    lastRejectionVersion !== null && revisionVersion > lastRejectionVersion;
+export function canSubmitInformation(stage: ReviewStage) {
+  return stage === ReviewStage.DRAFT || stage === ReviewStage.REJECTED_QC || stage === ReviewStage.REJECTED_MODERATOR;
 }
 
 export function submissionHash(reviewId: number, input: InformationSubmission) {

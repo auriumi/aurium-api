@@ -13,12 +13,11 @@ test("initial review explicitly requests a snapshot, while malformed revisions a
   assert.notEqual(submissionHash(1, input), submissionHash(1, { ...input, revisionId: 1 }));
 });
 
-test("an unchanged initial review cannot bypass returned or final review stages", () => {
-  assert.equal(canSubmitInformation("DRAFT", 1, null), true);
-  assert.equal(canSubmitInformation("REJECTED_QC", 2, 3), false);
-  assert.equal(canSubmitInformation("REJECTED_MODERATOR", 3, 3), false);
-  assert.equal(canSubmitInformation("REJECTED_MODERATOR", 4, 3), true);
+test("a rechecked return can go back to QC, without skipping final review stages", () => {
+  assert.equal(canSubmitInformation("DRAFT"), true);
+  assert.equal(canSubmitInformation("REJECTED_QC"), true);
+  assert.equal(canSubmitInformation("REJECTED_MODERATOR"), true);
   for (const stage of ["SUBMITTED_QC", "APPROVED_QC", "SUBMITTED_MODERATOR", "LOCKED"] as const) {
-    assert.equal(canSubmitInformation(stage, 5, null), false);
+    assert.equal(canSubmitInformation(stage), false);
   }
 });
