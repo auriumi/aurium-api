@@ -42,16 +42,10 @@ export async function submitInformationReview(adminId: number, reviewId: number,
       });
       const initialReview = !latest && input.revisionId === null && track.stage === ReviewStage.DRAFT;
       if (!initialReview && (!latest || latest.id !== input.revisionId)) {
-        throw new ReviewRequestError(409, "STALE_REVISION", "Save and review the latest correction before submitting.");
+        throw new ReviewRequestError(409, "STALE_REVISION", "Review the latest information before submitting.");
       }
-      const lastRejection = await tx.informationReviewEvent.findFirst({
-        where: { track_id: reviewId, action: { in: [
-          InformationEventAction.REJECTED_QC, InformationEventAction.REJECTED_MODERATOR,
-        ] } },
-        orderBy: { track_version: "desc" }, select: { track_version: true },
-      });
-      if (!canSubmitInformation(track.stage, latest?.track_version ?? track.version, lastRejection?.track_version ?? null)) {
-        throw new ReviewRequestError(409, "STAGE_CHANGED", "A returned review needs a new saved correction before resubmission.");
+      if (!canSubmitInformation(track.stage)) {
+        throw new ReviewRequestError(409, "STAGE_CHANGED", "This review is no longer available for submission.");
       }
       const canonical = snapshot(student);
       const canonicalHash = profileHash(canonical);
