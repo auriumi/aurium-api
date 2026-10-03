@@ -1,22 +1,9 @@
 import { AdminRoles, Prisma, RacOutcome, ReviewCapability, ReviewEventAction, ReviewTrackType } from "@prisma/client";
 import prisma from "../../config/prisma";
 import { matchesGraduateScope, type GraduateScope, type ReviewScope } from "./review_scope";
+import { graduateScopeWhere, graduateSearchWhere } from "./review_filters";
+import { ReviewRequestError } from "./review_error";
 import { canAdvanceVerification, verificationRequestHash, type Cycle, type VerificationBatch, type VerificationStatus } from "./rac_contract";
-
-export class ReviewRequestError extends Error {
-  constructor(public status: number, public code: string, message: string) { super(message); }
-}
-
-function graduateScopeWhere(assignments: readonly ReviewScope[]): Prisma.StudentWhereInput {
-  if (assignments.some(item => !item.department)) return {};
-  return {
-    OR: assignments.map(item => ({
-      department: item.department,
-      ...(item.course ? { course: item.course } : {}),
-      ...(item.major ? { major: item.major } : {}),
-    })),
-  };
-}
 
 async function checkerScopes(adminId: number, client: Prisma.TransactionClient | typeof prisma = prisma) {
   const admin = await client.admin.findUnique({ where: { id: adminId }, select: { id: true, role: true } });
@@ -40,23 +27,6 @@ export type VerificationListQuery = Cycle & {
   search: string;
 };
 
-function searchWhere(search: string): Prisma.StudentWhereInput {
-  const terms = search.trim().split(/\s+/).filter(Boolean);
-  if (!terms.length) return {};
-  if (/^\d+$/.test(search) && Number(search) <= 2147483647) {
-    return { student_number: Number(search) };
-  }
-  return {
-    AND: terms.map(term => ({
-      OR: [
-        { first_name: { contains: term, mode: "insensitive" } },
-        { mid_name: { contains: term, mode: "insensitive" } },
-        { last_name: { contains: term, mode: "insensitive" } },
-      ],
-    })),
-  };
-}
-
 function statusWhere(status: VerificationStatus, cycle: Cycle): Prisma.StudentWhereInput {
   const inCycle = { grad_year: cycle.year, grad_term: cycle.term };
   if (status === "ALL") return {};
@@ -76,7 +46,7 @@ export async function listVerificationGraduates(adminId: number, query: Verifica
     ...(query.department ? { department: query.department } : {}),
     ...(query.course ? { course: query.course } : {}),
     ...(query.major === "__no_major__" ? { major: null } : query.major ? { major: query.major } : {}),
-    ...searchWhere(query.search),
+    ...graduateSearchWhere(query.search),
   };
   const inStatus = { ...filtered, ...statusWhere(query.status, query) };
   const caseCycle = { grad_year: query.year, grad_term: query.term };
