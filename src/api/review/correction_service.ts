@@ -102,14 +102,14 @@ export async function requestCorrection(adminId: number, trackId: number, input:
           orderBy: { track_version: "desc" }, select: { revision_id: true, track_version: true } })
         : await tx.photoReviewEvent.findFirst({ where: { track_id: trackId, action: PhotoEventAction.LOCKED },
           orderBy: { track_version: "desc" }, select: { pair_id: true, track_version: true } });
-      if (!locked || locked.track_version !== track.version) {
+      if (!locked || locked.track_version > track.version) {
         throw new ReviewRequestError(409, "LOCK_MISSING", "The current approved revision could not be confirmed.");
       }
       const operation = await tx.reviewOperation.create({ data: {
         actor_id: adminId, client_key: input.operationId, request_hash: hash,
       }, select: { id: true } });
       const correction = await tx.correctionRequest.create({ data: {
-        track_id: trackId, locked_version: track.version, requested_by: adminId,
+        track_id: trackId, locked_version: locked.track_version, requested_by: adminId,
         request_operation_id: operation.id, reason: input.reason,
         ...(track.type === ReviewTrackType.INFORMATION
           ? { information_revision_id: "revision_id" in locked ? locked.revision_id : null }
@@ -137,8 +137,18 @@ export async function decideCorrection(adminId: number, correctionId: number, in
       if (previous) return previous;
       const correction = await tx.correctionRequest.findUnique({ where: { id: correctionId } });
       if (!correction || correction.status !== CorrectionStatus.PENDING || track.stage !== ReviewStage.LOCKED ||
-          track.version !== input.expectedVersion || correction.locked_version !== track.version) {
+          track.version !== input.expectedVersion) {
         throw new ReviewRequestError(409, "STALE_CORRECTION", "This request or approved review changed. Refresh.");
+      }
+      const locked = track.type === ReviewTrackType.INFORMATION
+        ? await tx.informationReviewEvent.findFirst({ where: { track_id: track.id, action: InformationEventAction.LOCKED },
+          orderBy: { track_version: "desc" }, select: { revision_id: true, track_version: true } })
+        : await tx.photoReviewEvent.findFirst({ where: { track_id: track.id, action: PhotoEventAction.LOCKED },
+          orderBy: { track_version: "desc" }, select: { pair_id: true, track_version: true } });
+      if (!locked || locked.track_version !== correction.locked_version ||
+          ("revision_id" in locked ? locked.revision_id !== correction.information_revision_id
+            : locked.pair_id !== correction.photo_pair_id)) {
+        throw new ReviewRequestError(409, "STALE_CORRECTION", "The approved revision changed. Refresh the correction request.");
       }
       if (correction.requested_by === adminId) {
         throw new ReviewRequestError(403, "SELF_APPROVAL", "A different IT reviewer must decide this request.");
