@@ -146,7 +146,8 @@ export async function informationReviewDetail(adminId: number, reviewId: number)
         InformationEventAction.REJECTED_QC, InformationEventAction.REJECTED_MODERATOR,
         InformationEventAction.SUBMITTED_QC,
       ] } }, orderBy: { track_version: "desc" }, take: 3,
-        select: { track_version: true, action: true, revision_id: true } },
+        select: { track_version: true, action: true, revision_id: true, note: true, created_at: true,
+          actor: { select: { first_name: true, last_name: true } } } },
       reviewCase: { select: {
         grad_year: true, grad_term: true, outcome: true, checked_at: true, source_version: true,
         student: { select: {
@@ -209,6 +210,9 @@ export async function informationReviewDetail(adminId: number, reviewId: number)
     scopes.some(scope => scope.capability === ReviewCapability.INFORMATION_QC &&
       matchesGraduateScope(scope, student));
   const availableActions: string[] = [];
+  if (scopes.some(scope => [ReviewCapability.INFORMATION_PROOFREADER,
+      ReviewCapability.INFORMATION_QC, ReviewCapability.FINAL_MODERATOR].some(capability => capability === scope.capability) &&
+      matchesGraduateScope(scope, student))) availableActions.push("COMMENT");
   if (canEdit) availableActions.push("SAVE_DRAFT");
   if (canSubmit) availableActions.push("SUBMIT_QC");
   if (canQc && track.stage === ReviewStage.SUBMITTED_QC) availableActions.push("QC_APPROVE", "QC_REJECT");
@@ -228,6 +232,9 @@ export async function informationReviewDetail(adminId: number, reviewId: number)
     success: true, reviewId: track.id, informationStage: track.stage,
     queue: queueForStage(track.stage), version: track.version,
     availableActions,
+    rejection: (track.stage === ReviewStage.REJECTED_QC || track.stage === ReviewStage.REJECTED_MODERATOR) && lastRejection ? {
+      reason: lastRejection.note, createdAt: lastRejection.created_at, actor: lastRejection.actor,
+    } : null,
     draft: currentRevision && before && after ? {
       revisionId: currentRevision.id, version: currentRevision.track_version,
       before, after,
