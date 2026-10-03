@@ -124,7 +124,7 @@ export async function photoFilterOptions(adminId: number, cycle: Cycle, departme
 
 export async function photoReviewDetail(adminId: number, reviewId: number) {
   const { track, student: owner } = await assignedPhotoTrack(prisma, adminId, reviewId, photoCapabilities);
-  const [student, graduationAsset, themeAsset, pair, rejection, submitted, approved, forwarded, assignments, correction] = await Promise.all([
+  const [student, graduationAsset, themeAsset, pair, submitted, approved, forwarded, assignments, correction] = await Promise.all([
     prisma.student.findUnique({ where: { id: owner.id }, select: {
       student_number: true, first_name: true, mid_name: true, last_name: true, suffix: true, nickname: true,
       school_email: true, personal_email: true, department: true, course: true, major: true,
@@ -151,9 +151,6 @@ export async function photoReviewDetail(adminId: number, reviewId: number) {
     prisma.photoPairRevision.findFirst({ where: { track_id: reviewId },
       orderBy: { track_version: "desc" }, select: { id: true, track_version: true,
         graduation_asset_id: true, theme_asset_id: true } }),
-    prisma.photoReviewEvent.findFirst({ where: { track_id: reviewId, action: {
-      in: [PhotoEventAction.REJECTED_QC, PhotoEventAction.REJECTED_MODERATOR] } },
-      orderBy: { track_version: "desc" }, select: { track_version: true } }),
     prisma.photoReviewEvent.findFirst({ where: { track_id: reviewId, action: PhotoEventAction.SUBMITTED_QC },
       orderBy: { track_version: "desc" }, select: { pair_id: true } }),
     prisma.photoReviewEvent.findFirst({ where: { track_id: reviewId, action: PhotoEventAction.APPROVED_QC },
@@ -184,7 +181,7 @@ export async function photoReviewDetail(adminId: number, reviewId: number) {
     scope.capability === capability && matchesGraduateScope(scope, owner));
   const canUpload = editableStages.includes(track.stage) && hasRole(ReviewCapability.PHOTO_UPLOADER);
   const pairReady = canSubmitPair(track.stage, pair?.track_version ?? null,
-    track.version, rejection?.track_version ?? null) &&
+    track.version) &&
     !requiresMakerChange(correction?.status, correction?.reopened_version, pair?.track_version);
   const actions: string[] = canUpload ? ["UPLOAD", ...(pairReady ? ["SUBMIT_QC"] : [])] : [];
   if (track.stage === ReviewStage.LOCKED && correction?.status !== "PENDING" &&
@@ -299,11 +296,8 @@ export async function submitPhotoPair(adminId: number, reviewId: number, input: 
     }
     const pair = await tx.photoPairRevision.findFirst({ where: { track_id: reviewId },
       orderBy: { track_version: "desc" }, select: { id: true, track_version: true } });
-    const rejection = await tx.photoReviewEvent.findFirst({ where: { track_id: reviewId, action: {
-      in: [PhotoEventAction.REJECTED_QC, PhotoEventAction.REJECTED_MODERATOR] } },
-      orderBy: { track_version: "desc" }, select: { track_version: true } });
     if (!pair || pair.id !== input.revisionId || !canSubmitPair(track.stage, pair.track_version,
-      track.version, rejection?.track_version ?? null)) {
+      track.version)) {
       throw new ReviewRequestError(409, "PAIR_INCOMPLETE", "Both current photos are required before submission.");
     }
     const reopening = await tx.correctionRequest.findFirst({ where: {
