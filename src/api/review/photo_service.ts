@@ -189,8 +189,8 @@ export async function photoReviewDetail(adminId: number, reviewId: number) {
     actions.push("REQUEST_CORRECTION");
   }
   if (pair && submitted?.pair_id === pair.id && hasRole(ReviewCapability.PHOTO_QC)) {
-    if (track.stage === ReviewStage.SUBMITTED_QC) actions.push("QC_APPROVE", "QC_REJECT", "COMMENT");
-    if (track.stage === ReviewStage.APPROVED_QC && approved?.pair_id === pair.id) actions.push("FORWARD_MODERATOR", "COMMENT");
+    if (track.stage === ReviewStage.SUBMITTED_QC) actions.push("QC_APPROVE", "QC_REJECT");
+    if (track.stage === ReviewStage.APPROVED_QC && approved?.pair_id === pair.id) actions.push("FORWARD_MODERATOR");
   }
   if (pair && track.stage === ReviewStage.SUBMITTED_MODERATOR &&
       approved?.pair_id === pair.id && forwarded?.pair_id === pair.id &&
@@ -199,9 +199,11 @@ export async function photoReviewDetail(adminId: number, reviewId: number) {
       capability: ReviewCapability.FINAL_MODERATOR, revoked_at: null },
       select: { admin_id: true }, distinct: ["admin_id"], take: 2 });
     if (moderators.length === 1 && moderators[0]?.admin_id === adminId) {
-      actions.push("MODERATOR_APPROVE", "MODERATOR_REJECT", "COMMENT");
+      actions.push("MODERATOR_APPROVE", "MODERATOR_REJECT");
     }
   }
+  if ([ReviewCapability.PHOTO_UPLOADER, ReviewCapability.PHOTO_QC,
+    ReviewCapability.FINAL_MODERATOR].some(hasRole)) actions.push("COMMENT");
   const booking = student.booking[0];
   return { success: true, reviewId, stage: track.stage, version: track.version,
     availableActions: actions,
