@@ -15,7 +15,7 @@ ALTER TABLE "PhotoReviewEvent" ADD CONSTRAINT "PhotoReviewEvent_transition_check
   ("action" = 'REJECTED_MODERATOR' AND "from_stage" = 'SUBMITTED_MODERATOR' AND "to_stage" = 'REJECTED_MODERATOR' AND "note" IS NOT NULL) OR
   ("action" = 'LOCKED' AND "from_stage" = 'SUBMITTED_MODERATOR' AND "to_stage" = 'LOCKED') OR
   -- The later IT feature adds this enum value; its transition remains valid.
-  ("action"::text = 'REOPENED' AND "from_stage" = 'LOCKED' AND "to_stage" = 'DRAFT' AND "note" IS NOT NULL)
+  ("action"::text = 'REOPENED' AND "from_stage" = 'LOCKED' AND "to_stage" = 'DRAFT')
 );
 
 COMMIT;
