@@ -30,6 +30,7 @@ router.get("/photo-reviews", requirePermission(Permission.REVIEW_VIEW), photoCon
 router.get("/photo-reviews/filter-options", requirePermission(Permission.REVIEW_VIEW), photoController.filterOptions);
 router.get("/photo-reviews/:reviewId", requirePermission(Permission.REVIEW_VIEW), photoController.detail);
 router.get("/photo-reviews/:reviewId/decision-events", requirePermission(Permission.REVIEW_VIEW), photoController.decisionHistory);
+router.post("/photo-reviews/:reviewId/comments", requirePermission(Permission.REVIEW_VERIFY), requireReviewOrigin, photoController.comment);
 router.post("/photo-reviews/:reviewId/uploads", requirePermission(Permission.REVIEW_VERIFY), requireReviewOrigin, photoController.beginUpload);
 router.post("/photo-reviews/:reviewId/uploads/:assetId/finalize", requirePermission(Permission.REVIEW_VERIFY), requireReviewOrigin, photoController.finalizeUpload);
 router.post("/photo-reviews/:reviewId/submission", requirePermission(Permission.REVIEW_VERIFY), requireReviewOrigin, photoController.submit);

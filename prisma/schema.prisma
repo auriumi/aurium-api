@@ -306,6 +306,7 @@ enum PhotoEventAction {
   SUBMITTED_MODERATOR
   REJECTED_MODERATOR
   LOCKED
+  COMMENTED
 }
 
 // Browser uploads land in a short-lived staging key. Only the server writes
@@ -359,7 +360,7 @@ model PhotoReviewEvent {
   id            Int              @id @default(autoincrement())
   track_id      Int
   track_version Int
-  pair_id       Int
+  pair_id       Int?
   actor_id      Int
   operation_id  Int              @unique
   action        PhotoEventAction
@@ -369,7 +370,7 @@ model PhotoReviewEvent {
   created_at    DateTime         @default(now())
 
   track     ReviewTrack        @relation(fields: [track_id], references: [id], onDelete: Restrict)
-  pair      PhotoPairRevision @relation(fields: [pair_id, track_id], references: [id, track_id], onDelete: Restrict)
+  pair      PhotoPairRevision? @relation(fields: [pair_id, track_id], references: [id, track_id], onDelete: Restrict)
   actor     Admin             @relation("PhotoEventActor", fields: [actor_id], references: [id], onDelete: Restrict)
   operation ReviewOperation   @relation(fields: [operation_id], references: [id], onDelete: Restrict)
 

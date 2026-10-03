@@ -187,6 +187,8 @@ export async function photoReviewDetail(adminId: number, reviewId: number) {
       actions.push("MODERATOR_APPROVE", "MODERATOR_REJECT");
     }
   }
+  if ([ReviewCapability.PHOTO_UPLOADER, ReviewCapability.PHOTO_QC,
+    ReviewCapability.FINAL_MODERATOR].some(hasRole)) actions.push("COMMENT");
   const booking = student.booking[0];
   return { success: true, reviewId, stage: track.stage, version: track.version,
     availableActions: actions,
