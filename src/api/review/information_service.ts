@@ -134,6 +134,7 @@ export async function informationReviewDetail(adminId: number, reviewId: number)
       id: true, stage: true, version: true,
       reviewCase: { select: {
         grad_year: true, grad_term: true, outcome: true, checked_at: true, source_version: true,
+        tracks: { where: { type: ReviewTrackType.PHOTOS }, select: { stage: true }, take: 1 },
         student: { select: {
           student_number: true, first_name: true, mid_name: true, last_name: true,
           suffix: true, nickname: true, school_email: true, personal_email: true,
@@ -179,6 +180,7 @@ export async function informationReviewDetail(adminId: number, reviewId: number)
   const booking = student.booking[0];
   return {
     success: true, reviewId: track.id, informationStage: track.stage,
+    photoStage: reviewCase.tracks[0]?.stage ?? null,
     queue: queueForStage(track.stage), version: track.version,
     availableActions: [] as string[],
     verification: {
