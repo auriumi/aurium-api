@@ -91,9 +91,6 @@ export async function listInformationReviews(adminId: number, query: Information
   };
   for (const entry of stageCounts) {
     counts[queueForStage(entry.stage)] += entry._count._all;
-    if (entry.stage === ReviewStage.SUBMITTED_MODERATOR) {
-      counts.SUBMITTED_MODERATOR += entry._count._all;
-    }
   }
 
   return {
