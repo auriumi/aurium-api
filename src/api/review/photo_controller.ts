@@ -8,6 +8,7 @@ import { decidePhotoReview, photoDecisionHistory } from "./photo_decision_servic
 import { readPhotoComment } from "./photo_comment_contract";
 import { addPhotoComment } from "./photo_comment_service";
 import { ReviewRequestError } from "./review_error";
+import { readHistoryCursor } from "./history_contract";
 
 interface StaffRequest extends Request { user?: { admin_id?: string | number } }
 const staffId = (req: StaffRequest) => Number(req.user?.admin_id);
@@ -111,7 +112,8 @@ export async function decisionHistory(req: StaffRequest, res: Response) {
   const reviewId = Number(req.params.reviewId);
   if (!validId(adminId)) return res.status(401).json({ success: false, reason: "Unauthorized." });
   if (!validId(reviewId)) return res.status(400).json({ success: false, reason: "Invalid review ID." });
-  try { return res.json(await photoDecisionHistory(adminId, reviewId)); }
+  try { return res.json(await photoDecisionHistory(adminId, reviewId,
+    readHistoryCursor(req.query.beforeVersion), readHistoryCursor(req.query.beforeUploadId))); }
   catch (error) { return fail(error, res, "Photo history error:"); }
 }
 

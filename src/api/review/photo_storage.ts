@@ -3,6 +3,7 @@ import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { ReviewRequestError } from "./review_error";
 import { R2_BUCKET } from "../../config/r2_bucket";
+import { validatePhotoPixels } from "./photo_validation";
 
 const maxBytes = 5 * 1024 * 1024;
 const minBytes = 64;
@@ -75,6 +76,7 @@ export async function sealPhoto(stagedKey: string, expectedMime: PhotoMime, trac
   if (!matchesPhotoSignature(bytes, expectedMime) || body.ContentType !== expectedMime) {
     throw new ReviewRequestError(422, "INVALID_PHOTO", "The file is not a valid photo of the selected type.");
   }
+  await validatePhotoPixels(bytes, expectedMime);
   const finalKey = `review-final/photos/${trackId}/${type.toLowerCase()}/${randomUUID()}`;
   await storage.send(new PutObjectCommand({
     Bucket: R2_BUCKET, Key: finalKey, Body: bytes, ContentType: expectedMime,
