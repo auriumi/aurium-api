@@ -6,6 +6,7 @@ import * as controller from "./review_controller";
 import * as racController from "./rac_controller";
 import * as informationController from "./information_controller";
 import * as photoController from "./photo_controller";
+import * as correctionController from "./correction_controller";
 import { requireReviewOrigin } from "./review_origin";
 
 const router = Router();
@@ -21,6 +22,7 @@ router.get("/information-reviews", requirePermission(Permission.REVIEW_VIEW), in
 router.get("/information-reviews/filter-options", requirePermission(Permission.REVIEW_VIEW), informationController.getFilterOptions);
 router.get("/information-reviews/:reviewId/revisions", requirePermission(Permission.REVIEW_VIEW), informationController.getDraftHistory);
 router.get("/information-reviews/:reviewId/decision-events", requirePermission(Permission.REVIEW_VIEW), informationController.getDecisionHistory);
+router.post("/information-reviews/:reviewId/comments", requirePermission(Permission.REVIEW_VERIFY), requireReviewOrigin, informationController.addComment);
 router.patch("/information-reviews/:reviewId/draft", requirePermission(Permission.REVIEW_VERIFY), requireReviewOrigin, informationController.saveDraft);
 router.post("/information-reviews/:reviewId/submission", requirePermission(Permission.REVIEW_VERIFY), requireReviewOrigin, informationController.submitReview);
 router.post("/information-reviews/:reviewId/qc-decision", requirePermission(Permission.REVIEW_VERIFY), requireReviewOrigin, informationController.decideQc);
@@ -36,6 +38,9 @@ router.post("/photo-reviews/:reviewId/uploads/:assetId/finalize", requirePermiss
 router.post("/photo-reviews/:reviewId/submission", requirePermission(Permission.REVIEW_VERIFY), requireReviewOrigin, photoController.submit);
 router.post("/photo-reviews/:reviewId/qc-decision", requirePermission(Permission.REVIEW_VERIFY), requireReviewOrigin, photoController.qcDecision);
 router.post("/photo-reviews/:reviewId/moderator-decision", requirePermission(Permission.REVIEW_VERIFY), requireReviewOrigin, photoController.moderatorDecision);
+router.post("/review-tracks/:trackId/correction-requests", requirePermission(Permission.REVIEW_VERIFY), requireReviewOrigin, correctionController.create);
+router.get("/correction-requests", requirePermission(Permission.REVIEW_VIEW), correctionController.list);
+router.post("/correction-requests/:correctionId/decisions", requirePermission(Permission.REVIEW_VERIFY), requireReviewOrigin, correctionController.decide);
 
 assertRoutesGuarded(router);
 
