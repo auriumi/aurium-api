@@ -1,7 +1,13 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { canSubmitPair, readPhotoUpload } from "./photo_contract";
+import { canSubmitPair, readPhotoUpload, readPhotoSubmission } from "./photo_contract";
 import { matchesPhotoSignature } from "./photo_storage";
+
+test("photo submission always requires an uploaded pair revision", () => {
+  const input = { expectedVersion: 1, revisionId: null, operationId: "932bc2f2-77fb-4afe-8c6e-49b075b25bce" };
+  assert.equal(readPhotoSubmission(input), null);
+  assert.equal(readPhotoSubmission({ ...input, revisionId: 1 })?.revisionId, 1);
+});
 
 test("photo upload contract rejects unsafe types and unexpected fields", () => {
   assert.equal(readPhotoUpload({ type: "GRADUATION", mime: "image/svg+xml", expectedVersion: 1 }), null);
@@ -38,12 +44,14 @@ test("photo signatures reject disguised or truncated files", () => {
   assert.equal(matchesPhotoSignature(Buffer.from("<svg><script>"), "image/jpeg"), false);
 });
 
-test("returned photo review requires a complete pair newer than the rejection", () => {
-  assert.equal(canSubmitPair("DRAFT", 3, 3, null), true);
-  assert.equal(canSubmitPair("DRAFT", 2, 3, null), false);
-  assert.equal(canSubmitPair("REJECTED_QC", 5, 5, 4), true);
-  assert.equal(canSubmitPair("REJECTED_QC", 4, 5, 4), false);
-  assert.equal(canSubmitPair("REJECTED_MODERATOR", 7, 7, 7), false);
-  assert.equal(canSubmitPair("SUBMITTED_QC", 7, 7, null), false);
-  assert.equal(canSubmitPair("LOCKED", 7, 7, null), false);
+test("a rechecked complete pair can return to QC without re-uploading", () => {
+  assert.equal(canSubmitPair("DRAFT", null, 3), false);
+  assert.equal(canSubmitPair("DRAFT", 4, 3), false);
+  assert.equal(canSubmitPair("DRAFT", 3, 3), true);
+  assert.equal(canSubmitPair("DRAFT", 2, 3), true);
+  assert.equal(canSubmitPair("REJECTED_QC", 5, 5), true);
+  assert.equal(canSubmitPair("REJECTED_QC", 4, 5), true);
+  assert.equal(canSubmitPair("REJECTED_MODERATOR", 7, 7), true);
+  assert.equal(canSubmitPair("SUBMITTED_QC", 7, 7), false);
+  assert.equal(canSubmitPair("LOCKED", 7, 7), false);
 });
