@@ -154,6 +154,7 @@ export async function informationReviewDetail(adminId: number, reviewId: number)
         select: { track_version: true, action: true, revision_id: true } },
       reviewCase: { select: {
         grad_year: true, grad_term: true, outcome: true, checked_at: true, source_version: true,
+        tracks: { where: { type: ReviewTrackType.PHOTOS }, select: { stage: true }, take: 1 },
         student: { select: {
           student_number: true, first_name: true, mid_name: true, last_name: true,
           suffix: true, nickname: true, school_email: true, personal_email: true,
@@ -205,12 +206,9 @@ export async function informationReviewDetail(adminId: number, reviewId: number)
   const canEdit = editableStages.includes(track.stage) &&
     scopes.some(scope => scope.capability === ReviewCapability.INFORMATION_PROOFREADER &&
       matchesGraduateScope(scope, student));
-  const lastRejection = track.informationEvents.find(event =>
-    event.action === InformationEventAction.REJECTED_QC || event.action === InformationEventAction.REJECTED_MODERATOR);
   const latestSubmission = track.informationEvents.find(event => event.action === InformationEventAction.SUBMITTED_QC);
-  const canSubmit = canEdit && !!currentRevision && canSubmitInformation(
-    track.stage, currentRevision.track_version, lastRejection?.track_version ?? null,
-  ) && !requiresMakerChange(correction?.status, correction?.reopened_version, currentRevision.track_version);
+  const canSubmit = canEdit && canSubmitInformation(track.stage) &&
+    !requiresMakerChange(correction?.status, correction?.reopened_version, currentRevision?.track_version);
   const canQc = !!currentRevision && latestSubmission?.revision_id === currentRevision.id &&
     scopes.some(scope => scope.capability === ReviewCapability.INFORMATION_QC &&
       matchesGraduateScope(scope, student));
@@ -237,6 +235,7 @@ export async function informationReviewDetail(adminId: number, reviewId: number)
   }
   return {
     success: true, reviewId: track.id, informationStage: track.stage,
+    photoStage: reviewCase.tracks[0]?.stage ?? null,
     queue: queueForStage(track.stage), version: track.version,
     availableActions,
     correction,
