@@ -4,7 +4,7 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { ReviewRequestError } from "./review_error";
 import { R2_BUCKET } from "../../config/r2_bucket";
 
-const maxBytes = 8 * 1024 * 1024;
+const maxBytes = 5 * 1024 * 1024;
 const minBytes = 64;
 export const photoMimes = ["image/jpeg", "image/png", "image/webp"] as const;
 export type PhotoMime = typeof photoMimes[number];
@@ -60,14 +60,14 @@ export async function sealPhoto(stagedKey: string, expectedMime: PhotoMime, trac
   const stream = body.Body;
   if (!stream) throw new ReviewRequestError(409, "UPLOAD_MISSING", "The uploaded photo is empty.");
   if (body.ContentLength && body.ContentLength > maxBytes) {
-    throw new ReviewRequestError(413, "PHOTO_TOO_LARGE", "Photos must be 8 MB or smaller.");
+    throw new ReviewRequestError(413, "PHOTO_TOO_LARGE", "Photos must be 5 MB or smaller.");
   }
   const chunks: Buffer[] = [];
   let size = 0;
   for await (const chunk of stream as AsyncIterable<Uint8Array>) {
     size += chunk.byteLength;
     if (size > maxBytes) {
-      throw new ReviewRequestError(413, "PHOTO_TOO_LARGE", "Photos must be 8 MB or smaller.");
+      throw new ReviewRequestError(413, "PHOTO_TOO_LARGE", "Photos must be 5 MB or smaller.");
     }
     chunks.push(Buffer.from(chunk));
   }
