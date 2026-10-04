@@ -14,11 +14,11 @@ test('submission requires an exact revision, version and retry key', () => {
   assert.notEqual(submissionHash(7, input), submissionHash(8, input));
 });
 
-test('a returned review needs a correction newer than its rejection', () => {
-  assert.equal(canSubmitInformation('DRAFT', 2, null), true);
-  assert.equal(canSubmitInformation('REJECTED_QC', 6, 5), true);
-  assert.equal(canSubmitInformation('REJECTED_MODERATOR', 9, 8), true);
-  assert.equal(canSubmitInformation('REJECTED_QC', 5, 5), false);
-  assert.equal(canSubmitInformation('REJECTED_MODERATOR', 7, null), false);
-  assert.equal(canSubmitInformation('SUBMITTED_QC', 8, 5), false);
+test('rechecked returns can be resubmitted without skipping QC or moderator review', () => {
+  for (const stage of ['DRAFT', 'REJECTED_QC', 'REJECTED_MODERATOR']) {
+    assert.equal(canSubmitInformation(stage), true);
+  }
+  for (const stage of ['SUBMITTED_QC', 'APPROVED_QC', 'SUBMITTED_MODERATOR', 'LOCKED']) {
+    assert.equal(canSubmitInformation(stage), false);
+  }
 });
