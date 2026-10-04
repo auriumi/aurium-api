@@ -6,6 +6,7 @@
     "dev": "nodemon",
     "build": "tsc",
     "test:photo": "npm run build && node --test dist/api/review/photo_contract.test.js dist/api/review/photo_validation.test.js",
+    "test:information-comments": "npm run build && node --test dist/api/review/information_comment_contract.test.js",
     "start": "node dist/index.js"
   },
   "keywords": [],

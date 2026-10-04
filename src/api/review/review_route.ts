@@ -21,6 +21,7 @@ router.get("/information-reviews", requirePermission(Permission.REVIEW_VIEW), in
 router.get("/information-reviews/filter-options", requirePermission(Permission.REVIEW_VIEW), informationController.getFilterOptions);
 router.get("/information-reviews/:reviewId/revisions", requirePermission(Permission.REVIEW_VIEW), informationController.getDraftHistory);
 router.get("/information-reviews/:reviewId/decision-events", requirePermission(Permission.REVIEW_VIEW), informationController.getDecisionHistory);
+router.post("/information-reviews/:reviewId/comments", requirePermission(Permission.REVIEW_VERIFY), requireReviewOrigin, informationController.addComment);
 router.patch("/information-reviews/:reviewId/draft", requirePermission(Permission.REVIEW_VERIFY), requireReviewOrigin, informationController.saveDraft);
 router.post("/information-reviews/:reviewId/submission", requirePermission(Permission.REVIEW_VERIFY), requireReviewOrigin, informationController.submitReview);
 router.post("/information-reviews/:reviewId/qc-decision", requirePermission(Permission.REVIEW_VERIFY), requireReviewOrigin, informationController.decideQc);
