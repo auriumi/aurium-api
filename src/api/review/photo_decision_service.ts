@@ -1,4 +1,4 @@
-import { PhotoEventAction, Prisma, ReviewCapability, ReviewStage, ReviewTrackType } from "@prisma/client";
+import { PhotoEventAction, PhotoUploadStatus, Prisma, ReviewCapability, ReviewStage, ReviewTrackType } from "@prisma/client";
 import prisma from "../../config/prisma";
 import { photoDecisionHash, photoTransition, type PhotoDecisionRequest } from "./photo_decision_contract";
 import { assignedPhotoTrack } from "./photo_service";
@@ -94,11 +94,20 @@ export async function photoDecisionHistory(adminId: number, reviewId: number) {
   await assignedPhotoTrack(prisma, adminId, reviewId, [
     ReviewCapability.PHOTO_UPLOADER, ReviewCapability.PHOTO_QC, ReviewCapability.FINAL_MODERATOR,
   ]);
-  const events = await prisma.photoReviewEvent.findMany({
+  const eventSelect = { id: true, track_version: true, pair_id: true, action: true,
+    from_stage: true, to_stage: true, note: true, created_at: true,
+    actor: { select: { first_name: true, last_name: true } } } satisfies Prisma.PhotoReviewEventSelect;
+  const [events, uploads, latestRejection] = await Promise.all([prisma.photoReviewEvent.findMany({
     where: { track_id: reviewId }, orderBy: { track_version: "desc" }, take: 30,
-    select: { id: true, track_version: true, pair_id: true, action: true,
-      from_stage: true, to_stage: true, note: true, created_at: true,
-      actor: { select: { first_name: true, last_name: true } } },
-  });
-  return { success: true, events };
+    select: eventSelect,
+  }), prisma.photoAsset.findMany({
+    where: { track_id: reviewId, status: PhotoUploadStatus.SEALED },
+    orderBy: [{ sealed_at: "desc" }, { id: "desc" }], take: 30,
+    select: { id: true, type: true, sealed_at: true,
+      uploader: { select: { first_name: true, last_name: true } } },
+  }), prisma.photoReviewEvent.findFirst({
+    where: { track_id: reviewId, action: { in: [PhotoEventAction.REJECTED_QC, PhotoEventAction.REJECTED_MODERATOR] } },
+    orderBy: { track_version: "desc" }, select: eventSelect,
+  })]);
+  return { success: true, events, uploads, latestRejection };
 }

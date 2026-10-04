@@ -1,10 +1,10 @@
 import { PhotoEventAction, Prisma, ReviewCapability, ReviewTrackType } from "@prisma/client";
 import prisma from "../../config/prisma";
-import { photoCommentHash, photoCommentStage, type PhotoComment } from "./photo_comment_contract";
+import { photoCommentHash, matchesPhotoCommentContext, type PhotoComment } from "./photo_comment_contract";
 import { assignedPhotoTrack } from "./photo_service";
 import { ReviewRequestError } from "./review_error";
 
-const commenters = [ReviewCapability.PHOTO_QC, ReviewCapability.FINAL_MODERATOR];
+const commenters = [ReviewCapability.PHOTO_UPLOADER, ReviewCapability.PHOTO_QC, ReviewCapability.FINAL_MODERATOR];
 
 export async function addPhotoComment(adminId: number, reviewId: number, input: PhotoComment) {
   const requestHash = photoCommentHash(reviewId, input);
@@ -24,26 +24,10 @@ export async function addPhotoComment(adminId: number, reviewId: number, input: 
       if (track.version !== input.expectedVersion) {
         throw new ReviewRequestError(409, "STALE_REVIEW", "The photo review changed. Refresh before commenting.");
       }
-      const allowed = photoCommentStage(track.stage);
-      if (!allowed) throw new ReviewRequestError(409, "STAGE_CHANGED", "Comments are available during QC or moderator review.");
-      await assignedPhotoTrack(tx, adminId, reviewId, [allowed.capability]);
-      if (allowed.capability === ReviewCapability.FINAL_MODERATOR) {
-        const moderators = await tx.reviewAssignment.findMany({
-          where: { capability: ReviewCapability.FINAL_MODERATOR, revoked_at: null },
-          select: { admin_id: true }, distinct: ["admin_id"], take: 2,
-        });
-        if (moderators.length !== 1 || moderators[0]?.admin_id !== adminId) {
-          throw new ReviewRequestError(409, "MODERATOR_CONFIGURATION", "One designated final moderator is required.");
-        }
-      }
-      const [pair, anchor] = await Promise.all([
-        tx.photoPairRevision.findFirst({ where: { track_id: reviewId }, orderBy: { track_version: "desc" },
-          select: { id: true } }),
-        tx.photoReviewEvent.findFirst({ where: { track_id: reviewId, action: allowed.anchor },
-          orderBy: { track_version: "desc" }, select: { pair_id: true } }),
-      ]);
-      if (!pair || pair.id !== input.pairRevisionId || anchor?.pair_id !== pair.id) {
-        throw new ReviewRequestError(409, "STALE_PAIR", "The submitted photo pair changed. Refresh before commenting.");
+      const pair = await tx.photoPairRevision.findFirst({ where: { track_id: reviewId },
+        orderBy: { track_version: "desc" }, select: { id: true } });
+      if (!matchesPhotoCommentContext(track.stage, pair?.id ?? null, input.pairRevisionId)) {
+        throw new ReviewRequestError(409, "STALE_PAIR", "The photo pair changed. Refresh before commenting.");
       }
       const operation = await tx.reviewOperation.create({ data: {
         actor_id: adminId, client_key: input.operationId, request_hash: requestHash,
@@ -54,11 +38,11 @@ export async function addPhotoComment(adminId: number, reviewId: number, input: 
       if (changed.count !== 1) throw new ReviewRequestError(409, "STALE_REVIEW", "The photo review changed. Refresh.");
       const version = track.version + 1;
       const event = await tx.photoReviewEvent.create({ data: {
-        track_id: reviewId, track_version: version, pair_id: pair.id, actor_id: adminId,
+        track_id: reviewId, track_version: version, pair_id: pair?.id ?? null, actor_id: adminId,
         operation_id: operation.id, action: PhotoEventAction.COMMENTED,
         from_stage: track.stage, to_stage: track.stage, note: input.note,
       }, select: { id: true } });
-      const response = { success: true, eventId: event.id, reviewId, pairRevisionId: pair.id,
+      const response = { success: true, eventId: event.id, reviewId, pairRevisionId: pair?.id ?? null,
         version, stage: track.stage };
       await tx.reviewOperation.update({ where: { id: operation.id }, data: { response } });
       return response;
