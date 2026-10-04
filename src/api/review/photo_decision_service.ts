@@ -94,6 +94,7 @@ export async function photoDecisionHistory(adminId: number, reviewId: number,
   beforeVersion: number | null = null, beforeUploadId: number | null = null) {
   await assignedPhotoTrack(prisma, adminId, reviewId, [
     ReviewCapability.PHOTO_UPLOADER, ReviewCapability.PHOTO_QC, ReviewCapability.FINAL_MODERATOR,
+    ReviewCapability.IT_CORRECTION,
   ]);
   const uploadCursor = beforeUploadId ? await prisma.photoAsset.findFirst({
     where: { id: beforeUploadId, track_id: reviewId, status: PhotoUploadStatus.SEALED },

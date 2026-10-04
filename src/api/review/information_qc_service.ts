@@ -95,17 +95,19 @@ export async function decideInformationQc(adminId: number, reviewId: number, inp
   }
 }
 
-export async function informationDecisionHistory(adminId: number, reviewId: number) {
+export async function informationDecisionHistory(adminId: number, reviewId: number, beforeVersion: number | null = null) {
   await assignedTrack(prisma, adminId, reviewId, [
     ReviewCapability.INFORMATION_PROOFREADER, ReviewCapability.INFORMATION_QC, ReviewCapability.FINAL_MODERATOR,
+    ReviewCapability.IT_CORRECTION,
   ]);
   const events = await prisma.informationReviewEvent.findMany({
-    where: { track_id: reviewId }, orderBy: { track_version: "desc" }, take: 30,
+    where: { track_id: reviewId, ...(beforeVersion === null ? {} : { track_version: { lt: beforeVersion } }) },
+    orderBy: { track_version: "desc" }, take: 31,
     select: {
       id: true, track_version: true, revision_id: true, action: true,
       from_stage: true, to_stage: true, note: true, created_at: true,
       actor: { select: { first_name: true, last_name: true } },
     },
   });
-  return { success: true, events };
+  return { success: true, events: events.slice(0, 30), nextCursor: events.length > 30 ? events[29]!.track_version : null };
 }
