@@ -7,6 +7,7 @@ import { informationDraftHistory, saveInformationDraft } from "./information_dra
 import { readInformationSubmission } from "./information_submission_contract";
 import { submitInformationReview } from "./information_submission_service";
 import { ReviewRequestError } from "./review_error";
+import { readHistoryCursor } from "./history_contract";
 
 interface StaffRequest extends Request {
   user?: { admin_id?: string | number };
@@ -89,7 +90,7 @@ export async function getDraftHistory(req: StaffRequest, res: Response) {
   if (!Number.isSafeInteger(reviewId) || reviewId <= 0 || reviewId > 2147483647) {
     return res.status(400).json({ success: false, code: "INVALID_REQUEST", reason: "Invalid review ID." });
   }
-  try { return res.json(await informationDraftHistory(adminId, reviewId)); }
+  try { return res.json(await informationDraftHistory(adminId, reviewId, readHistoryCursor(req.query.beforeVersion))); }
   catch (error) { return sendError(error, res, "Information revision history error:"); }
 }
 
