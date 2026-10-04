@@ -202,6 +202,8 @@ export async function informationReviewDetail(adminId: number, reviewId: number)
     scopes.some(scope => scope.capability === ReviewCapability.INFORMATION_PROOFREADER &&
       matchesGraduateScope(scope, student));
   const latestSubmission = track.informationEvents.find(event => event.action === InformationEventAction.SUBMITTED_QC);
+  const lastRejection = track.informationEvents.find(event =>
+    event.action === InformationEventAction.REJECTED_QC || event.action === InformationEventAction.REJECTED_MODERATOR);
   const canSubmit = canEdit && canSubmitInformation(track.stage);
   const canQc = !!currentRevision && latestSubmission?.revision_id === currentRevision.id &&
     scopes.some(scope => scope.capability === ReviewCapability.INFORMATION_QC &&
