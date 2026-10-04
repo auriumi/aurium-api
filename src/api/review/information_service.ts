@@ -151,9 +151,11 @@ export async function informationReviewDetail(adminId: number, reviewId: number)
         InformationEventAction.REJECTED_QC, InformationEventAction.REJECTED_MODERATOR,
         InformationEventAction.SUBMITTED_QC,
       ] } }, orderBy: { track_version: "desc" }, take: 3,
-        select: { track_version: true, action: true, revision_id: true } },
+        select: { track_version: true, action: true, revision_id: true, note: true, created_at: true,
+          actor: { select: { first_name: true, last_name: true } } } },
       reviewCase: { select: {
         grad_year: true, grad_term: true, outcome: true, checked_at: true, source_version: true,
+        tracks: { where: { type: ReviewTrackType.PHOTOS }, select: { stage: true }, take: 1 },
         student: { select: {
           student_number: true, first_name: true, mid_name: true, last_name: true,
           suffix: true, nickname: true, school_email: true, personal_email: true,
@@ -205,12 +207,11 @@ export async function informationReviewDetail(adminId: number, reviewId: number)
   const canEdit = editableStages.includes(track.stage) &&
     scopes.some(scope => scope.capability === ReviewCapability.INFORMATION_PROOFREADER &&
       matchesGraduateScope(scope, student));
+  const latestSubmission = track.informationEvents.find(event => event.action === InformationEventAction.SUBMITTED_QC);
+  const canSubmit = canEdit && canSubmitInformation(track.stage) &&
+    !requiresMakerChange(correction?.status, correction?.reopened_version, currentRevision?.track_version);
   const lastRejection = track.informationEvents.find(event =>
     event.action === InformationEventAction.REJECTED_QC || event.action === InformationEventAction.REJECTED_MODERATOR);
-  const latestSubmission = track.informationEvents.find(event => event.action === InformationEventAction.SUBMITTED_QC);
-  const canSubmit = canEdit && !!currentRevision && canSubmitInformation(
-    track.stage, currentRevision.track_version, lastRejection?.track_version ?? null,
-  ) && !requiresMakerChange(correction?.status, correction?.reopened_version, currentRevision.track_version);
   const canQc = !!currentRevision && latestSubmission?.revision_id === currentRevision.id &&
     scopes.some(scope => scope.capability === ReviewCapability.INFORMATION_QC &&
       matchesGraduateScope(scope, student));
@@ -220,9 +221,9 @@ export async function informationReviewDetail(adminId: number, reviewId: number)
         matchesGraduateScope(scope, student))) {
     availableActions.push("REQUEST_CORRECTION");
   }
-  if (currentRevision && track.stage !== ReviewStage.LOCKED &&
-      scopes.some(scope => scope.capability !== ReviewCapability.IT_CORRECTION &&
-        matchesGraduateScope(scope, student))) availableActions.push("COMMENT");
+  if (scopes.some(scope => [ReviewCapability.INFORMATION_PROOFREADER,
+      ReviewCapability.INFORMATION_QC, ReviewCapability.FINAL_MODERATOR].some(capability => capability === scope.capability) &&
+      matchesGraduateScope(scope, student))) availableActions.push("COMMENT");
   if (canEdit) availableActions.push("SAVE_DRAFT");
   if (canSubmit) availableActions.push("SUBMIT_QC");
   if (canQc && track.stage === ReviewStage.SUBMITTED_QC) availableActions.push("QC_APPROVE", "QC_REJECT");
@@ -240,9 +241,13 @@ export async function informationReviewDetail(adminId: number, reviewId: number)
   }
   return {
     success: true, reviewId: track.id, informationStage: track.stage,
+    photoStage: reviewCase.tracks[0]?.stage ?? null,
     queue: queueForStage(track.stage), version: track.version,
     availableActions,
     correction,
+    rejection: (track.stage === ReviewStage.REJECTED_QC || track.stage === ReviewStage.REJECTED_MODERATOR) && lastRejection ? {
+      reason: lastRejection.note, createdAt: lastRejection.created_at, actor: lastRejection.actor,
+    } : null,
     draft: currentRevision && before && after ? {
       revisionId: currentRevision.id, version: currentRevision.track_version,
       before, after,
