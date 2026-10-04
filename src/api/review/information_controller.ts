@@ -13,6 +13,7 @@ import { decideInformationModerator } from "./information_moderator_service";
 import { ReviewRequestError } from "./review_error";
 import { readInformationComment } from "./information_comment_contract";
 import { addInformationComment } from "./information_comment_service";
+import { readHistoryCursor } from "./history_contract";
 
 interface StaffRequest extends Request {
   user?: { admin_id?: string | number };
@@ -51,8 +52,7 @@ export async function listReviews(req: StaffRequest, res: Response) {
   const search = readText(req.query.search, 80);
   if (!cycle || !Number.isSafeInteger(page) || page < 1 || page > 10000 ||
       typeof queue !== "string" || !informationQueues.includes(queue as InformationQueue) ||
-      department === undefined || course === undefined || major === undefined || search === undefined ||
-      (course && !department) || (major && !course)) {
+      department === undefined || course === undefined || major === undefined || search === undefined) {
     return res.status(400).json({ success: false, code: "INVALID_FILTER", reason: "Invalid information filters." });
   }
   try {
@@ -69,7 +69,7 @@ export async function getFilterOptions(req: StaffRequest, res: Response) {
   const cycle = readCycle(req.query.year, req.query.term);
   const department = readText(req.query.department, 120);
   const course = readText(req.query.program, 120);
-  if (!cycle || department === undefined || course === undefined || (course && !department)) {
+  if (!cycle || department === undefined || course === undefined) {
     return res.status(400).json({ success: false, code: "INVALID_FILTER", reason: "Invalid academic filters." });
   }
   try { return res.json(await informationFilterOptions(adminId, cycle, department, course)); }
@@ -96,7 +96,7 @@ export async function getDraftHistory(req: StaffRequest, res: Response) {
   if (!Number.isSafeInteger(reviewId) || reviewId <= 0 || reviewId > 2147483647) {
     return res.status(400).json({ success: false, code: "INVALID_REQUEST", reason: "Invalid review ID." });
   }
-  try { return res.json(await informationDraftHistory(adminId, reviewId)); }
+  try { return res.json(await informationDraftHistory(adminId, reviewId, readHistoryCursor(req.query.beforeVersion))); }
   catch (error) { return sendError(error, res, "Information revision history error:"); }
 }
 
@@ -147,7 +147,7 @@ export async function getDecisionHistory(req: StaffRequest, res: Response) {
   if (!Number.isSafeInteger(reviewId) || reviewId <= 0 || reviewId > 2147483647) {
     return res.status(400).json({ success: false, code: "INVALID_REQUEST", reason: "Invalid review ID." });
   }
-  try { return res.json(await informationDecisionHistory(adminId, reviewId)); }
+  try { return res.json(await informationDecisionHistory(adminId, reviewId, readHistoryCursor(req.query.beforeVersion))); }
   catch (error) { return sendError(error, res, "Information decision history error:"); }
 }
 

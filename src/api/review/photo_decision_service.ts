@@ -1,4 +1,4 @@
-import { PhotoEventAction, Prisma, ReviewCapability, ReviewStage, ReviewTrackType } from "@prisma/client";
+import { PhotoEventAction, PhotoUploadStatus, Prisma, ReviewCapability, ReviewStage, ReviewTrackType } from "@prisma/client";
 import prisma from "../../config/prisma";
 import { photoDecisionHash, photoTransition, type PhotoDecisionRequest } from "./photo_decision_contract";
 import { assignedPhotoTrack } from "./photo_service";
@@ -90,16 +90,40 @@ export async function decidePhotoReview(adminId: number, reviewId: number,
   }
 }
 
-export async function photoDecisionHistory(adminId: number, reviewId: number) {
+export async function photoDecisionHistory(adminId: number, reviewId: number,
+  beforeVersion: number | null = null, beforeUploadId: number | null = null) {
   await assignedPhotoTrack(prisma, adminId, reviewId, [
     ReviewCapability.PHOTO_UPLOADER, ReviewCapability.PHOTO_QC, ReviewCapability.FINAL_MODERATOR,
     ReviewCapability.IT_CORRECTION,
   ]);
-  const events = await prisma.photoReviewEvent.findMany({
-    where: { track_id: reviewId }, orderBy: { track_version: "desc" }, take: 30,
-    select: { id: true, track_version: true, pair_id: true, action: true,
-      from_stage: true, to_stage: true, note: true, created_at: true,
-      actor: { select: { first_name: true, last_name: true } } },
-  });
-  return { success: true, events };
+  const uploadCursor = beforeUploadId ? await prisma.photoAsset.findFirst({
+    where: { id: beforeUploadId, track_id: reviewId, status: PhotoUploadStatus.SEALED },
+    select: { id: true, sealed_at: true },
+  }) : null;
+  if (beforeUploadId && !uploadCursor?.sealed_at) {
+    throw new ReviewRequestError(400, "INVALID_CURSOR", "Invalid photo history cursor.");
+  }
+  const eventSelect = { id: true, track_version: true, pair_id: true, action: true,
+    from_stage: true, to_stage: true, note: true, created_at: true,
+    actor: { select: { first_name: true, last_name: true } } } satisfies Prisma.PhotoReviewEventSelect;
+  const [events, uploads, latestRejection] = await Promise.all([prisma.photoReviewEvent.findMany({
+    where: { track_id: reviewId, ...(beforeVersion === null ? {} : { track_version: { lt: beforeVersion } }) },
+    orderBy: { track_version: "desc" }, take: 31,
+    select: eventSelect,
+  }), beforeUploadId === 0 ? [] : prisma.photoAsset.findMany({
+    where: { track_id: reviewId, status: PhotoUploadStatus.SEALED,
+      ...(uploadCursor?.sealed_at ? { OR: [
+        { sealed_at: { lt: uploadCursor.sealed_at } },
+        { sealed_at: uploadCursor.sealed_at, id: { lt: uploadCursor.id } },
+      ] } : {}) },
+    orderBy: [{ sealed_at: "desc" }, { id: "desc" }], take: 31,
+    select: { id: true, type: true, sealed_at: true,
+      uploader: { select: { first_name: true, last_name: true } } },
+  }), prisma.photoReviewEvent.findFirst({
+    where: { track_id: reviewId, action: { in: [PhotoEventAction.REJECTED_QC, PhotoEventAction.REJECTED_MODERATOR] } },
+    orderBy: { track_version: "desc" }, select: eventSelect,
+  })]);
+  return { success: true, events: events.slice(0, 30), uploads: uploads.slice(0, 30), latestRejection,
+    nextEventCursor: events.length > 30 ? events[29]!.track_version : null,
+    nextUploadCursor: uploads.length > 30 ? uploads[29]!.id : null };
 }

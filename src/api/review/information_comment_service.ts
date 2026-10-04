@@ -1,7 +1,7 @@
-import { InformationEventAction, Prisma, ReviewCapability, ReviewStage, ReviewTrackType } from "@prisma/client";
+import { InformationEventAction, Prisma, ReviewCapability, ReviewTrackType } from "@prisma/client";
 import prisma from "../../config/prisma";
 import { assignedTrack } from "./information_draft_service";
-import { commentHash, type InformationComment } from "./information_comment_contract";
+import { commentHash, matchesInformationCommentContext, type InformationComment } from "./information_comment_contract";
 import { ReviewRequestError } from "./review_error";
 
 const commenters = [ReviewCapability.INFORMATION_PROOFREADER, ReviewCapability.INFORMATION_QC,
@@ -22,15 +22,13 @@ export async function addInformationComment(adminId: number, reviewId: number, i
         if (previous.response) return previous.response;
         throw new ReviewRequestError(409, "OPERATION_INCOMPLETE", "Refresh and try again.");
       }
-      if (track.stage === ReviewStage.LOCKED) {
-        throw new ReviewRequestError(409, "LOCKED", "Completed reviews cannot receive new comments.");
-      }
       if (track.version !== input.expectedVersion) {
         throw new ReviewRequestError(409, "STALE_REVIEW", "The review changed. Refresh before commenting.");
       }
       const latest = await tx.reviewRevision.findFirst({ where: { track_id: reviewId },
         orderBy: { track_version: "desc" }, select: { id: true } });
-      if (!latest || latest.id !== input.revisionId) {
+      const revisionId = latest?.id ?? null;
+      if (!matchesInformationCommentContext(track.stage, revisionId, input.revisionId)) {
         throw new ReviewRequestError(409, "STALE_REVISION", "The information revision changed. Refresh before commenting.");
       }
       const operation = await tx.reviewOperation.create({ data: {
@@ -42,11 +40,11 @@ export async function addInformationComment(adminId: number, reviewId: number, i
       if (changed.count !== 1) throw new ReviewRequestError(409, "STALE_REVIEW", "The review changed. Refresh before commenting.");
       const version = track.version + 1;
       const event = await tx.informationReviewEvent.create({ data: {
-        track_id: reviewId, track_version: version, revision_id: latest.id,
+        track_id: reviewId, track_version: version, revision_id: revisionId,
         actor_id: adminId, operation_id: operation.id, action: InformationEventAction.COMMENTED,
         from_stage: track.stage, to_stage: track.stage, note: input.note,
       }, select: { id: true } });
-      const response = { success: true, eventId: event.id, reviewId, revisionId: latest.id,
+      const response = { success: true, eventId: event.id, reviewId, revisionId,
         version, stage: track.stage };
       await tx.reviewOperation.update({ where: { id: operation.id }, data: { response } });
       return response;
