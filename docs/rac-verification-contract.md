@@ -27,6 +27,8 @@ One ID follows the same service path as a batch. `expectedVersions` is null for 
 
 No student record is copied or deleted. `ReviewCase` has a restrictive foreign key to `Student`; the existing deletion endpoint also rejects enrolled graduates with 409. Audit rows retain prior outcomes, checker and source version. An old registration approval or existing photo approval is not treated as RAC verification.
 
+Academic browse filters work independently, matching the prototype: a program can be selected across all assigned departments, and a major across all assigned programs. These filters only narrow the authorized student query. Assignment creation still requires a department for a course scope and a course for a major scope.
+
 ## Deployment and testing
 
 The migration adds only enums, review tables, keys and checks. It assumes the existing Student/Admin/GraduationTerm schema is already present, so reconcile the real migration history and rehearse backup/restore before deployment. No database was migrated while creating this PR. Set `RAC_SOURCE_VERSION` in a **test** environment first; use test staff accounts and non-production graduate records. The official file's actual version and the policy for a replaced list must be confirmed before production use.

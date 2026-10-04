@@ -59,37 +59,45 @@ function assertEditable(stage: ReviewStage, version: number, expectedVersion: nu
 export async function listPhotoReviews(adminId: number, cycle: Cycle, page: number, search: string,
   department: string | null, course: string | null, major: string | null, stage: ReviewStage | "ALL") {
   const scopes = await scopesFor(adminId);
-  const where: Prisma.ReviewTrackWhereInput = {
-    type: ReviewTrackType.PHOTOS,
-    reviewCase: { is: {
-      grad_year: cycle.year, grad_term: cycle.term, outcome: RacOutcome.VERIFIED,
-      student: { is: { AND: [graduateScopeWhere(scopes), graduateSearchWhere(search),
-        ...(department ? [{ department }] : []), ...(course ? [{ course }] : []),
-        ...(major === "__no_major__" ? [{ major: null }] : major ? [{ major }] : []),
-      ] } },
-    } },
-  };
-  const stageWhere: Prisma.ReviewTrackWhereInput = stage === "ALL" ? where : { AND: [where, { stage }] };
-  const [rows, total, counts] = await Promise.all([
-    prisma.reviewTrack.findMany({ where: stageWhere, skip: (page - 1) * 25, take: 25,
-      orderBy: [{ reviewCase: { student: { first_name: "asc" } } }, { id: "asc" }],
-      select: { id: true, stage: true, version: true, reviewCase: { select: { student: { select: {
-        student_number: true, first_name: true, mid_name: true, last_name: true, suffix: true,
+  const base: Prisma.StudentWhereInput = { AND: [
+    { grad_year: cycle.year, grad_term: cycle.term }, graduateScopeWhere(scopes), graduateSearchWhere(search),
+    ...(department ? [{ department }] : []), ...(course ? [{ course }] : []),
+    ...(major === "__no_major__" ? [{ major: null }] : major ? [{ major }] : []),
+  ] };
+  const cycleCase = { grad_year: cycle.year, grad_term: cycle.term };
+  const where: Prisma.StudentWhereInput = stage === "ALL" ? base : { AND: [base, {
+    reviewCases: { some: { ...cycleCase, outcome: RacOutcome.VERIFIED,
+      tracks: { some: { type: ReviewTrackType.PHOTOS, stage } } } },
+  }] };
+  const [rows, total, all, counts] = await Promise.all([
+    prisma.student.findMany({ where, skip: (page - 1) * 25, take: 25,
+      orderBy: [{ first_name: "asc" }, { id: "asc" }],
+      select: { student_number: true, first_name: true, mid_name: true, last_name: true, suffix: true,
         department: true, course: true, major: true,
-      } } } } },
+        reviewCases: { where: cycleCase, take: 1, select: { outcome: true,
+          tracks: { where: { type: ReviewTrackType.PHOTOS }, take: 1,
+            select: { id: true, stage: true, version: true } } } },
+      },
     }),
-    prisma.reviewTrack.count({ where: stageWhere }),
-    prisma.reviewTrack.groupBy({ by: ["stage"], where, _count: { _all: true } }),
+    prisma.student.count({ where }),
+    prisma.student.count({ where: base }),
+    prisma.reviewTrack.groupBy({ by: ["stage"], where: { type: ReviewTrackType.PHOTOS,
+      reviewCase: { is: { ...cycleCase, outcome: RacOutcome.VERIFIED, student: { is: base } } },
+    }, _count: { _all: true } }),
   ]);
-  return { success: true, rows: rows.map(row => ({
-    reviewId: row.id, stage: row.stage, version: row.version,
-    studentNumber: row.reviewCase.student.student_number,
-    firstName: row.reviewCase.student.first_name, middleName: row.reviewCase.student.mid_name,
-    lastName: row.reviewCase.student.last_name, suffix: row.reviewCase.student.suffix,
-    department: row.reviewCase.student.department, program: row.reviewCase.student.course,
-    major: row.reviewCase.student.major,
-  })), page, pageSize: 25, total,
-  counts: Object.fromEntries(counts.map(item => [item.stage, item._count._all])),
+  return { success: true, rows: rows.map(student => {
+    const reviewCase = student.reviewCases[0];
+    const track = reviewCase?.outcome === RacOutcome.VERIFIED ? reviewCase.tracks[0] : null;
+    return {
+      reviewId: track?.id ?? null, stage: track?.stage ?? null, version: track?.version ?? null,
+      verification: reviewCase?.outcome ?? "UNCHECKED",
+      studentNumber: student.student_number,
+      firstName: student.first_name, middleName: student.mid_name,
+      lastName: student.last_name, suffix: student.suffix,
+      department: student.department, program: student.course, major: student.major,
+    };
+  }), page, pageSize: 25, total,
+  counts: { ALL: all, ...Object.fromEntries(counts.map(item => [item.stage, item._count._all])) },
   };
 }
 
@@ -97,8 +105,6 @@ export async function photoFilterOptions(adminId: number, cycle: Cycle, departme
   const scopes = await scopesFor(adminId);
   const base: Prisma.StudentWhereInput = { grad_year: cycle.year, grad_term: cycle.term,
     AND: [graduateScopeWhere(scopes)],
-    reviewCases: { some: { grad_year: cycle.year, grad_term: cycle.term, outcome: RacOutcome.VERIFIED,
-      tracks: { some: { type: ReviewTrackType.PHOTOS } } } },
   };
   const [departments, courses, majors] = await Promise.all([
     prisma.student.findMany({ where: base, distinct: ["department"], select: { department: true } }),
@@ -116,7 +122,7 @@ export async function photoFilterOptions(adminId: number, cycle: Cycle, departme
 
 export async function photoReviewDetail(adminId: number, reviewId: number) {
   const { track, student: owner } = await assignedPhotoTrack(prisma, adminId, reviewId, photoCapabilities);
-  const [student, graduationAsset, themeAsset, pair, rejection, submitted, approved, forwarded, assignments] = await Promise.all([
+  const [student, graduationAsset, themeAsset, pair, submitted, approved, forwarded, assignments] = await Promise.all([
     prisma.student.findUnique({ where: { id: owner.id }, select: {
       student_number: true, first_name: true, mid_name: true, last_name: true, suffix: true, nickname: true,
       school_email: true, personal_email: true, department: true, course: true, major: true,
@@ -143,9 +149,6 @@ export async function photoReviewDetail(adminId: number, reviewId: number) {
     prisma.photoPairRevision.findFirst({ where: { track_id: reviewId },
       orderBy: { track_version: "desc" }, select: { id: true, track_version: true,
         graduation_asset_id: true, theme_asset_id: true } }),
-    prisma.photoReviewEvent.findFirst({ where: { track_id: reviewId, action: {
-      in: [PhotoEventAction.REJECTED_QC, PhotoEventAction.REJECTED_MODERATOR] } },
-      orderBy: { track_version: "desc" }, select: { track_version: true } }),
     prisma.photoReviewEvent.findFirst({ where: { track_id: reviewId, action: PhotoEventAction.SUBMITTED_QC },
       orderBy: { track_version: "desc" }, select: { pair_id: true } }),
     prisma.photoReviewEvent.findFirst({ where: { track_id: reviewId, action: PhotoEventAction.APPROVED_QC },
@@ -172,10 +175,10 @@ export async function photoReviewDetail(adminId: number, reviewId: number) {
     scope.capability === capability && matchesGraduateScope(scope, owner));
   const canUpload = editableStages.includes(track.stage) && hasRole(ReviewCapability.PHOTO_UPLOADER);
   const actions: string[] = canUpload ? ["UPLOAD", ...(canSubmitPair(track.stage,
-    pair?.track_version ?? null, track.version, rejection?.track_version ?? null) ? ["SUBMIT_QC"] : [])] : [];
+    pair?.track_version ?? null, track.version) ? ["SUBMIT_QC"] : [])] : [];
   if (pair && submitted?.pair_id === pair.id && hasRole(ReviewCapability.PHOTO_QC)) {
-    if (track.stage === ReviewStage.SUBMITTED_QC) actions.push("QC_APPROVE", "QC_REJECT", "COMMENT");
-    if (track.stage === ReviewStage.APPROVED_QC && approved?.pair_id === pair.id) actions.push("FORWARD_MODERATOR", "COMMENT");
+    if (track.stage === ReviewStage.SUBMITTED_QC) actions.push("QC_APPROVE", "QC_REJECT");
+    if (track.stage === ReviewStage.APPROVED_QC && approved?.pair_id === pair.id) actions.push("FORWARD_MODERATOR");
   }
   if (pair && track.stage === ReviewStage.SUBMITTED_MODERATOR &&
       approved?.pair_id === pair.id && forwarded?.pair_id === pair.id &&
@@ -184,9 +187,11 @@ export async function photoReviewDetail(adminId: number, reviewId: number) {
       capability: ReviewCapability.FINAL_MODERATOR, revoked_at: null },
       select: { admin_id: true }, distinct: ["admin_id"], take: 2 });
     if (moderators.length === 1 && moderators[0]?.admin_id === adminId) {
-      actions.push("MODERATOR_APPROVE", "MODERATOR_REJECT", "COMMENT");
+      actions.push("MODERATOR_APPROVE", "MODERATOR_REJECT");
     }
   }
+  if ([ReviewCapability.PHOTO_UPLOADER, ReviewCapability.PHOTO_QC,
+    ReviewCapability.FINAL_MODERATOR].some(hasRole)) actions.push("COMMENT");
   const booking = student.booking[0];
   return { success: true, reviewId, stage: track.stage, version: track.version,
     availableActions: actions,
@@ -280,11 +285,8 @@ export async function submitPhotoPair(adminId: number, reviewId: number, input: 
     }
     const pair = await tx.photoPairRevision.findFirst({ where: { track_id: reviewId },
       orderBy: { track_version: "desc" }, select: { id: true, track_version: true } });
-    const rejection = await tx.photoReviewEvent.findFirst({ where: { track_id: reviewId, action: {
-      in: [PhotoEventAction.REJECTED_QC, PhotoEventAction.REJECTED_MODERATOR] } },
-      orderBy: { track_version: "desc" }, select: { track_version: true } });
     if (!pair || pair.id !== input.revisionId || !canSubmitPair(track.stage, pair.track_version,
-      track.version, rejection?.track_version ?? null)) {
+      track.version)) {
       throw new ReviewRequestError(409, "PAIR_INCOMPLETE", "Both current photos are required before submission.");
     }
     const operation = await tx.reviewOperation.create({ data: {
