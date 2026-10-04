@@ -184,19 +184,21 @@ export async function saveInformationDraft(adminId: number, reviewId: number, dr
   }
 }
 
-export async function informationDraftHistory(adminId: number, reviewId: number) {
+export async function informationDraftHistory(adminId: number, reviewId: number, beforeVersion: number | null = null) {
   await assignedTrack(prisma, adminId, reviewId, [
     ReviewCapability.INFORMATION_PROOFREADER, ReviewCapability.INFORMATION_QC, ReviewCapability.FINAL_MODERATOR,
     ReviewCapability.IT_CORRECTION,
   ]);
   const rows = await prisma.reviewRevision.findMany({
-    where: { track_id: reviewId }, orderBy: { track_version: "desc" }, take: 20,
+    where: { track_id: reviewId, ...(beforeVersion === null ? {} : { track_version: { lt: beforeVersion } }) },
+    orderBy: { track_version: "desc" }, take: 21,
     select: { id: true, track_version: true, before_snapshot: true, after_snapshot: true, created_at: true,
       author: { select: { first_name: true, last_name: true } } },
   });
   return {
     success: true,
-    revisions: rows.map(row => {
+    nextCursor: rows.length > 20 ? rows[19]!.track_version : null,
+    revisions: rows.slice(0, 20).map(row => {
       const before = storedSnapshot(row.before_snapshot);
       const after = storedSnapshot(row.after_snapshot);
       return {
