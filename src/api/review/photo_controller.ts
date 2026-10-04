@@ -36,8 +36,7 @@ export async function list(req: StaffRequest, res: Response) {
       typeof search !== "string" || search.length > 80 ||
       [department, course, major].some(value => value !== null &&
         (typeof value !== "string" || !value.trim() || value.length > 120)) ||
-      (stage !== "ALL" && !Object.values(ReviewStage).includes(stage as ReviewStage)) ||
-      (course && !department) || (major && !course)) {
+      (stage !== "ALL" && !Object.values(ReviewStage).includes(stage as ReviewStage))) {
     return res.status(400).json({ success: false, code: "INVALID_FILTER", reason: "Invalid photo filters." });
   }
   try { return res.json(await listPhotoReviews(adminId, cycle, page, search,
@@ -63,7 +62,7 @@ export async function filterOptions(req: StaffRequest, res: Response) {
   const course = req.query.program ?? null;
   if (!validId(adminId)) return res.status(401).json({ success: false, reason: "Unauthorized." });
   if (!cycle || [department, course].some(value => value !== null &&
-    (typeof value !== "string" || !value.trim() || value.length > 120)) || (course && !department)) {
+    (typeof value !== "string" || !value.trim() || value.length > 120))) {
     return res.status(400).json({ success: false, reason: "Invalid academic filters." });
   }
   try { return res.json(await photoFilterOptions(adminId, cycle, department as string | null, course as string | null)); }
