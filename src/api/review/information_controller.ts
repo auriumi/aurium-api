@@ -147,7 +147,7 @@ export async function getDecisionHistory(req: StaffRequest, res: Response) {
   if (!Number.isSafeInteger(reviewId) || reviewId <= 0 || reviewId > 2147483647) {
     return res.status(400).json({ success: false, code: "INVALID_REQUEST", reason: "Invalid review ID." });
   }
-  try { return res.json(await informationDecisionHistory(adminId, reviewId)); }
+  try { return res.json(await informationDecisionHistory(adminId, reviewId, readHistoryCursor(req.query.beforeVersion))); }
   catch (error) { return sendError(error, res, "Information decision history error:"); }
 }
 
