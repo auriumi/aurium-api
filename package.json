@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "nodemon",
     "build": "tsc",
-    "test:photo": "npm run build && node --test dist/api/review/photo_contract.test.js",
+    "test:photo": "npm run build && node --test dist/api/review/photo_contract.test.js dist/api/review/photo_validation.test.js",
     "test:photo-comments": "npm run build && node --test dist/api/review/photo_comment_contract.test.js",
     "start": "node dist/index.js"
   },
@@ -26,7 +26,8 @@
     "express-rate-limit": "^8.4.1",
     "helmet": "^8.2.0",
     "jsonwebtoken": "^9.0.3",
-    "resend": "^6.12.2"
+    "resend": "^6.12.2",
+    "sharp": "^0.35.5"
   },
   "devDependencies": {
     "@types/bcrypt": "^6.0.0",
