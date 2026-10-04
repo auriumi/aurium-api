@@ -11,6 +11,8 @@ import { decideInformationQc, informationDecisionHistory } from "./information_q
 import { readInformationModeratorRequest } from "./information_moderator_contract";
 import { decideInformationModerator } from "./information_moderator_service";
 import { ReviewRequestError } from "./review_error";
+import { readInformationComment } from "./information_comment_contract";
+import { addInformationComment } from "./information_comment_service";
 import { readHistoryCursor } from "./history_contract";
 
 interface StaffRequest extends Request {
@@ -145,7 +147,7 @@ export async function getDecisionHistory(req: StaffRequest, res: Response) {
   if (!Number.isSafeInteger(reviewId) || reviewId <= 0 || reviewId > 2147483647) {
     return res.status(400).json({ success: false, code: "INVALID_REQUEST", reason: "Invalid review ID." });
   }
-  try { return res.json(await informationDecisionHistory(adminId, reviewId)); }
+  try { return res.json(await informationDecisionHistory(adminId, reviewId, readHistoryCursor(req.query.beforeVersion))); }
   catch (error) { return sendError(error, res, "Information decision history error:"); }
 }
 
@@ -160,4 +162,17 @@ export async function decideModerator(req: StaffRequest, res: Response) {
   }
   try { return res.json(await decideInformationModerator(adminId, reviewId, decision)); }
   catch (error) { return sendError(error, res, "Information moderator decision error:"); }
+}
+
+export async function addComment(req: StaffRequest, res: Response) {
+  res.setHeader("Cache-Control", "private, no-store");
+  const adminId = staffId(req);
+  if (!adminId) return res.status(401).json({ success: false, code: "UNAUTHORIZED", reason: "Unauthorized." });
+  const reviewId = Number(req.params.reviewId);
+  const comment = readInformationComment(req.body);
+  if (!Number.isSafeInteger(reviewId) || reviewId <= 0 || reviewId > 2147483647 || !comment) {
+    return res.status(400).json({ success: false, code: "INVALID_REQUEST", reason: "Enter a comment of 1–2000 characters." });
+  }
+  try { return res.status(201).json(await addInformationComment(adminId, reviewId, comment)); }
+  catch (error) { return sendError(error, res, "Information comment error:"); }
 }
