@@ -1,5 +1,7 @@
 # Information review comments
 
+`GET /api/admin/information-reviews/:reviewId/decision-events` returns at most 30 events and `nextCursor`. Pass it as `beforeVersion` for older events. The revisions endpoint uses the same cursor parameter and returns 20 revisions per page. A null cursor means the end. A zero cursor returns an empty page, allowing the UI to page events and revisions independently. Every page rechecks the staff assignment and graduate scope. Existing entries are immutable; new entries do not move older page boundaries.
+
 `POST /api/admin/information-reviews/:reviewId/comments` accepts:
 
 ```json
