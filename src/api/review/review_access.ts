@@ -43,6 +43,9 @@ export async function grantAssignment(actorId: number, input: unknown) {
   }
 
   const adminId = Number(fields.adminId);
+  if (fields.capability === ReviewCapability.RAC_CHECK) {
+    return { status: 400, reason: "Assign General Proofreader instead. Proofreaders also verify the RAC/SAO list." };
+  }
   const target = await prisma.admin.findUnique({ where: { id: adminId }, select: { id: true } });
   if (!target) return { status: 404, reason: "Staff member not found." };
   try {
