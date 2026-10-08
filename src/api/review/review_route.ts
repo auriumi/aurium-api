@@ -12,6 +12,7 @@ import { requireReviewOrigin } from "./review_origin";
 const router = Router();
 
 router.get("/review-capabilities", requirePermission(Permission.REVIEW_VIEW), controller.getCapabilities);
+router.get("/review-staff", requirePermission(Permission.REVIEW_ASSIGN), controller.getReviewStaff);
 router.post("/review-assignments", requirePermission(Permission.REVIEW_ASSIGN), requireReviewOrigin, controller.createAssignment);
 router.patch("/review-assignments/:id", requirePermission(Permission.REVIEW_ASSIGN), requireReviewOrigin, controller.deactivateAssignment);
 router.get("/review-graduates", requirePermission(Permission.REVIEW_VIEW), racController.listGraduates);
