@@ -11,10 +11,10 @@ async function checkerScopes(adminId: number, client: Prisma.TransactionClient |
     throw new ReviewRequestError(403, "FORBIDDEN", "Staff account unavailable.");
   }
   const assignments = await client.reviewAssignment.findMany({
-    where: { admin_id: adminId, capability: ReviewCapability.RAC_CHECK, revoked_at: null },
+    where: { admin_id: adminId, capability: ReviewCapability.INFORMATION_PROOFREADER, revoked_at: null },
     select: { department: true, course: true, major: true },
   });
-  if (assignments.length === 0) throw new ReviewRequestError(403, "FORBIDDEN", "RAC/SAO assignment required.");
+  if (assignments.length === 0) throw new ReviewRequestError(403, "FORBIDDEN", "A General Proofreader assignment is required for RAC/SAO verification.");
   return assignments;
 }
 
