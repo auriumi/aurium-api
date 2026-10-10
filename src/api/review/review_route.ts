@@ -6,11 +6,13 @@ import * as controller from "./review_controller";
 import * as racController from "./rac_controller";
 import * as informationController from "./information_controller";
 import * as photoController from "./photo_controller";
+import * as correctionController from "./correction_controller";
 import { requireReviewOrigin } from "./review_origin";
 
 const router = Router();
 
 router.get("/review-capabilities", requirePermission(Permission.REVIEW_VIEW), controller.getCapabilities);
+router.get("/review-staff", requirePermission(Permission.REVIEW_ASSIGN), controller.getReviewStaff);
 router.post("/review-assignments", requirePermission(Permission.REVIEW_ASSIGN), requireReviewOrigin, controller.createAssignment);
 router.patch("/review-assignments/:id", requirePermission(Permission.REVIEW_ASSIGN), requireReviewOrigin, controller.deactivateAssignment);
 router.get("/review-graduates", requirePermission(Permission.REVIEW_VIEW), racController.listGraduates);
@@ -37,6 +39,9 @@ router.post("/photo-reviews/:reviewId/uploads/:assetId/finalize", requirePermiss
 router.post("/photo-reviews/:reviewId/submission", requirePermission(Permission.REVIEW_VERIFY), requireReviewOrigin, photoController.submit);
 router.post("/photo-reviews/:reviewId/qc-decision", requirePermission(Permission.REVIEW_VERIFY), requireReviewOrigin, photoController.qcDecision);
 router.post("/photo-reviews/:reviewId/moderator-decision", requirePermission(Permission.REVIEW_VERIFY), requireReviewOrigin, photoController.moderatorDecision);
+router.post("/review-tracks/:trackId/correction-requests", requirePermission(Permission.REVIEW_VERIFY), requireReviewOrigin, correctionController.create);
+router.get("/correction-requests", requirePermission(Permission.REVIEW_VIEW), correctionController.list);
+router.post("/correction-requests/:correctionId/decisions", requirePermission(Permission.REVIEW_VERIFY), requireReviewOrigin, correctionController.decide);
 
 assertRoutesGuarded(router);
 

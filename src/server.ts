@@ -12,6 +12,7 @@ import { frontendOrigin } from "./config/frontend_origin";
 import studentRoutes from "./api/student/student_route"; 
 import adminRoutes from "./api/admin/admin_route";
 import authRoutes from "./api/auth/auth_route";
+import reviewV1Routes from "./api/v1/admin_route";
 
 const app = express();
 app.set("trust proxy", 1);
@@ -49,6 +50,7 @@ const gen_limiter = rateLimit({
 
 //API ROUTES
 app.use("/api/admin", admin_limiter, verifyToken, isAdmin, adminRoutes);
+app.use("/api/v1/admin", admin_limiter, verifyToken, isAdmin, reviewV1Routes);
 app.use("/api/student", gen_limiter, studentRoutes);
 app.use("/api/auth", login_limiter, authRoutes);
 

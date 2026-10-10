@@ -10,11 +10,13 @@ import { matchesGraduateScope } from "./review_scope";
 import { ReviewRequestError } from "./review_error";
 import { sealPhoto, signedPhotoRead, signedPhotoUpload, stagingKey } from "./photo_storage";
 import { canSubmitPair, type readPhotoUpload } from "./photo_contract";
+import { requiresMakerChange } from "./correction_contract";
 import type { InformationSubmission } from "./information_submission_contract";
 import type { Cycle } from "./rac_contract";
 
 type UploadInput = NonNullable<ReturnType<typeof readPhotoUpload>>;
-const photoCapabilities: ReviewCapability[] = [ReviewCapability.PHOTO_UPLOADER, ReviewCapability.PHOTO_QC, ReviewCapability.FINAL_MODERATOR];
+const photoCapabilities: ReviewCapability[] = [ReviewCapability.PHOTO_UPLOADER, ReviewCapability.PHOTO_QC,
+  ReviewCapability.FINAL_MODERATOR, ReviewCapability.IT_CORRECTION];
 const editableStages: ReviewStage[] = [ReviewStage.DRAFT, ReviewStage.REJECTED_QC, ReviewStage.REJECTED_MODERATOR];
 
 async function scopesFor(adminId: number, capabilities = photoCapabilities,
@@ -69,7 +71,7 @@ export async function listPhotoReviews(adminId: number, cycle: Cycle, page: numb
     reviewCases: { some: { ...cycleCase, outcome: RacOutcome.VERIFIED,
       tracks: { some: { type: ReviewTrackType.PHOTOS, stage } } } },
   }] };
-  const [rows, total, all, counts] = await Promise.all([
+  const [rows, all, counts] = await Promise.all([
     prisma.student.findMany({ where, skip: (page - 1) * 25, take: 25,
       orderBy: [{ first_name: "asc" }, { id: "asc" }],
       select: { student_number: true, first_name: true, mid_name: true, last_name: true, suffix: true,
@@ -79,7 +81,6 @@ export async function listPhotoReviews(adminId: number, cycle: Cycle, page: numb
             select: { id: true, stage: true, version: true } } } },
       },
     }),
-    prisma.student.count({ where }),
     prisma.student.count({ where: base }),
     prisma.reviewTrack.groupBy({ by: ["stage"], where: { type: ReviewTrackType.PHOTOS,
       reviewCase: { is: { ...cycleCase, outcome: RacOutcome.VERIFIED, student: { is: base } } },
@@ -96,7 +97,7 @@ export async function listPhotoReviews(adminId: number, cycle: Cycle, page: numb
       lastName: student.last_name, suffix: student.suffix,
       department: student.department, program: student.course, major: student.major,
     };
-  }), page, pageSize: 25, total,
+  }), page, pageSize: 25, total: stage === 'ALL' ? all : counts.find(item => item.stage === stage)?._count._all ?? 0,
   counts: { ALL: all, ...Object.fromEntries(counts.map(item => [item.stage, item._count._all])) },
   };
 }
@@ -122,7 +123,7 @@ export async function photoFilterOptions(adminId: number, cycle: Cycle, departme
 
 export async function photoReviewDetail(adminId: number, reviewId: number) {
   const { track, student: owner } = await assignedPhotoTrack(prisma, adminId, reviewId, photoCapabilities);
-  const [student, graduationAsset, themeAsset, pair, submitted, approved, forwarded, assignments] = await Promise.all([
+  const [student, graduationAsset, themeAsset, pair, submitted, approved, forwarded, assignments, correction] = await Promise.all([
     prisma.student.findUnique({ where: { id: owner.id }, select: {
       student_number: true, first_name: true, mid_name: true, last_name: true, suffix: true, nickname: true,
       school_email: true, personal_email: true, department: true, course: true, major: true,
@@ -158,6 +159,10 @@ export async function photoReviewDetail(adminId: number, reviewId: number) {
     prisma.reviewAssignment.findMany({ where: { admin_id: adminId,
       capability: { in: photoCapabilities }, revoked_at: null },
       select: { capability: true, department: true, course: true, major: true } }),
+    prisma.correctionRequest.findFirst({ where: { track_id: reviewId },
+      orderBy: [{ created_at: "desc" }, { id: "desc" }],
+      select: { id: true, status: true, reason: true, created_at: true,
+        decided_at: true, decision_note: true, reopened_version: true } }),
   ]);
   if (!student || student.grad_year !== owner.grad_year || student.grad_term !== owner.grad_term) {
     throw new ReviewRequestError(409, "SOURCE_CHANGED", "The graduate cycle changed. Refresh the review.");
@@ -174,8 +179,14 @@ export async function photoReviewDetail(adminId: number, reviewId: number) {
   const hasRole = (capability: ReviewCapability) => assignments.some(scope =>
     scope.capability === capability && matchesGraduateScope(scope, owner));
   const canUpload = editableStages.includes(track.stage) && hasRole(ReviewCapability.PHOTO_UPLOADER);
-  const actions: string[] = canUpload ? ["UPLOAD", ...(canSubmitPair(track.stage,
-    pair?.track_version ?? null, track.version) ? ["SUBMIT_QC"] : [])] : [];
+  const pairReady = canSubmitPair(track.stage, pair?.track_version ?? null,
+    track.version) &&
+    !requiresMakerChange(correction?.status, correction?.reopened_version, pair?.track_version);
+  const actions: string[] = canUpload ? ["UPLOAD", ...(pairReady ? ["SUBMIT_QC"] : [])] : [];
+  if (track.stage === ReviewStage.LOCKED && correction?.status !== "PENDING" &&
+      [ReviewCapability.PHOTO_UPLOADER, ReviewCapability.PHOTO_QC, ReviewCapability.FINAL_MODERATOR].some(hasRole)) {
+    actions.push("REQUEST_CORRECTION");
+  }
   if (pair && submitted?.pair_id === pair.id && hasRole(ReviewCapability.PHOTO_QC)) {
     if (track.stage === ReviewStage.SUBMITTED_QC) actions.push("QC_APPROVE", "QC_REJECT");
     if (track.stage === ReviewStage.APPROVED_QC && approved?.pair_id === pair.id) actions.push("FORWARD_MODERATOR");
@@ -195,6 +206,7 @@ export async function photoReviewDetail(adminId: number, reviewId: number) {
   const booking = student.booking[0];
   return { success: true, reviewId, stage: track.stage, version: track.version,
     availableActions: actions,
+    correction,
     pair: pair ? { revisionId: pair.id, version: pair.track_version,
       graduationAssetId: pair.graduation_asset_id, themeAssetId: pair.theme_asset_id } : null,
     photos: { graduation, theme, reference: referencePhotoUrl,
@@ -288,6 +300,12 @@ export async function submitPhotoPair(adminId: number, reviewId: number, input: 
     if (!pair || pair.id !== input.revisionId || !canSubmitPair(track.stage, pair.track_version,
       track.version)) {
       throw new ReviewRequestError(409, "PAIR_INCOMPLETE", "Both current photos are required before submission.");
+    }
+    const reopening = await tx.correctionRequest.findFirst({ where: {
+      track_id: reviewId, status: "APPROVED",
+    }, orderBy: [{ created_at: "desc" }, { id: "desc" }], select: { reopened_version: true } });
+    if (requiresMakerChange("APPROVED", reopening?.reopened_version, pair.track_version)) {
+      throw new ReviewRequestError(409, "CORRECTION_REQUIRED", "Replace a photo before resubmitting the reopened pair.");
     }
     const operation = await tx.reviewOperation.create({ data: {
       actor_id: adminId, client_key: input.operationId, request_hash: requestHash,

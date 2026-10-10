@@ -2,9 +2,10 @@ import prisma from "../../config/prisma";
 import crypto from "crypto";
 import bcrypt from "bcrypt";
 import { Resend } from 'resend';
-import { AdminActions, StudentStatus, ImageType, ImageStatus, AdminRoles, NotificationType, Prisma, RacOutcome } from "@prisma/client";
+import { AdminActions, StudentStatus, ImageType, ImageStatus, AdminRoles, NotificationType, Prisma, RacOutcome, ReviewTrackType } from "@prisma/client";
 import { generateReadUrl, generateImageUploadUrl } from "../student/r2_service";
 import { notifyApprovers, notifyUser, notifyParticipants } from "./notification_service";
+import { legacyImageFilter } from "./image_management_filter";
 import {
   buildBookingSlotData,
   distributePeriodSlots,
@@ -676,10 +677,10 @@ export async function m_queryByFilter(page: number, dept: string, course: string
     }
   }
   
-  const total_students = await prisma.student.count();
-  const total_result = await prisma.student.count({where});
-
-  const students = await prisma.student.findMany({
+  const [total_students, total_result, students] = await Promise.all([
+    prisma.student.count(),
+    prisma.student.count({ where }),
+    prisma.student.findMany({
     skip,
     take: M_STUDENTS_PER_PAGE,
     orderBy: { id: "asc" as const },
@@ -691,7 +692,8 @@ export async function m_queryByFilter(page: number, dept: string, course: string
       },
       studentSolicitations: true,
     },
-  });
+    }),
+  ]);
 
   await Promise.all(students.map(async (s) => {
     if (s.studentDetail?.photo_url) {
@@ -759,6 +761,21 @@ export async function img_isReviewManaged(studentNumber: number, year: number) {
   }, select: { id: true } });
 }
 
+// RAC verification takes the same Student row lock before creating a review case.
+// Keep the legacy write and its eligibility check in one transaction so a
+// newly verified graduate cannot be written through the year-only image path.
+async function img_isReviewManagedForWrite(
+  tx: Prisma.TransactionClient, studentNumber: number, year: number
+) {
+  const students = await tx.$queryRaw<{ id: number }[]>`
+    SELECT id FROM "Student" WHERE student_number = ${studentNumber} FOR UPDATE
+  `;
+  if (students.length === 0) return false;
+  return !!await tx.reviewCase.findFirst({ where: {
+    student_id: students[0]!.id, grad_year: year, outcome: RacOutcome.VERIFIED,
+  }, select: { id: true } });
+}
+
 // thin wrapper so the admin controller stays service-scoped
 export async function img_getUploadUrl(
   student_number: number,
@@ -797,27 +814,7 @@ export async function img_queryStudents(
       if (status_map) where.studentAuth = { status: status_map };
     }
 
-    // image-presence filter, scoped to the selected year
-    const gradNone = { images: { none: { type: ImageType.GRADUATION, year } } };
-    const themeNone = { images: { none: { type: ImageType.THEME, year } } };
-    const gradSome = { images: { some: { type: ImageType.GRADUATION, year } } };
-    const themeSome = { images: { some: { type: ImageType.THEME, year } } };
-
-    switch (missing) {
-      case "GRADUATION":
-        where.images = { none: { type: ImageType.GRADUATION, year } };
-        break;
-      case "THEME":
-        where.images = { none: { type: ImageType.THEME, year } };
-        break;
-      case "BOTH":
-        where.AND = [gradNone, themeNone];
-        break;
-      case "NONE": // has both already
-        where.AND = [gradSome, themeSome];
-        break;
-      // "ALL" -> no image filter
-    }
+    Object.assign(where, legacyImageFilter(missing, year));
   } else {
     where.student_number = id;
   }
@@ -834,11 +831,24 @@ export async function img_queryStudents(
       studentDetail: true,
       studentAuth: { select: { status: true } },
       images: { where: { year } },
+      reviewCases: { where: { grad_year: year, outcome: RacOutcome.VERIFIED },
+        select: { grad_term: true, tracks: { where: { type: ReviewTrackType.PHOTOS },
+          select: { id: true, stage: true } } } },
     },
   });
 
   const shaped = await Promise.all(
     students.map(async (s) => {
+      const reviewCase = s.reviewCases.find(item => item.grad_term === s.grad_term) ?? s.reviewCases[0];
+      const { images, reviewCases, ...rest } = s;
+      if (reviewCase) {
+        return { ...rest, reference_photo_url: null, graduation: null, theme: null,
+          reviewManaged: true,
+          photoReview: reviewCase.tracks[0] ? {
+            reviewId: reviewCase.tracks[0].id, stage: reviewCase.tracks[0].stage,
+          } : null,
+        };
+      }
       const reference_photo_url = s.studentDetail?.photo_url
         ? (await generateReadUrl(s.studentDetail.photo_url)) ?? null
         : null;
@@ -859,8 +869,9 @@ export async function img_queryStudents(
       const graduation = await buildImage(ImageType.GRADUATION);
       const theme = await buildImage(ImageType.THEME);
 
-      const { images, ...rest } = s;
-      return { ...rest, reference_photo_url, graduation, theme };
+      return { ...rest, reference_photo_url, graduation, theme,
+        reviewManaged: false, photoReview: null,
+      };
     })
   );
 
@@ -894,6 +905,7 @@ export async function img_saveImage(
     const isReupload = !!existing;
 
     const image = await prisma.$transaction(async (tx) => {
+      if (await img_isReviewManagedForWrite(tx, student_number, year)) return null;
       const img = await tx.studentImage.upsert({
         where: { student_number_type_year: key },
         create: {
@@ -926,6 +938,7 @@ export async function img_saveImage(
 
       return img;
     });
+    if (!image) return { success: false, reason: "This graduate uses the photo review workspace." };
 
     // notify approvers (non-critical, outside the core transaction)
     const label = type === "GRADUATION" ? "graduation" : "theme";
@@ -1147,12 +1160,15 @@ export async function img_decide(image_id: number, action: string, note: string 
   const trimmedNote = note?.trim();
   const systemBody = trimmedNote ? `${decided} — ${trimmedNote}` : `${decided}.`;
 
-  await prisma.$transaction([
-    prisma.studentImage.update({ where: { id: image_id }, data: { status: newStatus } }),
-    prisma.imageComment.create({
+  const changed = await prisma.$transaction(async tx => {
+    if (await img_isReviewManagedForWrite(tx, image.student.student_number, image.year)) return false;
+    await tx.studentImage.update({ where: { id: image_id }, data: { status: newStatus } });
+    await tx.imageComment.create({
       data: { image_id, admin_id, is_system: true, body: systemBody },
-    }),
-  ]);
+    });
+    return true;
+  });
+  if (!changed) return { success: false, reason: "This graduate uses the photo review workspace." };
 
   // notify the uploader (skip if the decider is the uploader)
   if (image.uploaded_by !== admin_id) {
