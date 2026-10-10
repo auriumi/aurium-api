@@ -116,6 +116,8 @@ model Admin {
   checkedReviewCases ReviewCase[] @relation("RacChecker")
   reviewOperations   ReviewOperation[] @relation("ReviewOperationActor")
   reviewEvents       ReviewEvent[] @relation("ReviewEventActor")
+  reviewRevisions    ReviewRevision[] @relation("ReviewRevisionAuthor")
+  informationEvents InformationReviewEvent[] @relation("InformationEventActor")
 }
 
 enum ReviewCapability {
@@ -175,6 +177,16 @@ enum ReviewEventAction {
   RAC_NOT_LISTED
 }
 
+enum InformationEventAction {
+  COMMENTED
+  SUBMITTED_QC
+  REJECTED_QC
+  APPROVED_QC
+  SUBMITTED_MODERATOR
+  REJECTED_MODERATOR
+  LOCKED
+}
+
 // One RAC/SAO result per graduate and graduation cycle. No case means unchecked.
 model ReviewCase {
   id          Int            @id @default(autoincrement())
@@ -205,6 +217,8 @@ model ReviewTrack {
   version  Int             @default(1)
 
   reviewCase ReviewCase @relation(fields: [case_id], references: [id], onDelete: Restrict)
+  revisions  ReviewRevision[]
+  informationEvents InformationReviewEvent[]
 
   @@unique([case_id, type])
 }
@@ -219,10 +233,58 @@ model ReviewOperation {
   response     Json?
   created_at   DateTime @default(now())
 
-  actor  Admin         @relation("ReviewOperationActor", fields: [actor_id], references: [id], onDelete: Restrict)
-  events ReviewEvent[]
+  actor    Admin           @relation("ReviewOperationActor", fields: [actor_id], references: [id], onDelete: Restrict)
+  events   ReviewEvent[]
+  revision ReviewRevision?
+  informationEvent InformationReviewEvent?
 
   @@unique([actor_id, client_key])
+}
+
+// Immutable information drafts. Both snapshots contain only the fields that
+// a proofreader may edit; the live graduate record changes only at final approval.
+model ReviewRevision {
+  id              Int      @id @default(autoincrement())
+  track_id        Int
+  track_version   Int
+  before_snapshot Json
+  after_snapshot  Json
+  canonical_hash  String   @db.VarChar(64)
+  created_by      Int
+  operation_id    Int      @unique
+  created_at      DateTime @default(now())
+
+  track     ReviewTrack     @relation(fields: [track_id], references: [id], onDelete: Restrict)
+  author    Admin           @relation("ReviewRevisionAuthor", fields: [created_by], references: [id], onDelete: Restrict)
+  operation ReviewOperation @relation(fields: [operation_id], references: [id], onDelete: Restrict)
+  informationEvents InformationReviewEvent[]
+
+  @@unique([track_id, track_version])
+  @@unique([id, track_id])
+  @@index([created_by])
+}
+
+// Decisions require a saved revision; initial comments may precede the first draft.
+model InformationReviewEvent {
+  id            Int                    @id @default(autoincrement())
+  track_id      Int
+  track_version Int
+  revision_id   Int?
+  actor_id      Int
+  operation_id  Int                    @unique
+  action        InformationEventAction
+  from_stage    ReviewStage
+  to_stage      ReviewStage
+  note          String?
+  created_at    DateTime               @default(now())
+
+  track     ReviewTrack     @relation(fields: [track_id], references: [id], onDelete: Restrict)
+  revision  ReviewRevision? @relation(fields: [revision_id, track_id], references: [id, track_id], onDelete: Restrict)
+  actor     Admin           @relation("InformationEventActor", fields: [actor_id], references: [id], onDelete: Restrict)
+  operation ReviewOperation @relation(fields: [operation_id], references: [id], onDelete: Restrict)
+
+  @@unique([track_id, track_version])
+  @@index([actor_id])
 }
 
 model ReviewEvent {

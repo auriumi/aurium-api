@@ -1443,33 +1443,67 @@ export async function updateImageApprover(targetId: number, value: boolean) {
 
 export async function fv_updateStudent(studentId: number, type: string, data: any) {
   try {
-    const normalizedType = String(type).toLowerCase() as FinalizeUpdateType;
-    const validTypes: FinalizeUpdateType[] = ["personal", "academic", "contact", "family"];
+    return await prisma.$transaction(async tx => {
+      const normalizedType = String(type).toLowerCase() as FinalizeUpdateType;
+      const validTypes: FinalizeUpdateType[] = ["personal", "academic", "contact", "family"];
 
-    if (!validTypes.includes(normalizedType)) {
-      return { success: false, reason: "Invalid update type." };
-    }
+      if (!validTypes.includes(normalizedType)) {
+        return { success: false, reason: "Invalid update type." };
+      }
 
-    if (!data || typeof data !== "object" || Array.isArray(data)) {
-      return { success: false, reason: "Invalid request body." };
-    }
+      if (!data || typeof data !== "object" || Array.isArray(data)) {
+        return { success: false, reason: "Invalid request body." };
+      }
 
-    const payloadEntries = Object.entries(data).filter(([, value]) => value !== undefined);
-    if (payloadEntries.length === 0) {
-      return { success: false, reason: "No fields to update." };
-    }
+      const payloadEntries = Object.entries(data).filter(([, value]) => value !== undefined);
+      if (payloadEntries.length === 0) {
+        return { success: false, reason: "No fields to update." };
+      }
 
-    const studentExists = await prisma.student.findUnique({
-      where: { student_number: studentId },
-      select: { student_number: true },
-    });
+      // Serialize with information draft saves and block the old direct editor
+      // once a graduate has entered the review workflow.
+      const locked = await tx.$queryRaw<{ id: number }[]>`
+        SELECT id FROM "Student" WHERE student_number = ${studentId} FOR UPDATE`;
+      if (locked.length === 0) {
+        return { success: false, reason: "Student doesn't exist!" };
+      }
+      const studentExists = await tx.student.findUnique({
+        where: { student_number: studentId },
+        select: { id: true, student_number: true },
+      });
 
-    if (!studentExists) {
-      return { success: false, reason: "Student doesn't exist!" };
-    }
+      if (!studentExists) {
+        return { success: false, reason: "Student doesn't exist!" };
+      }
+      if (await tx.reviewCase.count({ where: { student_id: studentExists.id } }) > 0) {
+        return { success: false, status: 409, reason: "This graduate is in review. Use the information review workspace." };
+      }
 
-    if (normalizedType === "personal" || normalizedType === "academic") {
-      const allowed = normalizedType === "personal" ? STUDENT_PERSONAL_FIELDS : STUDENT_ACADEMIC_FIELDS;
+      if (normalizedType === "personal" || normalizedType === "academic") {
+        const allowed = normalizedType === "personal" ? STUDENT_PERSONAL_FIELDS : STUDENT_ACADEMIC_FIELDS;
+        const invalidFields = payloadEntries
+          .map(([key]) => key)
+          .filter((key) => !allowed.has(key));
+
+        if (invalidFields.length > 0) {
+          return { success: false, reason: `Invalid field(s) for ${normalizedType}: ${invalidFields.join(", ")}` };
+        }
+
+        const studentData: Record<string, any> = {};
+        for (const [key, value] of payloadEntries) {
+          const fieldKey = key === "thesis" ? "thesis_title" : key;
+          studentData[fieldKey] = value;
+        }
+
+        await tx.student.update({
+          where: { student_number: studentId },
+          data: studentData,
+        });
+
+        return { success: true };
+      }
+
+      const allowed = normalizedType === "contact" ? STUDENT_DETAIL_CONTACT_FIELDS : STUDENT_DETAIL_FAMILY_FIELDS;
       const invalidFields = payloadEntries
         .map(([key]) => key)
         .filter((key) => !allowed.has(key));
@@ -1478,86 +1512,62 @@ export async function fv_updateStudent(studentId: number, type: string, data: an
         return { success: false, reason: `Invalid field(s) for ${normalizedType}: ${invalidFields.join(", ")}` };
       }
 
-      const studentData: Record<string, any> = {};
-      for (const [key, value] of payloadEntries) {
-        const fieldKey = key === "thesis" ? "thesis_title" : key;
-        studentData[fieldKey] = value;
+      if (normalizedType === "contact") {
+        const studentData: Record<string, any> = {};
+        const detailData: Record<string, any> = {};
+
+        for (const [key, value] of payloadEntries) {
+          if (STUDENT_CONTACT_EMAIL_FIELDS.has(key)) {
+            studentData[key] = value;
+          } else {
+            detailData[key] = value;
+          }
+        }
+
+        const updates: any[] = [];
+        if (Object.keys(studentData).length > 0) {
+          updates.push(
+            tx.student.update({
+              where: { student_number: studentId },
+              data: studentData,
+            })
+          );
+        }
+
+        if (Object.keys(detailData).length > 0) {
+          updates.push(
+            tx.student.update({
+              where: { student_number: studentId },
+              data: {
+                studentDetail: {
+                  update: detailData,
+                },
+              },
+            })
+          );
+        }
+
+        for (const update of updates) await update;
+
+        return { success: true };
       }
 
-      await prisma.student.update({
+      const detailData: Record<string, any> = {};
+      for (const [key, value] of payloadEntries) {
+        detailData[key] = value;
+      }
+
+      await tx.student.update({
         where: { student_number: studentId },
-        data: studentData,
+        data: {
+          studentDetail: {
+            update: detailData,
+          },
+        },
       });
 
       return { success: true };
-    }
-
-    const allowed = normalizedType === "contact" ? STUDENT_DETAIL_CONTACT_FIELDS : STUDENT_DETAIL_FAMILY_FIELDS;
-    const invalidFields = payloadEntries
-      .map(([key]) => key)
-      .filter((key) => !allowed.has(key));
-
-    if (invalidFields.length > 0) {
-      return { success: false, reason: `Invalid field(s) for ${normalizedType}: ${invalidFields.join(", ")}` };
-    }
-
-    if (normalizedType === "contact") {
-      const studentData: Record<string, any> = {};
-      const detailData: Record<string, any> = {};
-
-      for (const [key, value] of payloadEntries) {
-        if (STUDENT_CONTACT_EMAIL_FIELDS.has(key)) {
-          studentData[key] = value;
-        } else {
-          detailData[key] = value;
-        }
-      }
-
-      const updates: any[] = [];
-      if (Object.keys(studentData).length > 0) {
-        updates.push(
-          prisma.student.update({
-            where: { student_number: studentId },
-            data: studentData,
-          })
-        );
-      }
-
-      if (Object.keys(detailData).length > 0) {
-        updates.push(
-          prisma.student.update({
-            where: { student_number: studentId },
-            data: {
-              studentDetail: {
-                update: detailData,
-              },
-            },
-          })
-        );
-      }
-
-      if (updates.length > 0) {
-        await prisma.$transaction(updates);
-      }
-
-      return { success: true };
-    }
-
-    const detailData: Record<string, any> = {};
-    for (const [key, value] of payloadEntries) {
-      detailData[key] = value;
-    }
-
-    await prisma.student.update({
-      where: { student_number: studentId },
-      data: {
-        studentDetail: {
-          update: detailData,
-        },
-      },
     });
-
-    return { success: true };
   } catch (err) {
     console.error(`Failed to update student ${studentId}:`, err);
     return {
