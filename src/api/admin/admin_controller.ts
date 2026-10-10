@@ -541,6 +541,9 @@ export async function getImageUploadUrl(req: Request, res: Response) {
   const mime = String(req.query.mime ?? "image/jpeg");
 
   try {
+    if (await adminService.img_isReviewManaged(student_number, year)) {
+      return res.status(409).json({ reason: "This graduate uses the photo review workspace." });
+    }
     const { upload_url, photo_url } = await adminService.img_getUploadUrl(
       student_number, type as "GRADUATION" | "THEME", year, ext, mime
     );

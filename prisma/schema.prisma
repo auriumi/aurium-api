@@ -118,6 +118,9 @@ model Admin {
   reviewEvents       ReviewEvent[] @relation("ReviewEventActor")
   reviewRevisions    ReviewRevision[] @relation("ReviewRevisionAuthor")
   informationEvents InformationReviewEvent[] @relation("InformationEventActor")
+  photoAssets       PhotoAsset[] @relation("PhotoAssetUploader")
+  photoPairs        PhotoPairRevision[] @relation("PhotoPairAuthor")
+  photoEvents       PhotoReviewEvent[] @relation("PhotoEventActor")
 }
 
 enum ReviewCapability {
@@ -219,6 +222,9 @@ model ReviewTrack {
   reviewCase ReviewCase @relation(fields: [case_id], references: [id], onDelete: Restrict)
   revisions  ReviewRevision[]
   informationEvents InformationReviewEvent[]
+  photoAssets PhotoAsset[]
+  photoPairs PhotoPairRevision[]
+  photoEvents PhotoReviewEvent[]
 
   @@unique([case_id, type])
 }
@@ -237,6 +243,7 @@ model ReviewOperation {
   events   ReviewEvent[]
   revision ReviewRevision?
   informationEvent InformationReviewEvent?
+  photoEvent PhotoReviewEvent?
 
   @@unique([actor_id, client_key])
 }
@@ -282,6 +289,90 @@ model InformationReviewEvent {
   revision  ReviewRevision? @relation(fields: [revision_id, track_id], references: [id, track_id], onDelete: Restrict)
   actor     Admin           @relation("InformationEventActor", fields: [actor_id], references: [id], onDelete: Restrict)
   operation ReviewOperation @relation(fields: [operation_id], references: [id], onDelete: Restrict)
+
+  @@unique([track_id, track_version])
+  @@index([actor_id])
+}
+
+enum PhotoUploadStatus {
+  STAGED
+  SEALED
+}
+
+enum PhotoEventAction {
+  SUBMITTED_QC
+  REJECTED_QC
+  APPROVED_QC
+  SUBMITTED_MODERATOR
+  REJECTED_MODERATOR
+  LOCKED
+  COMMENTED
+}
+
+// Browser uploads land in a short-lived staging key. Only the server writes
+// final_key, so a reused signed PUT cannot replace a reviewed photo.
+model PhotoAsset {
+  id          Int               @id @default(autoincrement())
+  track_id    Int
+  type        ImageType
+  status      PhotoUploadStatus @default(STAGED)
+  staging_key String            @unique
+  final_key   String?           @unique
+  mime_type   String            @db.VarChar(20)
+  byte_size   Int?
+  sha256      String?           @db.VarChar(64)
+  uploaded_by Int
+  created_at  DateTime          @default(now())
+  sealed_at   DateTime?
+
+  track       ReviewTrack       @relation(fields: [track_id], references: [id], onDelete: Restrict)
+  uploader    Admin             @relation("PhotoAssetUploader", fields: [uploaded_by], references: [id], onDelete: Restrict)
+  graduationPairs PhotoPairRevision[] @relation("GraduationAsset")
+  themePairs      PhotoPairRevision[] @relation("ThemeAsset")
+
+  @@unique([id, track_id])
+  @@index([track_id, type, status, sealed_at])
+}
+
+// Every complete pair is a new immutable revision. Replacing either photo
+// creates another row and never rewrites a previously submitted pair.
+model PhotoPairRevision {
+  id                  Int      @id @default(autoincrement())
+  track_id            Int
+  track_version       Int
+  graduation_asset_id Int
+  theme_asset_id      Int
+  created_by          Int
+  created_at          DateTime @default(now())
+
+  track           ReviewTrack @relation(fields: [track_id], references: [id], onDelete: Restrict)
+  graduationAsset PhotoAsset  @relation("GraduationAsset", fields: [graduation_asset_id, track_id], references: [id, track_id], onDelete: Restrict)
+  themeAsset      PhotoAsset  @relation("ThemeAsset", fields: [theme_asset_id, track_id], references: [id, track_id], onDelete: Restrict)
+  author          Admin       @relation("PhotoPairAuthor", fields: [created_by], references: [id], onDelete: Restrict)
+  events          PhotoReviewEvent[]
+
+  @@unique([track_id, track_version])
+  @@unique([id, track_id])
+  @@index([created_by])
+}
+
+model PhotoReviewEvent {
+  id            Int              @id @default(autoincrement())
+  track_id      Int
+  track_version Int
+  pair_id       Int?
+  actor_id      Int
+  operation_id  Int              @unique
+  action        PhotoEventAction
+  from_stage    ReviewStage
+  to_stage      ReviewStage
+  note          String?
+  created_at    DateTime         @default(now())
+
+  track     ReviewTrack        @relation(fields: [track_id], references: [id], onDelete: Restrict)
+  pair      PhotoPairRevision? @relation(fields: [pair_id, track_id], references: [id, track_id], onDelete: Restrict)
+  actor     Admin             @relation("PhotoEventActor", fields: [actor_id], references: [id], onDelete: Restrict)
+  operation ReviewOperation   @relation(fields: [operation_id], references: [id], onDelete: Restrict)
 
   @@unique([track_id, track_version])
   @@index([actor_id])
