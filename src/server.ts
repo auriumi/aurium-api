@@ -7,6 +7,7 @@ import helmet from "helmet";
 
 import { rateLimit } from "express-rate-limit";
 import { isAdmin, verifyToken } from "./api/auth/auth_middleware";
+import { frontendOrigin } from "./config/frontend_origin";
 
 import studentRoutes from "./api/student/student_route"; 
 import adminRoutes from "./api/admin/admin_route";
@@ -16,9 +17,7 @@ const app = express();
 app.set("trust proxy", 1);
 
 const corsConfig = {
-  origin: process.env.NODE_ENV == "production"
-    ? "https://aurium-yearbook.site" //production
-    : "http://localhost:3000", //local dev
+  origin: frontendOrigin,
   credentials: true,
 }
 

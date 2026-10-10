@@ -3,8 +3,10 @@ import * as adminController from "./admin_controller";
 import { requirePermission, requireImageApprover } from "../auth/auth_middleware";
 import { Permission } from "../auth/permissions";
 import { assertRoutesGuarded } from "../auth/route_guard_audit";
+import reviewRoutes from "../review/review_route";
 
 const router = Router();
+router.use(reviewRoutes);
 
 //get admin's profile (self-scoped)
 router.get("/profile", adminController.getStaffDetails);

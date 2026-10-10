@@ -2,7 +2,7 @@ import prisma from "../../config/prisma";
 import crypto from "crypto";
 import bcrypt from "bcrypt";
 import { Resend } from 'resend';
-import { AdminActions, StudentStatus, ImageType, ImageStatus, AdminRoles, NotificationType } from "@prisma/client";
+import { AdminActions, StudentStatus, ImageType, ImageStatus, AdminRoles, NotificationType, Prisma } from "@prisma/client";
 import { generateReadUrl, generateImageUploadUrl } from "../student/r2_service";
 import { notifyApprovers, notifyUser, notifyParticipants } from "./notification_service";
 import {
@@ -123,18 +123,34 @@ export async function getStaffProfile(id: string) {
 }
 
 export async function deleteStudent(id: string) {
+  const studentNumber = Number(id);
+  if (!Number.isSafeInteger(studentNumber) || studentNumber <= 0 || studentNumber > 2147483647) {
+    return { success: false, status: 400, reason: "Invalid student number." };
+  }
   try {
+    const student = await prisma.student.findUnique({
+      where: { student_number: studentNumber }, select: { id: true },
+    });
+    if (!student) return { success: false, status: 404, reason: "Student not found." };
+    const reviewCount = await prisma.reviewCase.count({ where: { student_id: student.id } });
+    if (reviewCount > 0) {
+      return { success: false, status: 409, reason: "Graduate review history cannot be deleted." };
+    }
     await prisma.student.delete({
       where: {
-        student_number: parseInt(id)
+        student_number: studentNumber
       }
     });
-    return { success: true };
-  } catch (err: any) {
-    return { 
-      success: false, 
-      reason: "Something went wrong!"
-    };
+    return { success: true, status: 200 };
+  } catch (err: unknown) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2003") {
+      return { success: false, status: 409, reason: "Graduate review history cannot be deleted." };
+    }
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2025") {
+      return { success: false, status: 404, reason: "Student not found." };
+    }
+    console.error("Failed to delete student:", err);
+    return { success: false, status: 500, reason: "Internal Server Error" };
   }
 }
 
