@@ -71,7 +71,7 @@ export async function listPhotoReviews(adminId: number, cycle: Cycle, page: numb
     reviewCases: { some: { ...cycleCase, outcome: RacOutcome.VERIFIED,
       tracks: { some: { type: ReviewTrackType.PHOTOS, stage } } } },
   }] };
-  const [rows, total, all, counts] = await Promise.all([
+  const [rows, all, counts] = await Promise.all([
     prisma.student.findMany({ where, skip: (page - 1) * 25, take: 25,
       orderBy: [{ first_name: "asc" }, { id: "asc" }],
       select: { student_number: true, first_name: true, mid_name: true, last_name: true, suffix: true,
@@ -81,7 +81,6 @@ export async function listPhotoReviews(adminId: number, cycle: Cycle, page: numb
             select: { id: true, stage: true, version: true } } } },
       },
     }),
-    prisma.student.count({ where }),
     prisma.student.count({ where: base }),
     prisma.reviewTrack.groupBy({ by: ["stage"], where: { type: ReviewTrackType.PHOTOS,
       reviewCase: { is: { ...cycleCase, outcome: RacOutcome.VERIFIED, student: { is: base } } },
@@ -98,7 +97,7 @@ export async function listPhotoReviews(adminId: number, cycle: Cycle, page: numb
       lastName: student.last_name, suffix: student.suffix,
       department: student.department, program: student.course, major: student.major,
     };
-  }), page, pageSize: 25, total,
+  }), page, pageSize: 25, total: stage === 'ALL' ? all : counts.find(item => item.stage === stage)?._count._all ?? 0,
   counts: { ALL: all, ...Object.fromEntries(counts.map(item => [item.stage, item._count._all])) },
   };
 }
