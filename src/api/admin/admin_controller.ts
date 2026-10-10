@@ -361,7 +361,7 @@ export async function handleFinalizeStudentUpdate(req: AdminRequest, res: Respon
     const result = await adminService.fv_updateStudent(Number(studentId), type, req.body);
 
     if (!result.success) {
-      return res.status(400).json({ reason: result.reason });
+      return res.status("status" in result && typeof result.status === "number" ? result.status : 400).json({ reason: result.reason });
     }
 
     return res.json({ success: true });

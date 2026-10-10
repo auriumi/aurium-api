@@ -2,7 +2,18 @@ import { Request, Response } from "express";
 import { readCycle } from "./rac_contract";
 import { informationQueues, type InformationQueue } from "./information_contract";
 import { informationFilterOptions, informationReviewDetail, listInformationReviews } from "./information_service";
+import { readDraftSave } from "./information_draft_contract";
+import { informationDraftHistory, saveInformationDraft } from "./information_draft_service";
+import { readInformationSubmission } from "./information_submission_contract";
+import { submitInformationReview } from "./information_submission_service";
+import { readInformationQcRequest } from "./information_qc_contract";
+import { decideInformationQc, informationDecisionHistory } from "./information_qc_service";
+import { readInformationModeratorRequest } from "./information_moderator_contract";
+import { decideInformationModerator } from "./information_moderator_service";
 import { ReviewRequestError } from "./review_error";
+import { readInformationComment } from "./information_comment_contract";
+import { addInformationComment } from "./information_comment_service";
+import { readHistoryCursor } from "./history_contract";
 
 interface StaffRequest extends Request {
   user?: { admin_id?: string | number };
@@ -75,4 +86,93 @@ export async function getReview(req: StaffRequest, res: Response) {
   }
   try { return res.json(await informationReviewDetail(adminId, reviewId)); }
   catch (error) { return sendError(error, res, "Information detail error:"); }
+}
+
+export async function getDraftHistory(req: StaffRequest, res: Response) {
+  res.setHeader("Cache-Control", "private, no-store");
+  const adminId = staffId(req);
+  if (!adminId) return res.status(401).json({ success: false, code: "UNAUTHORIZED", reason: "Unauthorized." });
+  const reviewId = Number(req.params.reviewId);
+  if (!Number.isSafeInteger(reviewId) || reviewId <= 0 || reviewId > 2147483647) {
+    return res.status(400).json({ success: false, code: "INVALID_REQUEST", reason: "Invalid review ID." });
+  }
+  try { return res.json(await informationDraftHistory(adminId, reviewId, readHistoryCursor(req.query.beforeVersion))); }
+  catch (error) { return sendError(error, res, "Information revision history error:"); }
+}
+
+export async function saveDraft(req: StaffRequest, res: Response) {
+  res.setHeader("Cache-Control", "private, no-store");
+  const adminId = staffId(req);
+  if (!adminId) return res.status(401).json({ success: false, code: "UNAUTHORIZED", reason: "Unauthorized." });
+  const reviewId = Number(req.params.reviewId);
+  const draft = readDraftSave(req.body);
+  if (!Number.isSafeInteger(reviewId) || reviewId <= 0 || reviewId > 2147483647 || !draft) {
+    return res.status(400).json({ success: false, code: "INVALID_REQUEST", reason: "Invalid draft change." });
+  }
+  try { return res.json(await saveInformationDraft(adminId, reviewId, draft)); }
+  catch (error) { return sendError(error, res, "Information draft save error:"); }
+}
+
+export async function submitReview(req: StaffRequest, res: Response) {
+  res.setHeader("Cache-Control", "private, no-store");
+  const adminId = staffId(req);
+  if (!adminId) return res.status(401).json({ success: false, code: "UNAUTHORIZED", reason: "Unauthorized." });
+  const reviewId = Number(req.params.reviewId);
+  const submission = readInformationSubmission(req.body);
+  if (!Number.isSafeInteger(reviewId) || reviewId <= 0 || reviewId > 2147483647 || !submission) {
+    return res.status(400).json({ success: false, code: "INVALID_REQUEST", reason: "Invalid information submission." });
+  }
+  try { return res.json(await submitInformationReview(adminId, reviewId, submission)); }
+  catch (error) { return sendError(error, res, "Information submission error:"); }
+}
+
+export async function decideQc(req: StaffRequest, res: Response) {
+  res.setHeader("Cache-Control", "private, no-store");
+  const adminId = staffId(req);
+  if (!adminId) return res.status(401).json({ success: false, code: "UNAUTHORIZED", reason: "Unauthorized." });
+  const reviewId = Number(req.params.reviewId);
+  const decision = readInformationQcRequest(req.body);
+  if (!Number.isSafeInteger(reviewId) || reviewId <= 0 || reviewId > 2147483647 || !decision) {
+    return res.status(400).json({ success: false, code: "INVALID_REQUEST", reason: "Invalid QC decision or rejection reason." });
+  }
+  try { return res.json(await decideInformationQc(adminId, reviewId, decision)); }
+  catch (error) { return sendError(error, res, "Information QC decision error:"); }
+}
+
+export async function getDecisionHistory(req: StaffRequest, res: Response) {
+  res.setHeader("Cache-Control", "private, no-store");
+  const adminId = staffId(req);
+  if (!adminId) return res.status(401).json({ success: false, code: "UNAUTHORIZED", reason: "Unauthorized." });
+  const reviewId = Number(req.params.reviewId);
+  if (!Number.isSafeInteger(reviewId) || reviewId <= 0 || reviewId > 2147483647) {
+    return res.status(400).json({ success: false, code: "INVALID_REQUEST", reason: "Invalid review ID." });
+  }
+  try { return res.json(await informationDecisionHistory(adminId, reviewId, readHistoryCursor(req.query.beforeVersion))); }
+  catch (error) { return sendError(error, res, "Information decision history error:"); }
+}
+
+export async function decideModerator(req: StaffRequest, res: Response) {
+  res.setHeader("Cache-Control", "private, no-store");
+  const adminId = staffId(req);
+  if (!adminId) return res.status(401).json({ success: false, code: "UNAUTHORIZED", reason: "Unauthorized." });
+  const reviewId = Number(req.params.reviewId);
+  const decision = readInformationModeratorRequest(req.body);
+  if (!Number.isSafeInteger(reviewId) || reviewId <= 0 || reviewId > 2147483647 || !decision) {
+    return res.status(400).json({ success: false, code: "INVALID_REQUEST", reason: "Invalid moderator decision or rejection reason." });
+  }
+  try { return res.json(await decideInformationModerator(adminId, reviewId, decision)); }
+  catch (error) { return sendError(error, res, "Information moderator decision error:"); }
+}
+
+export async function addComment(req: StaffRequest, res: Response) {
+  res.setHeader("Cache-Control", "private, no-store");
+  const adminId = staffId(req);
+  if (!adminId) return res.status(401).json({ success: false, code: "UNAUTHORIZED", reason: "Unauthorized." });
+  const reviewId = Number(req.params.reviewId);
+  const comment = readInformationComment(req.body);
+  if (!Number.isSafeInteger(reviewId) || reviewId <= 0 || reviewId > 2147483647 || !comment) {
+    return res.status(400).json({ success: false, code: "INVALID_REQUEST", reason: "Enter a comment of 1–2000 characters." });
+  }
+  try { return res.status(201).json(await addInformationComment(adminId, reviewId, comment)); }
+  catch (error) { return sendError(error, res, "Information comment error:"); }
 }

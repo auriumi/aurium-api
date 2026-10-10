@@ -1,4 +1,4 @@
-import { AdminRoles, Prisma, RacOutcome, ReviewCapability, ReviewStage, ReviewTrackType } from "@prisma/client";
+import { AdminRoles, InformationEventAction, Prisma, RacOutcome, ReviewCapability, ReviewStage, ReviewTrackType } from "@prisma/client";
 import prisma from "../../config/prisma";
 import { generateReadUrl } from "../student/r2_service";
 import { ReviewRequestError } from "./review_error";
@@ -6,6 +6,9 @@ import { graduateScopeWhere, graduateSearchWhere } from "./review_filters";
 import { matchesGraduateScope, type ReviewScope } from "./review_scope";
 import { queueForStage, stagesForQueue, type InformationListQuery } from "./information_contract";
 import type { Cycle } from "./rac_contract";
+import { editableProfileFields } from "./information_draft_contract";
+import { storedSnapshot } from "./information_draft_service";
+import { canSubmitInformation } from "./information_submission_contract";
 
 const informationCapabilities = [
   ReviewCapability.INFORMATION_PROOFREADER,
@@ -20,7 +23,7 @@ async function informationScopes(adminId: number) {
   }
   const assignments = await prisma.reviewAssignment.findMany({
     where: { admin_id: adminId, capability: { in: informationCapabilities }, revoked_at: null },
-    select: { department: true, course: true, major: true },
+    select: { capability: true, department: true, course: true, major: true },
   });
   if (assignments.length === 0) {
     throw new ReviewRequestError(403, "FORBIDDEN", "Information review assignment required.");
@@ -84,7 +87,9 @@ export async function listInformationReviews(adminId: number, query: Information
     ALL: all, PENDING: 0, SUBMITTED_QC: 0, REJECTED_QC: 0,
     APPROVED_QC: 0, SUBMITTED_MODERATOR: 0, COMPLETED: 0, REJECTED_MODERATOR: 0,
   };
-  for (const entry of stageCounts) counts[queueForStage(entry.stage)] += entry._count._all;
+  for (const entry of stageCounts) {
+    counts[queueForStage(entry.stage)] += entry._count._all;
+  }
 
   return {
     success: true,
@@ -132,6 +137,14 @@ export async function informationReviewDetail(adminId: number, reviewId: number)
     } },
     select: {
       id: true, stage: true, version: true,
+      revisions: { orderBy: { track_version: "desc" }, take: 1,
+        select: { id: true, track_version: true, before_snapshot: true, after_snapshot: true, created_at: true } },
+      informationEvents: { where: { action: { in: [
+        InformationEventAction.REJECTED_QC, InformationEventAction.REJECTED_MODERATOR,
+        InformationEventAction.SUBMITTED_QC,
+      ] } }, orderBy: { track_version: "desc" }, take: 3,
+        select: { track_version: true, action: true, revision_id: true, note: true, created_at: true,
+          actor: { select: { first_name: true, last_name: true } } } },
       reviewCase: { select: {
         grad_year: true, grad_term: true, outcome: true, checked_at: true, source_version: true,
         tracks: { where: { type: ReviewTrackType.PHOTOS }, select: { stage: true }, take: 1 },
@@ -145,9 +158,6 @@ export async function informationReviewDetail(adminId: number, reviewId: number)
             mothers_name: true, mothers_title: true, fathers_name: true, fathers_title: true,
             guardians_name: true, guardians_title: true, contact_num: true, photo_url: true,
           } },
-          studentSolicitations: {
-            orderBy: { slot: "asc" }, select: { slot: true, type: true, title: true, name: true },
-          },
           studentAuth: { select: { status: true } },
           booking: {
             orderBy: { created_at: "desc" }, take: 1,
@@ -178,11 +188,53 @@ export async function informationReviewDetail(adminId: number, reviewId: number)
     }
   }
   const booking = student.booking[0];
+  const currentRevision = track.revisions[0];
+  const before = currentRevision ? storedSnapshot(currentRevision.before_snapshot) : null;
+  const after = currentRevision ? storedSnapshot(currentRevision.after_snapshot) : null;
+  const editableStages: ReviewStage[] = [ReviewStage.DRAFT, ReviewStage.REJECTED_QC, ReviewStage.REJECTED_MODERATOR];
+  const canEdit = editableStages.includes(track.stage) &&
+    scopes.some(scope => scope.capability === ReviewCapability.INFORMATION_PROOFREADER &&
+      matchesGraduateScope(scope, student));
+  const latestSubmission = track.informationEvents.find(event => event.action === InformationEventAction.SUBMITTED_QC);
+  const lastRejection = track.informationEvents.find(event =>
+    event.action === InformationEventAction.REJECTED_QC || event.action === InformationEventAction.REJECTED_MODERATOR);
+  const canSubmit = canEdit && canSubmitInformation(track.stage);
+  const canQc = !!currentRevision && latestSubmission?.revision_id === currentRevision.id &&
+    scopes.some(scope => scope.capability === ReviewCapability.INFORMATION_QC &&
+      matchesGraduateScope(scope, student));
+  const availableActions: string[] = [];
+  if (scopes.some(scope => [ReviewCapability.INFORMATION_PROOFREADER,
+      ReviewCapability.INFORMATION_QC, ReviewCapability.FINAL_MODERATOR].some(capability => capability === scope.capability) &&
+      matchesGraduateScope(scope, student))) availableActions.push("COMMENT");
+  if (canEdit) availableActions.push("SAVE_DRAFT");
+  if (canSubmit) availableActions.push("SUBMIT_QC");
+  if (canQc && track.stage === ReviewStage.SUBMITTED_QC) availableActions.push("QC_APPROVE", "QC_REJECT");
+  if (canQc && track.stage === ReviewStage.APPROVED_QC) availableActions.push("FORWARD_MODERATOR");
+  if (track.stage === ReviewStage.SUBMITTED_MODERATOR &&
+      scopes.some(scope => scope.capability === ReviewCapability.FINAL_MODERATOR &&
+        matchesGraduateScope(scope, student))) {
+    const moderators = await prisma.reviewAssignment.findMany({
+      where: { capability: ReviewCapability.FINAL_MODERATOR, revoked_at: null },
+      select: { admin_id: true }, distinct: ["admin_id"], take: 2,
+    });
+    if (moderators.length === 1 && moderators[0]?.admin_id === adminId) {
+      availableActions.push("MODERATOR_APPROVE", "MODERATOR_REJECT");
+    }
+  }
   return {
     success: true, reviewId: track.id, informationStage: track.stage,
     photoStage: reviewCase.tracks[0]?.stage ?? null,
     queue: queueForStage(track.stage), version: track.version,
-    availableActions: [] as string[],
+    availableActions,
+    rejection: (track.stage === ReviewStage.REJECTED_QC || track.stage === ReviewStage.REJECTED_MODERATOR) && lastRejection ? {
+      reason: lastRejection.note, createdAt: lastRejection.created_at, actor: lastRejection.actor,
+    } : null,
+    draft: currentRevision && before && after ? {
+      revisionId: currentRevision.id, version: currentRevision.track_version,
+      before, after,
+      changedFields: editableProfileFields.filter(field => before[field] !== after[field]),
+      savedAt: currentRevision.created_at,
+    } : null,
     verification: {
       outcome: reviewCase.outcome, checkedAt: reviewCase.checked_at,
       sourceVersion: reviewCase.source_version,
@@ -206,7 +258,8 @@ export async function informationReviewDetail(adminId: number, reviewId: number)
       fathersTitle: student.studentDetail?.fathers_title ?? null,
       guardiansName: student.studentDetail?.guardians_name ?? null,
       guardiansTitle: student.studentDetail?.guardians_title ?? null,
-      solicitations: student.studentSolicitations,
+      // Keep the response field compatible without loading unrelated sponsors.
+      solicitations: [],
       referencePhotoUrl,
       referencePhotoPresent: !!student.studentDetail?.photo_url,
       record: {
