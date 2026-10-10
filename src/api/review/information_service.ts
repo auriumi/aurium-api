@@ -158,9 +158,6 @@ export async function informationReviewDetail(adminId: number, reviewId: number)
             mothers_name: true, mothers_title: true, fathers_name: true, fathers_title: true,
             guardians_name: true, guardians_title: true, contact_num: true, photo_url: true,
           } },
-          studentSolicitations: {
-            orderBy: { slot: "asc" }, select: { slot: true, type: true, title: true, name: true },
-          },
           studentAuth: { select: { status: true } },
           booking: {
             orderBy: { created_at: "desc" }, take: 1,
@@ -261,7 +258,8 @@ export async function informationReviewDetail(adminId: number, reviewId: number)
       fathersTitle: student.studentDetail?.fathers_title ?? null,
       guardiansName: student.studentDetail?.guardians_name ?? null,
       guardiansTitle: student.studentDetail?.guardians_title ?? null,
-      solicitations: student.studentSolicitations,
+      // Keep the response field compatible without loading unrelated sponsors.
+      solicitations: [],
       referencePhotoUrl,
       referencePhotoPresent: !!student.studentDetail?.photo_url,
       record: {
