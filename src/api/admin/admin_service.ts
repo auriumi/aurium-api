@@ -2,7 +2,7 @@ import prisma from "../../config/prisma";
 import crypto from "crypto";
 import bcrypt from "bcrypt";
 import { Resend } from 'resend';
-import { AdminActions, StudentStatus, ImageType, ImageStatus, AdminRoles, NotificationType, Prisma } from "@prisma/client";
+import { AdminActions, StudentStatus, ImageType, ImageStatus, AdminRoles, NotificationType, Prisma, RacOutcome } from "@prisma/client";
 import { generateReadUrl, generateImageUploadUrl } from "../student/r2_service";
 import { notifyApprovers, notifyUser, notifyParticipants } from "./notification_service";
 import {
@@ -750,6 +750,15 @@ export async function m_exportAll(dept: string, course: string, major: string, s
 
 // ------------------------------- Image management -------------------------
 
+// Legacy images are year-only and mutable. A RAC-verified graduate uses the
+// term-aware, immutable photo-review path instead.
+export async function img_isReviewManaged(studentNumber: number, year: number) {
+  return !!await prisma.reviewCase.findFirst({ where: {
+    grad_year: year, outcome: RacOutcome.VERIFIED,
+    student: { is: { student_number: studentNumber } },
+  }, select: { id: true } });
+}
+
 // thin wrapper so the admin controller stays service-scoped
 export async function img_getUploadUrl(
   student_number: number,
@@ -867,6 +876,9 @@ export async function img_saveImage(
   admin_id: number
 ) {
   try {
+    if (await img_isReviewManaged(student_number, year)) {
+      return { success: false, reason: "This graduate uses the photo review workspace." };
+    }
     const student = await prisma.student.findUnique({
       where: { student_number },
       select: { student_number: true, first_name: true, last_name: true },
@@ -1126,6 +1138,9 @@ export async function img_decide(image_id: number, action: string, note: string 
     },
   });
   if (!image) return { success: false, reason: "Request not found." };
+  if (await img_isReviewManaged(image.student.student_number, image.year)) {
+    return { success: false, reason: "This graduate uses the photo review workspace." };
+  }
 
   const newStatus = isApprove ? ImageStatus.APPROVED : ImageStatus.REJECTED;
   const decided = isApprove ? "Approved" : "Rejected";
