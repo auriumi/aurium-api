@@ -11,10 +11,10 @@ async function checkerScopes(adminId: number, client: Prisma.TransactionClient |
     throw new ReviewRequestError(403, "FORBIDDEN", "Staff account unavailable.");
   }
   const assignments = await client.reviewAssignment.findMany({
-    where: { admin_id: adminId, capability: ReviewCapability.RAC_CHECK, revoked_at: null },
+    where: { admin_id: adminId, capability: ReviewCapability.INFORMATION_PROOFREADER, revoked_at: null },
     select: { department: true, course: true, major: true },
   });
-  if (assignments.length === 0) throw new ReviewRequestError(403, "FORBIDDEN", "RAC/SAO assignment required.");
+  if (assignments.length === 0) throw new ReviewRequestError(403, "FORBIDDEN", "A General Proofreader assignment is required for RAC/SAO verification.");
   return assignments;
 }
 
@@ -50,7 +50,7 @@ export async function listVerificationGraduates(adminId: number, query: Verifica
   };
   const inStatus = { ...filtered, ...statusWhere(query.status, query) };
   const caseCycle = { grad_year: query.year, grad_term: query.term };
-  const [students, total, all, unchecked, verified, notListed] = await Promise.all([
+  const [students, all, unchecked, verified, notListed] = await Promise.all([
     prisma.student.findMany({
       where: inStatus, skip: (query.page - 1) * 25, take: 25,
       orderBy: [{ first_name: "asc" }, { last_name: "asc" }, { student_number: "asc" }],
@@ -60,7 +60,6 @@ export async function listVerificationGraduates(adminId: number, query: Verifica
         reviewCases: { where: caseCycle, select: { outcome: true, version: true, checked_at: true, source_version: true } },
       },
     }),
-    prisma.student.count({ where: inStatus }),
     prisma.student.count({ where: filtered }),
     prisma.student.count({ where: { ...filtered, ...statusWhere("UNCHECKED", query) } }),
     prisma.student.count({ where: { ...filtered, ...statusWhere(RacOutcome.VERIFIED, query) } }),
@@ -85,7 +84,7 @@ export async function listVerificationGraduates(adminId: number, query: Verifica
     })),
     page: query.page,
     pageSize: 25,
-    total,
+    total: query.status === 'ALL' ? all : query.status === 'UNCHECKED' ? unchecked : query.status === 'VERIFIED' ? verified : notListed,
     sourceVersion: process.env.RAC_SOURCE_VERSION?.trim() || null,
     counts: { all, unchecked, verified, notListed },
   };

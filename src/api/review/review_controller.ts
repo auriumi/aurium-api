@@ -1,5 +1,25 @@
 import { Request, Response } from "express";
 import { activeAssignments, grantAssignment, revokeAssignment } from "./review_access";
+import { listReviewStaff } from "./staff_assignment_service";
+import { ReviewRequestError } from "./review_error";
+
+export async function getReviewStaff(req: StaffRequest, res: Response) {
+  res.setHeader("Cache-Control", "no-store");
+  const id = staffId(req);
+  if (!id) return res.status(401).json({ success: false, reason: "Unauthorized." });
+  const page = req.query.page === undefined ? 1 : Number(req.query.page);
+  const search = req.query.search === undefined ? '' : req.query.search;
+  if (!Number.isSafeInteger(page) || page < 1 || page > 10000 || typeof search !== 'string' || search.length > 120) {
+    return res.status(400).json({ success: false, reason: "Invalid search or page." });
+  }
+  try {
+    return res.json(await listReviewStaff(id, search.trim(), page));
+  } catch (error) {
+    if (error instanceof ReviewRequestError) return res.status(error.status).json({ success: false, reason: error.message });
+    console.error("Failed to load review staff:", error);
+    return res.status(500).json({ success: false, reason: "Unable to load staff." });
+  }
+}
 
 interface StaffRequest extends Request {
   user?: { admin_id?: string | number };
@@ -28,7 +48,7 @@ export async function createAssignment(req: StaffRequest, res: Response) {
   if (!id) return res.status(401).json({ success: false, reason: "Unauthorized." });
   try {
     const result = await grantAssignment(id, req.body);
-    return res.status(result.status).json(result.status === 201
+    return res.status(result.status).json(result.status === 201 && 'assignment' in result
       ? { success: true, assignment: result.assignment }
       : { success: false, reason: result.reason });
   } catch (error) {

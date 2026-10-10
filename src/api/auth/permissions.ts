@@ -80,5 +80,6 @@ export const PERMISSION_MATRIX: Record<Permission, AdminRoles[]> = {
     // ReviewAssignment rows before returning records or changing review data.
     [Permission.REVIEW_VIEW]: [ADMINISTRATOR, MODERATOR, MEMBER],
     [Permission.REVIEW_VERIFY]: [ADMINISTRATOR, MODERATOR, MEMBER],
-    [Permission.REVIEW_ASSIGN]: [ADMINISTRATOR],
+    // Services recheck the current account and designated moderator assignment.
+    [Permission.REVIEW_ASSIGN]: [ADMINISTRATOR, MODERATOR],
 };

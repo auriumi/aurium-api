@@ -677,10 +677,10 @@ export async function m_queryByFilter(page: number, dept: string, course: string
     }
   }
   
-  const total_students = await prisma.student.count();
-  const total_result = await prisma.student.count({where});
-
-  const students = await prisma.student.findMany({
+  const [total_students, total_result, students] = await Promise.all([
+    prisma.student.count(),
+    prisma.student.count({ where }),
+    prisma.student.findMany({
     skip,
     take: M_STUDENTS_PER_PAGE,
     orderBy: { id: "asc" as const },
@@ -692,7 +692,8 @@ export async function m_queryByFilter(page: number, dept: string, course: string
       },
       studentSolicitations: true,
     },
-  });
+    }),
+  ]);
 
   await Promise.all(students.map(async (s) => {
     if (s.studentDetail?.photo_url) {
