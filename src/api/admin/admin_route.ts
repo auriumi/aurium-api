@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { getMasterlistDetail } from "./masterlist_detail_controller";
 import * as adminController from "./admin_controller";
 import { requirePermission, requireImageApprover } from "../auth/auth_middleware";
 import { Permission } from "../auth/permissions";
@@ -23,6 +24,7 @@ router.delete("/student/:id", requirePermission(Permission.STUDENT_DISCARD), adm
 //masterlist
 router.get("/masterlist/export", requirePermission(Permission.MASTERLIST_EXPORT), adminController.exportMasterlist);
 router.get("/masterlist", requirePermission(Permission.MASTERLIST_VIEW), adminController.fetchMasterlist);
+router.get("/masterlist/:studentNumber", requirePermission(Permission.MASTERLIST_VIEW), getMasterlistDetail);
 router.post("/masterlist/reset/:id", requirePermission(Permission.STUDENT_PASSWORD_RESET), adminController.handleStudentPasswordReset);
 
 //final verification
