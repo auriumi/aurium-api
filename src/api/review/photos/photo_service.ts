@@ -3,16 +3,16 @@ import {
   ImageType, PhotoEventAction, PhotoUploadStatus, Prisma, RacOutcome,
   ReviewCapability, ReviewStage, ReviewTrackType,
 } from "@prisma/client";
-import prisma from "../../config/prisma";
-import { generateReadUrl } from "../student/r2_service";
-import { graduateScopeWhere, graduateSearchWhere } from "./review_filters";
-import { matchesGraduateScope } from "./review_scope";
-import { ReviewRequestError } from "./review_error";
+import prisma from "../../../config/prisma";
+import { generateReadUrl } from "../../student/r2_service";
+import { graduateScopeWhere, graduateSearchWhere } from "../shared/review_filters";
+import { matchesGraduateScope } from "../shared/review_scope";
+import { ReviewRequestError } from "../shared/review_error";
 import { sealPhoto, signedPhotoRead, signedPhotoUpload, stagingKey } from "./photo_storage";
 import { canSubmitPair, type readPhotoUpload } from "./photo_contract";
-import { requiresMakerChange } from "./correction_contract";
-import type { InformationSubmission } from "./information_submission_contract";
-import type { Cycle } from "./rac_contract";
+import { requiresMakerChange } from "../corrections/correction_contract";
+import type { InformationSubmission } from "../information/information_submission_contract";
+import type { Cycle } from "../rac/rac_contract";
 
 type UploadInput = NonNullable<ReturnType<typeof readPhotoUpload>>;
 const photoCapabilities: ReviewCapability[] = [ReviewCapability.PHOTO_UPLOADER, ReviewCapability.PHOTO_QC,

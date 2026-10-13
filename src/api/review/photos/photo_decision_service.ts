@@ -1,8 +1,8 @@
 import { PhotoEventAction, PhotoUploadStatus, Prisma, ReviewCapability, ReviewStage, ReviewTrackType } from "@prisma/client";
-import prisma from "../../config/prisma";
+import prisma from "../../../config/prisma";
 import { photoDecisionHash, photoTransition, type PhotoDecisionRequest } from "./photo_decision_contract";
 import { assignedPhotoTrack } from "./photo_service";
-import { ReviewRequestError } from "./review_error";
+import { ReviewRequestError } from "../shared/review_error";
 
 export async function decidePhotoReview(adminId: number, reviewId: number,
   role: "qc" | "moderator", input: PhotoDecisionRequest) {

@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { masterlistDetail } from "./masterlist_detail_service";
-import { ReviewRequestError } from "../review/review_error";
+import { ReviewRequestError } from "../review/shared/review_error";
 
 export async function getMasterlistDetail(req: Request & { user?: { admin_id?: number | string } }, res: Response) {
   res.setHeader("Cache-Control", "no-store");

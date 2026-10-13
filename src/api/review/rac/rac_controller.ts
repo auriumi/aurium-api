@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import { RacOutcome } from "@prisma/client";
 import { readCycle, readVerificationBatch, type VerificationStatus } from "./rac_contract";
 import { listVerificationGraduates, verificationFilterOptions, verificationHistory, verifyGraduateBatch } from "./rac_service";
-import { ReviewRequestError } from "./review_error";
+import { ReviewRequestError } from "../shared/review_error";
 
 interface StaffRequest extends Request {
   user?: { admin_id?: string | number };

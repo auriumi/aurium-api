@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { readVerificationBatch, verificationRequestHash, canAdvanceVerification } = require('../dist/api/review/rac_contract.js');
+const { readVerificationBatch, verificationRequestHash, canAdvanceVerification } = require('../dist/api/review/rac/rac_contract.js');
 
 const operationId = '2ee32fe4-537a-4540-b609-1bb6dd2d27da';
 const batch = {

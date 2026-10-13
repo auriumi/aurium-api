@@ -1,6 +1,6 @@
 import { ReviewCapability } from "@prisma/client";
-import prisma from "../../config/prisma";
-import { matchesGraduateScope, type GraduateScope } from "./review_scope";
+import prisma from "../../../config/prisma";
+import { matchesGraduateScope, type GraduateScope } from "../shared/review_scope";
 
 export async function activeAssignments(adminId: number) {
   const admin = await prisma.admin.findUnique({ where: { id: adminId }, select: { id: true } });

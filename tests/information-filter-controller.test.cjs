@@ -5,12 +5,12 @@ const assert = require('node:assert/strict');
 const prismaPath = require.resolve('../dist/config/prisma.js');
 require.cache[prismaPath] = { id: prismaPath, filename: prismaPath, loaded: true,
   exports: { __esModule: true, default: {} } };
-const servicePath = require.resolve('../dist/api/review/information_service.js');
+const servicePath = require.resolve('../dist/api/review/information/information_service.js');
 require.cache[servicePath] = { id: servicePath, filename: servicePath, loaded: true, exports: {
   listInformationReviews: async (adminId, filters) => ({ success: true, adminId, filters }),
   informationFilterOptions: async (adminId, cycle, department, course) => ({ success: true, department, course }),
 } };
-const { listReviews, getFilterOptions } = require('../dist/api/review/information_controller.js');
+const { listReviews, getFilterOptions } = require('../dist/api/review/information/information_controller.js');
 
 async function request(handler, filters, authenticated = true) {
   const response = { statusCode: 200, body: null,

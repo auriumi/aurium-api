@@ -2,12 +2,12 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 // Exercise request validation without opening a database or object-store connection.
-const servicePath = require.resolve('../dist/api/review/rac_service.js');
+const servicePath = require.resolve('../dist/api/review/rac/rac_service.js');
 require.cache[servicePath] = { id: servicePath, filename: servicePath, loaded: true, exports: {
   listVerificationGraduates: async (adminId, filters) => ({ success: true, adminId, filters }),
   verificationFilterOptions: async (adminId, cycle, department, course) => ({ success: true, department, course }),
 } };
-const { listGraduates, getFilterOptions } = require('../dist/api/review/rac_controller.js');
+const { listGraduates, getFilterOptions } = require('../dist/api/review/rac/rac_controller.js');
 
 async function request(handler, filters, authenticated = true) {
   const response = { statusCode: 200, body: null,

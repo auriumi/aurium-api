@@ -1,8 +1,8 @@
 import { PhotoEventAction, Prisma, ReviewCapability, ReviewTrackType } from "@prisma/client";
-import prisma from "../../config/prisma";
+import prisma from "../../../config/prisma";
 import { photoCommentHash, matchesPhotoCommentContext, type PhotoComment } from "./photo_comment_contract";
 import { assignedPhotoTrack } from "./photo_service";
-import { ReviewRequestError } from "./review_error";
+import { ReviewRequestError } from "../shared/review_error";
 
 const commenters = [ReviewCapability.PHOTO_UPLOADER, ReviewCapability.PHOTO_QC, ReviewCapability.FINAL_MODERATOR];
 

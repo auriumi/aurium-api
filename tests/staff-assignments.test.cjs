@@ -28,7 +28,7 @@ const db = {
 };
 const path = require.resolve('../dist/config/prisma.js');
 require.cache[path] = { id: path, filename: path, loaded: true, exports: { __esModule: true, default: db } };
-const { grantAssignment, revokeAssignment, listReviewStaff } = require('../dist/api/review/staff_assignment_service.js');
+const { grantAssignment, revokeAssignment, listReviewStaff } = require('../dist/api/review/assignments/staff_assignment_service.js');
 const input = capability => ({ adminId: 2, capability, scope: { department: 'DAE', course: 'BSIT', major: null } });
 
 test('designated moderator grants and revokes operational assignments with history', async () => {

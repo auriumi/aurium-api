@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { readDraftSave, applyDraftChanges, profileHash, draftRequestHash, editableProfileFields } =
-  require('../dist/api/review/information_draft_contract.js');
+  require('../dist/api/review/information/information_draft_contract.js');
 
 const operationId = '56add650-3040-41e9-92e6-450442960aa4';
 const save = changes => ({ expectedVersion: 1, operationId, changes });

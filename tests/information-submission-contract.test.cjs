@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { readInformationSubmission, canSubmitInformation, submissionHash } =
-  require('../dist/api/review/information_submission_contract.js');
+  require('../dist/api/review/information/information_submission_contract.js');
 
 const input = { expectedVersion: 5, revisionId: 31, operationId: 'e8382d0f-30d0-433b-996a-581dfcb42601' };
 

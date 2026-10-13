@@ -1,10 +1,10 @@
 import { InformationEventAction, Prisma, ReviewCapability, ReviewStage, ReviewTrackType } from "@prisma/client";
-import prisma from "../../config/prisma";
+import prisma from "../../../config/prisma";
 import { profileHash, validEditableProfile } from "./information_draft_contract";
 import { assignedTrack, snapshot } from "./information_draft_service";
-import { ReviewRequestError } from "./review_error";
+import { ReviewRequestError } from "../shared/review_error";
 import { canSubmitInformation, submissionHash, type InformationSubmission } from "./information_submission_contract";
-import { requiresMakerChange } from "./correction_contract";
+import { requiresMakerChange } from "../corrections/correction_contract";
 
 export async function submitInformationReview(adminId: number, reviewId: number, input: InformationSubmission) {
   const requestHash = submissionHash(reviewId, input);

@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { stagesForQueue, queueForStage } = require('../dist/api/review/information_contract.js');
-const { graduateScopeWhere, graduateSearchWhere } = require('../dist/api/review/review_filters.js');
+const { stagesForQueue, queueForStage } = require('../dist/api/review/information/information_contract.js');
+const { graduateScopeWhere, graduateSearchWhere } = require('../dist/api/review/shared/review_filters.js');
 
 test('information queues separate QC approval from forwarding to the moderator', () => {
   assert.deepEqual(stagesForQueue('APPROVED_QC'), ['APPROVED_QC']);
@@ -13,7 +13,7 @@ test('information queues separate QC approval from forwarding to the moderator',
 
 test('each review stage belongs to exactly one action queue', () => {
   const { ReviewStage } = require('@prisma/client');
-  const { informationQueues } = require('../dist/api/review/information_contract.js');
+  const { informationQueues } = require('../dist/api/review/information/information_contract.js');
   for (const stage of Object.values(ReviewStage)) {
     const containingQueues = informationQueues.filter(queue => queue !== 'ALL' && stagesForQueue(queue).includes(stage));
     assert.deepEqual(containingQueues, [queueForStage(stage)], stage);

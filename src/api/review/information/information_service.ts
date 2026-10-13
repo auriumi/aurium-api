@@ -1,15 +1,15 @@
 import { AdminRoles, InformationEventAction, Prisma, RacOutcome, ReviewCapability, ReviewStage, ReviewTrackType } from "@prisma/client";
-import prisma from "../../config/prisma";
-import { generateReadUrl } from "../student/r2_service";
-import { ReviewRequestError } from "./review_error";
-import { graduateScopeWhere, graduateSearchWhere } from "./review_filters";
-import { matchesGraduateScope, type ReviewScope } from "./review_scope";
+import prisma from "../../../config/prisma";
+import { generateReadUrl } from "../../student/r2_service";
+import { ReviewRequestError } from "../shared/review_error";
+import { graduateScopeWhere, graduateSearchWhere } from "../shared/review_filters";
+import { matchesGraduateScope, type ReviewScope } from "../shared/review_scope";
 import { queueForStage, stagesForQueue, type InformationListQuery } from "./information_contract";
-import type { Cycle } from "./rac_contract";
+import type { Cycle } from "../rac/rac_contract";
 import { editableProfileFields } from "./information_draft_contract";
 import { storedSnapshot } from "./information_draft_service";
 import { canSubmitInformation } from "./information_submission_contract";
-import { requiresMakerChange } from "./correction_contract";
+import { requiresMakerChange } from "../corrections/correction_contract";
 
 const informationCapabilities = [
   ReviewCapability.INFORMATION_PROOFREADER,

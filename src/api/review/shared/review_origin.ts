@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import { frontendOrigin } from "../../config/frontend_origin";
+import { frontendOrigin } from "../../../config/frontend_origin";
 
 // SameSite cookies and CORS do not replace a check on cookie-authenticated writes.
 export function requireReviewOrigin(req: Request, res: Response, next: NextFunction) {

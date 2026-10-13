@@ -19,7 +19,7 @@ const db = {
 };
 const dbPath = require.resolve('../dist/config/prisma.js');
 require.cache[dbPath] = { id: dbPath, filename: dbPath, loaded: true, exports: { __esModule: true, default: db } };
-const service = require('../dist/api/review/rac_service.js');
+const service = require('../dist/api/review/rac/rac_service.js');
 const query = { year: 2026, term: 'END_YEAR', page: 1, status: 'ALL', department: null, course: null, major: null, search: '' };
 const assignment = capability => ({ admin_id: 1, capability, revoked_at: null, department: 'DAE', course: 'BSIT', major: null });
 

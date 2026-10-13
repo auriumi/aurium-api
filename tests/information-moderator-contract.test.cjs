@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const {
   readInformationModeratorRequest, moderatorTransition, moderatorRequestHash,
   publicationChanges, publishableProfile,
-} = require('../dist/api/review/information_moderator_contract.js');
+} = require('../dist/api/review/information/information_moderator_contract.js');
 
 const request = {
   expectedVersion: 8, revisionId: 31,

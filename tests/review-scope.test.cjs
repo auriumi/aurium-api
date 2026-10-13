@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { matchesGraduateScope, readReviewScope } = require('../dist/api/review/review_scope.js');
+const { matchesGraduateScope, readReviewScope } = require('../dist/api/review/shared/review_scope.js');
 
 test('review scope denies graduates outside the exact assignment', () => {
   const assignment = readReviewScope({ department: 'Computing Education', course: 'BS Computer Science' });

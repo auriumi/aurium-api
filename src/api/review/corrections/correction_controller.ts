@@ -2,7 +2,7 @@ import { CorrectionStatus } from "@prisma/client";
 import { Request, Response } from "express";
 import { readCorrectionDecision, readCorrectionRequest } from "./correction_contract";
 import { decideCorrection, listCorrections, requestCorrection } from "./correction_service";
-import { ReviewRequestError } from "./review_error";
+import { ReviewRequestError } from "../shared/review_error";
 
 interface StaffRequest extends Request { user?: { admin_id?: string | number } }
 const validId = (value: number) => Number.isSafeInteger(value) && value > 0 && value <= 2147483647;

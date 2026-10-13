@@ -1,5 +1,5 @@
 import sharp from "sharp";
-import { ReviewRequestError } from "./review_error";
+import { ReviewRequestError } from "../shared/review_error";
 import type { PhotoMime } from "./photo_storage";
 
 const maxDimension = 8192;

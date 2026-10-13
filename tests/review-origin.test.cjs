@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { requireReviewOrigin } = require('../dist/api/review/review_origin.js');
+const { requireReviewOrigin } = require('../dist/api/review/shared/review_origin.js');
 const { frontendOrigin } = require('../dist/config/frontend_origin.js');
 
 function check(origin) {

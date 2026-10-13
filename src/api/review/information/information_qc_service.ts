@@ -1,8 +1,8 @@
 import { InformationEventAction, Prisma, ReviewCapability, ReviewTrackType } from "@prisma/client";
-import prisma from "../../config/prisma";
+import prisma from "../../../config/prisma";
 import { profileHash } from "./information_draft_contract";
 import { assignedTrack, snapshot } from "./information_draft_service";
-import { ReviewRequestError } from "./review_error";
+import { ReviewRequestError } from "../shared/review_error";
 import { qcRequestHash, qcTransition, type InformationQcRequest } from "./information_qc_contract";
 
 export async function decideInformationQc(adminId: number, reviewId: number, input: InformationQcRequest) {

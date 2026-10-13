@@ -1,12 +1,12 @@
 import { InformationEventAction, Prisma, ReviewCapability, ReviewStage, ReviewTrackType } from "@prisma/client";
-import prisma from "../../config/prisma";
+import prisma from "../../../config/prisma";
 import { profileHash } from "./information_draft_contract";
 import { assignedTrack, snapshot, storedSnapshot } from "./information_draft_service";
 import {
   moderatorRequestHash, moderatorTransition, publicationChanges, publishableProfile,
   type InformationModeratorRequest,
 } from "./information_moderator_contract";
-import { ReviewRequestError } from "./review_error";
+import { ReviewRequestError } from "../shared/review_error";
 
 export async function decideInformationModerator(adminId: number, reviewId: number, input: InformationModeratorRequest) {
   const requestHash = moderatorRequestHash(reviewId, input);

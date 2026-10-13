@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { readPhotoDecision, photoTransition, photoDecisionHash } =
-  require('../dist/api/review/photo_decision_contract.js');
+  require('../dist/api/review/photos/photo_decision_contract.js');
 
 const base = {
   expectedVersion: 7, pairRevisionId: 33,

@@ -1,8 +1,8 @@
 import { AdminRoles, Prisma, RacOutcome, ReviewCapability, ReviewEventAction, ReviewTrackType } from "@prisma/client";
-import prisma from "../../config/prisma";
-import { matchesGraduateScope, type GraduateScope, type ReviewScope } from "./review_scope";
-import { graduateScopeWhere, graduateSearchWhere } from "./review_filters";
-import { ReviewRequestError } from "./review_error";
+import prisma from "../../../config/prisma";
+import { matchesGraduateScope, type GraduateScope, type ReviewScope } from "../shared/review_scope";
+import { graduateScopeWhere, graduateSearchWhere } from "../shared/review_filters";
+import { ReviewRequestError } from "../shared/review_error";
 import { canAdvanceVerification, verificationRequestHash, type Cycle, type VerificationBatch, type VerificationStatus } from "./rac_contract";
 
 async function checkerScopes(adminId: number, client: Prisma.TransactionClient | typeof prisma = prisma) {

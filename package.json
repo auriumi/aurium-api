@@ -5,9 +5,9 @@
   "scripts": {
     "dev": "nodemon",
     "build": "tsc",
-    "test:photo": "npm run build && node --test dist/api/review/photo_contract.test.js dist/api/review/photo_validation.test.js",
-    "test:photo-comments": "npm run build && node --test dist/api/review/photo_comment_contract.test.js",
-    "test:information-comments": "npm run build && node --test dist/api/review/information_comment_contract.test.js",
+    "test:photo": "npm run build && node --test dist/api/review/photos/photo_contract.test.js dist/api/review/photos/photo_validation.test.js",
+    "test:photo-comments": "npm run build && node --test dist/api/review/photos/photo_comment_contract.test.js",
+    "test:information-comments": "npm run build && node --test dist/api/review/information/information_comment_contract.test.js",
     "start": "node dist/index.js"
   },
   "keywords": [],

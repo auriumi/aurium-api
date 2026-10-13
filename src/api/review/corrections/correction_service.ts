@@ -1,12 +1,12 @@
 import { CorrectionStatus, InformationEventAction, PhotoEventAction, Prisma,
   RacOutcome, ReviewCapability, ReviewStage, ReviewTrackType } from "@prisma/client";
-import prisma from "../../config/prisma";
+import prisma from "../../../config/prisma";
 import { correctionHash, type CorrectionDecisionInput, type CorrectionRequestInput } from "./correction_contract";
-import { profileHash } from "./information_draft_contract";
-import { profileSelect, snapshot, storedSnapshot } from "./information_draft_service";
-import { graduateScopeWhere } from "./review_filters";
-import { matchesGraduateScope } from "./review_scope";
-import { ReviewRequestError } from "./review_error";
+import { profileHash } from "../information/information_draft_contract";
+import { profileSelect, snapshot, storedSnapshot } from "../information/information_draft_service";
+import { graduateScopeWhere } from "../shared/review_filters";
+import { matchesGraduateScope } from "../shared/review_scope";
+import { ReviewRequestError } from "../shared/review_error";
 
 type Client = Prisma.TransactionClient | typeof prisma;
 const reviewerCapabilities = [ReviewCapability.INFORMATION_PROOFREADER, ReviewCapability.INFORMATION_QC,

@@ -1,14 +1,14 @@
 import { Request, Response } from "express";
 import { ReviewStage } from "@prisma/client";
-import { readCycle } from "./rac_contract";
+import { readCycle } from "../rac/rac_contract";
 import { readPhotoFinalize, readPhotoSubmission, readPhotoUpload } from "./photo_contract";
 import { beginPhotoUpload, finalizePhotoUpload, listPhotoReviews, photoFilterOptions, photoReviewDetail, submitPhotoPair } from "./photo_service";
 import { readPhotoDecision } from "./photo_decision_contract";
 import { decidePhotoReview, photoDecisionHistory } from "./photo_decision_service";
 import { readPhotoComment } from "./photo_comment_contract";
 import { addPhotoComment } from "./photo_comment_service";
-import { ReviewRequestError } from "./review_error";
-import { readHistoryCursor } from "./history_contract";
+import { ReviewRequestError } from "../shared/review_error";
+import { readHistoryCursor } from "../shared/history_contract";
 
 interface StaffRequest extends Request { user?: { admin_id?: string | number } }
 const staffId = (req: StaffRequest) => Number(req.user?.admin_id);

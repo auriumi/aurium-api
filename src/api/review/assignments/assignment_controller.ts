@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
-import { activeAssignments, grantAssignment, revokeAssignment } from "./review_access";
+import { activeAssignments, grantAssignment, revokeAssignment } from "./assignment_access";
 import { listReviewStaff } from "./staff_assignment_service";
-import { ReviewRequestError } from "./review_error";
+import { ReviewRequestError } from "../shared/review_error";
 
 export async function getReviewStaff(req: StaffRequest, res: Response) {
   res.setHeader("Cache-Control", "no-store");

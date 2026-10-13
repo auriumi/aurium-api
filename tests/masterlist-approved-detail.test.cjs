@@ -14,7 +14,7 @@ const db = { $transaction: async action => action(db),
 function mock(path, exports) { const id = require.resolve(path); require.cache[id] = { id, filename: id, loaded: true, exports }; }
 mock('../dist/config/prisma.js', { __esModule: true, default: db });
 mock('../dist/api/student/r2_service.js', { generateReadUrl: async key => `signed:${key}` });
-mock('../dist/api/review/photo_storage.js', { signedPhotoRead: async key => `signed:${key}` });
+mock('../dist/api/review/photos/photo_storage.js', { signedPhotoRead: async key => `signed:${key}` });
 const { masterlistDetail } = require('../dist/api/admin/masterlist_detail_service.js');
 const approved = () => ({ outcome: 'VERIFIED', tracks: [{ type: 'PHOTOS', stage: 'LOCKED', informationEvents: [],
   photoEvents: [{ created_at: '2026-10-08', pair: {

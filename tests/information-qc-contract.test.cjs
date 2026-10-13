@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { readInformationQcRequest, qcTransition, qcRequestHash } =
-  require('../dist/api/review/information_qc_contract.js');
+  require('../dist/api/review/information/information_qc_contract.js');
 
 const base = {
   expectedVersion: 6, revisionId: 31,

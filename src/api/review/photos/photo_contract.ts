@@ -1,6 +1,6 @@
 import { ImageType, ReviewStage } from "@prisma/client";
 import { photoMimes, type PhotoMime } from "./photo_storage";
-import { readInformationSubmission } from "./information_submission_contract";
+import { readInformationSubmission } from "../information/information_submission_contract";
 
 export function readPhotoUpload(input: unknown) {
   if (!input || typeof input !== "object" || Array.isArray(input)) return null;

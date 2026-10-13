@@ -1,8 +1,8 @@
 import { AdminRoles, Prisma } from "@prisma/client";
 import prisma from "../../config/prisma";
 import { generateReadUrl } from "../student/r2_service";
-import { signedPhotoRead } from "../review/photo_storage";
-import { ReviewRequestError } from "../review/review_error";
+import { signedPhotoRead } from "../review/photos/photo_storage";
+import { ReviewRequestError } from "../review/shared/review_error";
 
 export async function masterlistDetail(adminId: number, studentNumber: number) {
   const { student, tracks } = await prisma.$transaction(async tx => {

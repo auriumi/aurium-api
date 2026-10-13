@@ -1,8 +1,8 @@
 import { createHash, randomUUID } from "node:crypto";
 import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { ReviewRequestError } from "./review_error";
-import { R2_BUCKET } from "../../config/r2_bucket";
+import { ReviewRequestError } from "../shared/review_error";
+import { R2_BUCKET } from "../../../config/r2_bucket";
 import { validatePhotoPixels } from "./photo_validation";
 
 const maxBytes = 5 * 1024 * 1024;

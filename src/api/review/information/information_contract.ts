@@ -1,5 +1,5 @@
 import { ReviewStage } from "@prisma/client";
-import type { Cycle } from "./rac_contract";
+import type { Cycle } from "../rac/rac_contract";
 
 export const informationQueues = [
   "ALL", "PENDING", "SUBMITTED_QC", "REJECTED_QC", "APPROVED_QC", "SUBMITTED_MODERATOR", "COMPLETED", "REJECTED_MODERATOR",

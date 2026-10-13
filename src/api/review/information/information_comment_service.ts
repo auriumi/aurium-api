@@ -1,8 +1,8 @@
 import { InformationEventAction, Prisma, ReviewCapability, ReviewTrackType } from "@prisma/client";
-import prisma from "../../config/prisma";
+import prisma from "../../../config/prisma";
 import { assignedTrack } from "./information_draft_service";
 import { commentHash, matchesInformationCommentContext, type InformationComment } from "./information_comment_contract";
-import { ReviewRequestError } from "./review_error";
+import { ReviewRequestError } from "../shared/review_error";
 
 const commenters = [ReviewCapability.INFORMATION_PROOFREADER, ReviewCapability.INFORMATION_QC,
   ReviewCapability.FINAL_MODERATOR];

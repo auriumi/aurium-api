@@ -1,7 +1,7 @@
 import { AdminRoles, Prisma, RacOutcome, ReviewCapability, ReviewStage, ReviewTrackType } from "@prisma/client";
-import prisma from "../../config/prisma";
-import { matchesGraduateScope } from "./review_scope";
-import { ReviewRequestError } from "./review_error";
+import prisma from "../../../config/prisma";
+import { matchesGraduateScope } from "../shared/review_scope";
+import { ReviewRequestError } from "../shared/review_error";
 import {
   applyDraftChanges, draftRequestHash, editableProfileFields, profileHash,
   type DraftSave, type EditableProfile,

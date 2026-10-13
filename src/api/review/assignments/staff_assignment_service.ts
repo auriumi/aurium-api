@@ -1,7 +1,7 @@
 import { AdminRoles, Prisma, ReviewCapability } from "@prisma/client";
-import prisma from "../../config/prisma";
-import { readReviewScope } from "./review_scope";
-import { ReviewRequestError } from "./review_error";
+import prisma from "../../../config/prisma";
+import { readReviewScope } from "../shared/review_scope";
+import { ReviewRequestError } from "../shared/review_error";
 
 const operationalCapabilities: ReviewCapability[] = [
   "INFORMATION_PROOFREADER", "INFORMATION_QC", "PHOTO_UPLOADER", "PHOTO_QC",
