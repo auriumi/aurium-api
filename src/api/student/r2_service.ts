@@ -1,9 +1,9 @@
 import { PutObjectCommand, GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import prisma from "../../config/prisma";
+import { R2_BUCKET } from "../../config/r2_bucket";
 
 const ACC_ID = process.env.R2_ACC_ID;
-const BUCKET = "aurium";
 
 const s3 = new S3Client({
     region: "auto",
@@ -17,13 +17,13 @@ const s3 = new S3Client({
 export async function generatePresignedUrl(student_number: string, ext = "jpg", mime = "image/jpeg") {
     const key =`profile_photos/${student_number}.${ext}`;
     const command = new PutObjectCommand({
-        Bucket: BUCKET,
+        Bucket: R2_BUCKET,
         Key: key,
         ContentType: mime,
     });
 
     const upload_url = await getSignedUrl(s3, command, { expiresIn: 120 });
-    const photo_url = `https://${ACC_ID}.r2.cloudflarestorage.com/${BUCKET}/${key}`;
+    const photo_url = `https://${ACC_ID}.r2.cloudflarestorage.com/${R2_BUCKET}/${key}`;
 
     return { upload_url, photo_url };
 }
@@ -38,13 +38,13 @@ export async function generateImageUploadUrl(
     const folder = type === "GRADUATION" ? "graduation_photos" : "theme_photos";
     const key = `${folder}/${year}/${student_number}.${ext}`;
     const command = new PutObjectCommand({
-        Bucket: BUCKET,
+        Bucket: R2_BUCKET,
         Key: key,
         ContentType: mime,
     });
 
     const upload_url = await getSignedUrl(s3, command, { expiresIn: 120 });
-    const photo_url = `https://${ACC_ID}.r2.cloudflarestorage.com/${BUCKET}/${key}`;
+    const photo_url = `https://${ACC_ID}.r2.cloudflarestorage.com/${R2_BUCKET}/${key}`;
 
     return { upload_url, photo_url };
 }
@@ -54,7 +54,7 @@ function extractKey(photo_url: string): string | null {
         const { hostname, pathname } = new URL(photo_url);
         if (hostname.includes('r2.cloudflarestorage.com')) {
             // Path: /<bucket>/<key> — strip the bucket prefix
-            return pathname.replace(`/${BUCKET}/`, '/').slice(1);
+            return pathname.replace(`/${R2_BUCKET}/`, '/').slice(1);
         }
         // Custom domain (e.g. static.auriumi.cloud): path is already /<key>
         return pathname.slice(1) || null;
@@ -67,7 +67,7 @@ export async function generateReadUrl(photo_url: string | null): Promise<string 
     if (!photo_url) return null;
     const key = extractKey(photo_url);
     if (!key) return null;
-    const command = new GetObjectCommand({ Bucket: BUCKET, Key: key });
+    const command = new GetObjectCommand({ Bucket: R2_BUCKET, Key: key });
     return getSignedUrl(s3, command, { expiresIn: 3600 });
 }
 

@@ -2,9 +2,10 @@ import prisma from "../../config/prisma";
 import crypto from "crypto";
 import bcrypt from "bcrypt";
 import { Resend } from 'resend';
-import { AdminActions, StudentStatus, ImageType, ImageStatus, AdminRoles, NotificationType } from "@prisma/client";
+import { AdminActions, StudentStatus, ImageType, ImageStatus, AdminRoles, NotificationType, Prisma, RacOutcome, ReviewTrackType } from "@prisma/client";
 import { generateReadUrl, generateImageUploadUrl } from "../student/r2_service";
 import { notifyApprovers, notifyUser, notifyParticipants } from "./notification_service";
+import { legacyImageFilter } from "./image_management_filter";
 import {
   buildBookingSlotData,
   distributePeriodSlots,
@@ -123,18 +124,34 @@ export async function getStaffProfile(id: string) {
 }
 
 export async function deleteStudent(id: string) {
+  const studentNumber = Number(id);
+  if (!Number.isSafeInteger(studentNumber) || studentNumber <= 0 || studentNumber > 2147483647) {
+    return { success: false, status: 400, reason: "Invalid student number." };
+  }
   try {
+    const student = await prisma.student.findUnique({
+      where: { student_number: studentNumber }, select: { id: true },
+    });
+    if (!student) return { success: false, status: 404, reason: "Student not found." };
+    const reviewCount = await prisma.reviewCase.count({ where: { student_id: student.id } });
+    if (reviewCount > 0) {
+      return { success: false, status: 409, reason: "Graduate review history cannot be deleted." };
+    }
     await prisma.student.delete({
       where: {
-        student_number: parseInt(id)
+        student_number: studentNumber
       }
     });
-    return { success: true };
-  } catch (err: any) {
-    return { 
-      success: false, 
-      reason: "Something went wrong!"
-    };
+    return { success: true, status: 200 };
+  } catch (err: unknown) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2003") {
+      return { success: false, status: 409, reason: "Graduate review history cannot be deleted." };
+    }
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2025") {
+      return { success: false, status: 404, reason: "Student not found." };
+    }
+    console.error("Failed to delete student:", err);
+    return { success: false, status: 500, reason: "Internal Server Error" };
   }
 }
 
@@ -660,10 +677,10 @@ export async function m_queryByFilter(page: number, dept: string, course: string
     }
   }
   
-  const total_students = await prisma.student.count();
-  const total_result = await prisma.student.count({where});
-
-  const students = await prisma.student.findMany({
+  const [total_students, total_result, students] = await Promise.all([
+    prisma.student.count(),
+    prisma.student.count({ where }),
+    prisma.student.findMany({
     skip,
     take: M_STUDENTS_PER_PAGE,
     orderBy: { id: "asc" as const },
@@ -675,7 +692,8 @@ export async function m_queryByFilter(page: number, dept: string, course: string
       },
       studentSolicitations: true,
     },
-  });
+    }),
+  ]);
 
   await Promise.all(students.map(async (s) => {
     if (s.studentDetail?.photo_url) {
@@ -734,6 +752,30 @@ export async function m_exportAll(dept: string, course: string, major: string, s
 
 // ------------------------------- Image management -------------------------
 
+// Legacy images are year-only and mutable. A RAC-verified graduate uses the
+// term-aware, immutable photo-review path instead.
+export async function img_isReviewManaged(studentNumber: number, year: number) {
+  return !!await prisma.reviewCase.findFirst({ where: {
+    grad_year: year, outcome: RacOutcome.VERIFIED,
+    student: { is: { student_number: studentNumber } },
+  }, select: { id: true } });
+}
+
+// RAC verification takes the same Student row lock before creating a review case.
+// Keep the legacy write and its eligibility check in one transaction so a
+// newly verified graduate cannot be written through the year-only image path.
+async function img_isReviewManagedForWrite(
+  tx: Prisma.TransactionClient, studentNumber: number, year: number
+) {
+  const students = await tx.$queryRaw<{ id: number }[]>`
+    SELECT id FROM "Student" WHERE student_number = ${studentNumber} FOR UPDATE
+  `;
+  if (students.length === 0) return false;
+  return !!await tx.reviewCase.findFirst({ where: {
+    student_id: students[0]!.id, grad_year: year, outcome: RacOutcome.VERIFIED,
+  }, select: { id: true } });
+}
+
 // thin wrapper so the admin controller stays service-scoped
 export async function img_getUploadUrl(
   student_number: number,
@@ -772,27 +814,7 @@ export async function img_queryStudents(
       if (status_map) where.studentAuth = { status: status_map };
     }
 
-    // image-presence filter, scoped to the selected year
-    const gradNone = { images: { none: { type: ImageType.GRADUATION, year } } };
-    const themeNone = { images: { none: { type: ImageType.THEME, year } } };
-    const gradSome = { images: { some: { type: ImageType.GRADUATION, year } } };
-    const themeSome = { images: { some: { type: ImageType.THEME, year } } };
-
-    switch (missing) {
-      case "GRADUATION":
-        where.images = { none: { type: ImageType.GRADUATION, year } };
-        break;
-      case "THEME":
-        where.images = { none: { type: ImageType.THEME, year } };
-        break;
-      case "BOTH":
-        where.AND = [gradNone, themeNone];
-        break;
-      case "NONE": // has both already
-        where.AND = [gradSome, themeSome];
-        break;
-      // "ALL" -> no image filter
-    }
+    Object.assign(where, legacyImageFilter(missing, year));
   } else {
     where.student_number = id;
   }
@@ -809,11 +831,24 @@ export async function img_queryStudents(
       studentDetail: true,
       studentAuth: { select: { status: true } },
       images: { where: { year } },
+      reviewCases: { where: { grad_year: year, outcome: RacOutcome.VERIFIED },
+        select: { grad_term: true, tracks: { where: { type: ReviewTrackType.PHOTOS },
+          select: { id: true, stage: true } } } },
     },
   });
 
   const shaped = await Promise.all(
     students.map(async (s) => {
+      const reviewCase = s.reviewCases.find(item => item.grad_term === s.grad_term) ?? s.reviewCases[0];
+      const { images, reviewCases, ...rest } = s;
+      if (reviewCase) {
+        return { ...rest, reference_photo_url: null, graduation: null, theme: null,
+          reviewManaged: true,
+          photoReview: reviewCase.tracks[0] ? {
+            reviewId: reviewCase.tracks[0].id, stage: reviewCase.tracks[0].stage,
+          } : null,
+        };
+      }
       const reference_photo_url = s.studentDetail?.photo_url
         ? (await generateReadUrl(s.studentDetail.photo_url)) ?? null
         : null;
@@ -834,8 +869,9 @@ export async function img_queryStudents(
       const graduation = await buildImage(ImageType.GRADUATION);
       const theme = await buildImage(ImageType.THEME);
 
-      const { images, ...rest } = s;
-      return { ...rest, reference_photo_url, graduation, theme };
+      return { ...rest, reference_photo_url, graduation, theme,
+        reviewManaged: false, photoReview: null,
+      };
     })
   );
 
@@ -851,6 +887,9 @@ export async function img_saveImage(
   admin_id: number
 ) {
   try {
+    if (await img_isReviewManaged(student_number, year)) {
+      return { success: false, reason: "This graduate uses the photo review workspace." };
+    }
     const student = await prisma.student.findUnique({
       where: { student_number },
       select: { student_number: true, first_name: true, last_name: true },
@@ -866,6 +905,7 @@ export async function img_saveImage(
     const isReupload = !!existing;
 
     const image = await prisma.$transaction(async (tx) => {
+      if (await img_isReviewManagedForWrite(tx, student_number, year)) return null;
       const img = await tx.studentImage.upsert({
         where: { student_number_type_year: key },
         create: {
@@ -898,6 +938,7 @@ export async function img_saveImage(
 
       return img;
     });
+    if (!image) return { success: false, reason: "This graduate uses the photo review workspace." };
 
     // notify approvers (non-critical, outside the core transaction)
     const label = type === "GRADUATION" ? "graduation" : "theme";
@@ -1110,18 +1151,24 @@ export async function img_decide(image_id: number, action: string, note: string 
     },
   });
   if (!image) return { success: false, reason: "Request not found." };
+  if (await img_isReviewManaged(image.student.student_number, image.year)) {
+    return { success: false, reason: "This graduate uses the photo review workspace." };
+  }
 
   const newStatus = isApprove ? ImageStatus.APPROVED : ImageStatus.REJECTED;
   const decided = isApprove ? "Approved" : "Rejected";
   const trimmedNote = note?.trim();
   const systemBody = trimmedNote ? `${decided} — ${trimmedNote}` : `${decided}.`;
 
-  await prisma.$transaction([
-    prisma.studentImage.update({ where: { id: image_id }, data: { status: newStatus } }),
-    prisma.imageComment.create({
+  const changed = await prisma.$transaction(async tx => {
+    if (await img_isReviewManagedForWrite(tx, image.student.student_number, image.year)) return false;
+    await tx.studentImage.update({ where: { id: image_id }, data: { status: newStatus } });
+    await tx.imageComment.create({
       data: { image_id, admin_id, is_system: true, body: systemBody },
-    }),
-  ]);
+    });
+    return true;
+  });
+  if (!changed) return { success: false, reason: "This graduate uses the photo review workspace." };
 
   // notify the uploader (skip if the decider is the uploader)
   if (image.uploaded_by !== admin_id) {
@@ -1427,33 +1474,67 @@ export async function updateImageApprover(targetId: number, value: boolean) {
 
 export async function fv_updateStudent(studentId: number, type: string, data: any) {
   try {
-    const normalizedType = String(type).toLowerCase() as FinalizeUpdateType;
-    const validTypes: FinalizeUpdateType[] = ["personal", "academic", "contact", "family"];
+    return await prisma.$transaction(async tx => {
+      const normalizedType = String(type).toLowerCase() as FinalizeUpdateType;
+      const validTypes: FinalizeUpdateType[] = ["personal", "academic", "contact", "family"];
 
-    if (!validTypes.includes(normalizedType)) {
-      return { success: false, reason: "Invalid update type." };
-    }
+      if (!validTypes.includes(normalizedType)) {
+        return { success: false, reason: "Invalid update type." };
+      }
 
-    if (!data || typeof data !== "object" || Array.isArray(data)) {
-      return { success: false, reason: "Invalid request body." };
-    }
+      if (!data || typeof data !== "object" || Array.isArray(data)) {
+        return { success: false, reason: "Invalid request body." };
+      }
 
-    const payloadEntries = Object.entries(data).filter(([, value]) => value !== undefined);
-    if (payloadEntries.length === 0) {
-      return { success: false, reason: "No fields to update." };
-    }
+      const payloadEntries = Object.entries(data).filter(([, value]) => value !== undefined);
+      if (payloadEntries.length === 0) {
+        return { success: false, reason: "No fields to update." };
+      }
 
-    const studentExists = await prisma.student.findUnique({
-      where: { student_number: studentId },
-      select: { student_number: true },
-    });
+      // Serialize with information draft saves and block the old direct editor
+      // once a graduate has entered the review workflow.
+      const locked = await tx.$queryRaw<{ id: number }[]>`
+        SELECT id FROM "Student" WHERE student_number = ${studentId} FOR UPDATE`;
+      if (locked.length === 0) {
+        return { success: false, reason: "Student doesn't exist!" };
+      }
+      const studentExists = await tx.student.findUnique({
+        where: { student_number: studentId },
+        select: { id: true, student_number: true },
+      });
 
-    if (!studentExists) {
-      return { success: false, reason: "Student doesn't exist!" };
-    }
+      if (!studentExists) {
+        return { success: false, reason: "Student doesn't exist!" };
+      }
+      if (await tx.reviewCase.count({ where: { student_id: studentExists.id } }) > 0) {
+        return { success: false, status: 409, reason: "This graduate is in review. Use the information review workspace." };
+      }
 
-    if (normalizedType === "personal" || normalizedType === "academic") {
-      const allowed = normalizedType === "personal" ? STUDENT_PERSONAL_FIELDS : STUDENT_ACADEMIC_FIELDS;
+      if (normalizedType === "personal" || normalizedType === "academic") {
+        const allowed = normalizedType === "personal" ? STUDENT_PERSONAL_FIELDS : STUDENT_ACADEMIC_FIELDS;
+        const invalidFields = payloadEntries
+          .map(([key]) => key)
+          .filter((key) => !allowed.has(key));
+
+        if (invalidFields.length > 0) {
+          return { success: false, reason: `Invalid field(s) for ${normalizedType}: ${invalidFields.join(", ")}` };
+        }
+
+        const studentData: Record<string, any> = {};
+        for (const [key, value] of payloadEntries) {
+          const fieldKey = key === "thesis" ? "thesis_title" : key;
+          studentData[fieldKey] = value;
+        }
+
+        await tx.student.update({
+          where: { student_number: studentId },
+          data: studentData,
+        });
+
+        return { success: true };
+      }
+
+      const allowed = normalizedType === "contact" ? STUDENT_DETAIL_CONTACT_FIELDS : STUDENT_DETAIL_FAMILY_FIELDS;
       const invalidFields = payloadEntries
         .map(([key]) => key)
         .filter((key) => !allowed.has(key));
@@ -1462,86 +1543,62 @@ export async function fv_updateStudent(studentId: number, type: string, data: an
         return { success: false, reason: `Invalid field(s) for ${normalizedType}: ${invalidFields.join(", ")}` };
       }
 
-      const studentData: Record<string, any> = {};
-      for (const [key, value] of payloadEntries) {
-        const fieldKey = key === "thesis" ? "thesis_title" : key;
-        studentData[fieldKey] = value;
+      if (normalizedType === "contact") {
+        const studentData: Record<string, any> = {};
+        const detailData: Record<string, any> = {};
+
+        for (const [key, value] of payloadEntries) {
+          if (STUDENT_CONTACT_EMAIL_FIELDS.has(key)) {
+            studentData[key] = value;
+          } else {
+            detailData[key] = value;
+          }
+        }
+
+        const updates: any[] = [];
+        if (Object.keys(studentData).length > 0) {
+          updates.push(
+            tx.student.update({
+              where: { student_number: studentId },
+              data: studentData,
+            })
+          );
+        }
+
+        if (Object.keys(detailData).length > 0) {
+          updates.push(
+            tx.student.update({
+              where: { student_number: studentId },
+              data: {
+                studentDetail: {
+                  update: detailData,
+                },
+              },
+            })
+          );
+        }
+
+        for (const update of updates) await update;
+
+        return { success: true };
       }
 
-      await prisma.student.update({
+      const detailData: Record<string, any> = {};
+      for (const [key, value] of payloadEntries) {
+        detailData[key] = value;
+      }
+
+      await tx.student.update({
         where: { student_number: studentId },
-        data: studentData,
+        data: {
+          studentDetail: {
+            update: detailData,
+          },
+        },
       });
 
       return { success: true };
-    }
-
-    const allowed = normalizedType === "contact" ? STUDENT_DETAIL_CONTACT_FIELDS : STUDENT_DETAIL_FAMILY_FIELDS;
-    const invalidFields = payloadEntries
-      .map(([key]) => key)
-      .filter((key) => !allowed.has(key));
-
-    if (invalidFields.length > 0) {
-      return { success: false, reason: `Invalid field(s) for ${normalizedType}: ${invalidFields.join(", ")}` };
-    }
-
-    if (normalizedType === "contact") {
-      const studentData: Record<string, any> = {};
-      const detailData: Record<string, any> = {};
-
-      for (const [key, value] of payloadEntries) {
-        if (STUDENT_CONTACT_EMAIL_FIELDS.has(key)) {
-          studentData[key] = value;
-        } else {
-          detailData[key] = value;
-        }
-      }
-
-      const updates: any[] = [];
-      if (Object.keys(studentData).length > 0) {
-        updates.push(
-          prisma.student.update({
-            where: { student_number: studentId },
-            data: studentData,
-          })
-        );
-      }
-
-      if (Object.keys(detailData).length > 0) {
-        updates.push(
-          prisma.student.update({
-            where: { student_number: studentId },
-            data: {
-              studentDetail: {
-                update: detailData,
-              },
-            },
-          })
-        );
-      }
-
-      if (updates.length > 0) {
-        await prisma.$transaction(updates);
-      }
-
-      return { success: true };
-    }
-
-    const detailData: Record<string, any> = {};
-    for (const [key, value] of payloadEntries) {
-      detailData[key] = value;
-    }
-
-    await prisma.student.update({
-      where: { student_number: studentId },
-      data: {
-        studentDetail: {
-          update: detailData,
-        },
-      },
     });
-
-    return { success: true };
   } catch (err) {
     console.error(`Failed to update student ${studentId}:`, err);
     return {

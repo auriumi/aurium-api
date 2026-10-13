@@ -1,27 +1,54 @@
 name: deploy and build to vps
 on:
-  push:
-    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      release_commit:
+        description: 'Full reviewed commit SHA on main'
+        required: true
+        type: string
+      migration_ready:
+        description: 'Koi has verified backup/restore and applied required migrations for this commit'
+        required: true
+        type: boolean
+        default: false
+permissions:
+  contents: read
+concurrency:
+  group: production-api-deployment
+  cancel-in-progress: false
 jobs:
   deploy:
+    if: github.ref == 'refs/heads/main' && inputs.migration_ready
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
+      - name: Validate release commit
+        env:
+          RELEASE_COMMIT: ${{ inputs.release_commit }}
+        run: '[[ "$RELEASE_COMMIT" =~ ^[0-9a-f]{40}$ ]]'
       - name: deploy via ssh
         uses: appleboy/ssh-action@v0.1.2
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
+          envs: RELEASE_COMMIT
           script: |
+            set -e
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
             
             cd web/aurium-api/
             
-            git pull
+            git diff --quiet
+            git diff --cached --quiet
+            git fetch origin main
+            git merge-base --is-ancestor "$RELEASE_COMMIT" origin/main
+            git checkout --detach "$RELEASE_COMMIT"
             npm ci
             npx prisma generate
             npm run build
             npm prune --omit=dev
             pm2 restart aurium-backend
+        env:
+          RELEASE_COMMIT: ${{ inputs.release_commit }}

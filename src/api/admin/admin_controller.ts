@@ -99,7 +99,7 @@ export async function handleCancel(req: AdminRequest, res: Response) {
     const result = await adminService.deleteStudent(id);
     
     if (!result.success) {
-      return res.status(404).json({
+      return res.status(result.status).json({
         message: result.reason
       });
     }
@@ -361,7 +361,7 @@ export async function handleFinalizeStudentUpdate(req: AdminRequest, res: Respon
     const result = await adminService.fv_updateStudent(Number(studentId), type, req.body);
 
     if (!result.success) {
-      return res.status(400).json({ reason: result.reason });
+      return res.status("status" in result && typeof result.status === "number" ? result.status : 400).json({ reason: result.reason });
     }
 
     return res.json({ success: true });
@@ -541,6 +541,9 @@ export async function getImageUploadUrl(req: Request, res: Response) {
   const mime = String(req.query.mime ?? "image/jpeg");
 
   try {
+    if (await adminService.img_isReviewManaged(student_number, year)) {
+      return res.status(409).json({ reason: "This graduate uses the photo review workspace." });
+    }
     const { upload_url, photo_url } = await adminService.img_getUploadUrl(
       student_number, type as "GRADUATION" | "THEME", year, ext, mime
     );
