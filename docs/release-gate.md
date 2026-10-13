@@ -1,6 +1,6 @@
 # Review release deployment gate
 
-Merge this small PR before any review feature PR. An ordinary merge/push to main will no longer deploy the API. This workflow is manual, accepts an exact reviewed main commit, serializes releases and stops on failed commands.
+This safeguard is included in the complete review API PR #148. An ordinary merge/push to main will no longer deploy the API. Confirm no older push-triggered deployment is queued or running before merging. This workflow is manual, accepts an exact reviewed main commit, serializes releases and stops on failed commands.
 
 Koi must verify a restorable PostgreSQL backup, the actual database schema and migration history, then rehearse the review migrations with isolated PostgreSQL and R2 before the first release. Apply the required migrations deliberately using the locked Prisma version; `prisma generate` does not apply them. The required confirmation records the operator's check; it does not inspect or migrate the database automatically.
 
