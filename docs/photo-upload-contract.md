@@ -10,7 +10,7 @@ The browser never receives a write URL for a final object. A successful response
 
 For this release, staff view final approved pairs in Photo Workspace only. No export or legacy `StudentImage` publication adapter is included. During IT reopening the workspace shows the correction stage, and the replacement pair must pass QC and moderator approval before being shown as Completed.
 
-`GET /api/admin/photo-reviews` accepts `year`, `term`, `page`, `stage`, search and academic filters, and returns up to 25 rows sorted by first name. `GET /api/admin/photo-reviews/filter-options` returns scoped academic choices. `GET /api/admin/photo-reviews/:reviewId` returns the current pair, both signed read URLs, the read-only registration reference, and the graduate profile. These read URLs expire after 15 minutes.
+`GET /api/admin/photo-reviews` accepts `year`, `term`, `page`, `stage`, search and academic filters, and returns up to 25 rows sorted by last name, then first name and student number, before pagination. `GET /api/admin/photo-reviews/filter-options` returns scoped academic choices. `GET /api/admin/photo-reviews/:reviewId` returns the current pair, both signed read URLs, the read-only registration reference, and the graduate profile. These read URLs expire after 15 minutes.
 
 `POST /api/admin/photo-reviews/:reviewId/submission` accepts `{ "expectedVersion": 3, "revisionId": 10, "operationId": "<UUID>" }`. It requires the latest complete pair at the current version and moves a draft to `SUBMITTED_QC`. The request ID makes retries deterministic. QC and moderator decisions are separate follow-up changes.
 

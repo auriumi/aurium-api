@@ -3,7 +3,7 @@ import prisma from "../../../config/prisma";
 import { matchesGraduateScope, type GraduateScope, type ReviewScope } from "../shared/review_scope";
 import { graduateScopeWhere, graduateSearchWhere } from "../shared/review_filters";
 import { ReviewRequestError } from "../shared/review_error";
-import { canAdvanceVerification, verificationRequestHash, type Cycle, type VerificationBatch, type VerificationStatus } from "./rac_contract";
+import { canAdvanceVerification, MANUAL_VERIFICATION_SOURCE, verificationRequestHash, type Cycle, type VerificationBatch, type VerificationStatus } from "./rac_contract";
 
 async function checkerScopes(adminId: number, client: Prisma.TransactionClient | typeof prisma = prisma) {
   const admin = await client.admin.findUnique({ where: { id: adminId }, select: { id: true, role: true } });
@@ -53,7 +53,7 @@ export async function listVerificationGraduates(adminId: number, query: Verifica
   const [students, all, unchecked, verified, notListed] = await Promise.all([
     prisma.student.findMany({
       where: inStatus, skip: (query.page - 1) * 25, take: 25,
-      orderBy: [{ first_name: "asc" }, { last_name: "asc" }, { student_number: "asc" }],
+      orderBy: [{ last_name: "asc" }, { first_name: "asc" }, { student_number: "asc" }],
       select: {
         student_number: true, first_name: true, mid_name: true, last_name: true, suffix: true,
         department: true, course: true, major: true,
@@ -85,7 +85,8 @@ export async function listVerificationGraduates(adminId: number, query: Verifica
     page: query.page,
     pageSize: 25,
     total: query.status === 'ALL' ? all : query.status === 'UNCHECKED' ? unchecked : query.status === 'VERIFIED' ? verified : notListed,
-    sourceVersion: process.env.RAC_SOURCE_VERSION?.trim() || null,
+    // Retain this non-null field for deployed clients that require it to confirm.
+    sourceVersion: MANUAL_VERIFICATION_SOURCE,
     counts: { all, unchecked, verified, notListed },
   };
 }
@@ -138,13 +139,7 @@ function canCheck(scopes: readonly ReviewScope[], graduate: GraduateScope) {
 }
 
 export async function verifyGraduateBatch(adminId: number, batch: VerificationBatch) {
-  const sourceVersion = process.env.RAC_SOURCE_VERSION?.trim();
-  if (!sourceVersion || sourceVersion.length > 100) {
-    throw new ReviewRequestError(503, "SOURCE_UNCONFIGURED", "The official RAC/SAO list version is not configured.");
-  }
-  if (sourceVersion !== batch.sourceVersion) {
-    throw new ReviewRequestError(409, "SOURCE_CHANGED", "The official list version changed. Refresh before checking graduates.");
-  }
+  const sourceVersion = MANUAL_VERIFICATION_SOURCE;
   const requestHash = verificationRequestHash(batch);
   const sortedNumbers = [...batch.studentNumbers].sort((a, b) => a - b);
   try {
