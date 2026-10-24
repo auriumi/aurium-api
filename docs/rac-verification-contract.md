@@ -1,15 +1,21 @@
-# RAC/SAO verification API
+# Manual RAC/SAO verification
 
-This PR records the first manual check against the official RAC/SAO graduate list. It does not parse Excel/CSV or perform automatic name matching. Configure `RAC_SOURCE_VERSION` to the official list's agreed version label before enabling writes. The server records that label on every case and history event; the browser does not ask staff to type reference notes.
+The moderator supplies the official list outside Aurium. A General Proofreader compares each graduate with that list, then confirms the graduate or marks them Not on list. Aurium records the staff decision; it does not import a file or automatically match names. Reference notes and a configured list version are not required.
 
-An authenticated staff member needs an active `RAC_CHECK` assignment covering the graduate's department, course and major. Existing admin/moderator roles alone are insufficient. All read and mutation paths check that scope. A case is unique by existing Student ID, graduation year and term; no case means Not checked. A Not on list case may later become Verified. A Verified case cannot be checked again by this endpoint. Successful confirmation creates independent information and photo draft tracks in the same transaction.
+## Access and workflow
 
-## Resources
+The staff account needs an active `INFORMATION_PROOFREADER` assignment covering the graduate's department, course and major. There is no separate RAC reviewer. An admin role or retired `RAC_CHECK` assignment alone is insufficient. Reads and writes check the current assignment, academic scope and graduation cycle.
 
-- `GET /api/admin/review-graduates?year=2026&term=END_YEAR&verification=UNCHECKED&page=1&department=...&program=...&major=...&search=...` returns at most 25 authorized rows, selected-status total, current official `sourceVersion`, and counts across the same academic/search scope. Search matches name parts or a complete student number. Status can be `ALL`, `UNCHECKED`, `NOT_LISTED`, or `VERIFIED`. The API sorts by the stored first-name field, then last name and student number.
-- `GET /api/admin/review-graduate-filter-options?year=2026&term=END_YEAR&department=...&program=...` returns authorized department, program and major values. Fetch this when academic filters change, not for every search keystroke.
-- `GET /api/admin/review-graduates/{studentNumber}/verification-events?year=2026&term=END_YEAR` returns up to 20 recent checks for an authorized graduate, including actor, time, source version and outcome.
-- `POST /api/admin/verification-batches` applies one or many explicit graduate IDs. Example:
+No case means Not checked. Not on list retains the graduate and may later become Verified. Verified cannot be changed by this endpoint. Confirmation creates independent information and photo draft tracks in the same transaction. It does not publish information or photos and does not delete or copy a student record.
+
+## API
+
+Canonical paths are under `/api/v1/admin/rac`; the existing legacy aliases still use the same controllers.
+
+- `GET /graduates?year=2026&term=END_YEAR&verification=UNCHECKED&page=1&department=...&program=...&major=...&search=...` returns at most 25 authorized graduates, totals and scoped counts. Status is `ALL`, `UNCHECKED`, `NOT_LISTED` or `VERIFIED`. Sort order is **last name A-Z, first name A-Z, student number ascending**, applied in the database before pagination. The information and photo lists use the same order.
+- `GET /graduates/filter-options?year=2026&term=END_YEAR&department=...&program=...` returns scoped academic choices. Filters narrow access; they never expand an assignment.
+- `GET /graduates/:studentNumber/verification-events?year=2026&term=END_YEAR` returns up to 20 checks, including actor, time, source and outcome.
+- `POST /verification-batches` applies one or more explicit graduate IDs:
 
 ```json
 {
@@ -18,19 +24,20 @@ An authenticated staff member needs an active `RAC_CHECK` assignment covering th
   "studentNumbers": [20260001, 20260002],
   "outcome": "VERIFIED",
   "expectedVersions": { "20260001": null, "20260002": 1 },
-  "sourceVersion": "RAC-final-2026-v1",
   "operationId": "2ee32fe4-537a-4540-b609-1bb6dd2d27da"
 }
 ```
 
-One ID follows the same service path as a batch. `expectedVersions` is null for Not checked and the listed integer for an existing Not on list case. `sourceVersion` must match the server's current official-list label, so a list replacement forces staff to refresh. The batch is limited to 100 unique IDs. The cookie-authenticated POST also requires the configured frontend `Origin` header. If any record is missing, outside assignment, already verified or stale, the whole batch rolls back and returns a non-success response. A successful response reports each ID's new outcome/version. Retrying the same operation ID and identical payload returns the recorded response; using the ID with another payload returns 409.
+`expectedVersions` is null for Not checked and the displayed integer for Not on list. The batch allows 1-100 unique IDs. Cookie-authenticated writes require the configured frontend `Origin`. Missing, out-of-scope, already-verified or stale records roll back the whole batch. Repeating the same operation ID and payload returns the stored response; reusing it with different records, versions or outcome returns 409.
 
-No student record is copied or deleted. `ReviewCase` has a restrictive foreign key to `Student`; the existing deletion endpoint also rejects enrolled graduates with 409. Audit rows retain prior outcomes, checker and source version. An old registration approval or existing photo approval is not treated as RAC verification.
+## Provenance and compatibility
 
-Academic browse filters work independently, matching the prototype: a program can be selected across all assigned departments, and a major across all assigned programs. These filters only narrow the authorized student query. Assignment creation still requires a department for a course scope and a course for a major scope.
+New cases and events store `Manual verification` in the existing `source_version` column. This identifies the method, **not** an official file revision or automatic validation. The checker, time, cycle and outcome remain recorded. Existing cases/events with earlier source labels are not rewritten; a later permitted confirmation appends a new event and updates the case's current decision.
 
-## Deployment and testing
+The list's top-level `sourceVersion` returns `Manual verification` so older deployed clients that require a non-empty value remain usable. New clients may omit `sourceVersion` from a batch. Older clients may still send a valid label; it is retained in the request fingerprint for replay compatibility but cannot set the provenance of a new event. `RAC_SOURCE_VERSION` is no longer read or required. Old clients may need to refresh their list after the API deploys.
 
-The migration adds only enums, review tables, keys and checks. It assumes the existing Student/Admin/GraduationTerm schema is already present, so reconcile the real migration history and rehearse backup/restore before deployment. No database was migrated while creating this PR. Set `RAC_SOURCE_VERSION` in a **test** environment first; use test staff accounts and non-production graduate records. The official file's actual version and the policy for a replaced list must be confirmed before production use.
+## Deployment and validation
 
-Build and contract tests can run without database credentials. Before enabling writes, test the migration and these API journeys against an isolated PostgreSQL database: scoped/forbidden reads, individual and mixed bulk changes, concurrent requests for the same graduate, retries, a Not on list correction, history, and direct delete attempts. Existing registration, booking and attendance paths need smoke checks after the migration.
+This fix adds no schema changes or migration. Deploy the API first, then the matching frontend that explains manual checking. Do not reset or reseed an existing database, change CI configuration, or automate a production migration for this fix.
+
+Run `npm run build`, then `node --test tests/rac-contract.test.cjs tests/rac-proofreader-access.test.cjs tests/rac-manual-service.test.cjs tests/review-list-order.test.cjs`. These tests replace database/storage boundaries and do not connect to live data. Rehearse individual/bulk confirmation, Not on list, scoped denial, concurrent/stale requests and replay on an isolated PostgreSQL database with dummy graduates before production acceptance.

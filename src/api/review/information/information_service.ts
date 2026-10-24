@@ -63,7 +63,7 @@ export async function listInformationReviews(adminId: number, query: Information
   const [students, all, stageCounts] = await Promise.all([
     prisma.student.findMany({
       where, skip: (query.page - 1) * 25, take: 25,
-      orderBy: [{ first_name: "asc" }, { last_name: "asc" }, { student_number: "asc" }],
+      orderBy: [{ last_name: "asc" }, { first_name: "asc" }, { student_number: "asc" }],
       select: {
         student_number: true, first_name: true, mid_name: true, last_name: true, suffix: true,
         department: true, course: true, major: true,

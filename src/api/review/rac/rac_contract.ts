@@ -5,6 +5,10 @@ export type VerificationStatus = "ALL" | "UNCHECKED" | RacOutcome;
 
 export type Cycle = { year: number; term: GraduationTerm };
 
+// Provenance for a staff check against the list supplied outside Aurium.
+// This is a verification method, not a version of an uploaded official file.
+export const MANUAL_VERIFICATION_SOURCE = "Manual verification";
+
 export type VerificationBatch = Cycle & {
   studentNumbers: number[];
   outcome: RacOutcome;
@@ -30,8 +34,8 @@ export function readVerificationBatch(input: unknown): VerificationBatch | null 
       value.studentNumbers.some(id => !Number.isSafeInteger(id) || id <= 0 || id > 2147483647) ||
       new Set(value.studentNumbers).size !== value.studentNumbers.length ||
       !Object.values(RacOutcome).includes(value.outcome as RacOutcome) ||
-      typeof value.sourceVersion !== "string" || !value.sourceVersion.trim() ||
-      value.sourceVersion !== value.sourceVersion.trim() || value.sourceVersion.length > 100 ||
+      (value.sourceVersion !== undefined && (typeof value.sourceVersion !== "string" || !value.sourceVersion.trim() ||
+      value.sourceVersion !== value.sourceVersion.trim() || value.sourceVersion.length > 100)) ||
       typeof value.operationId !== "string" ||
       !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value.operationId) ||
       !value.expectedVersions || typeof value.expectedVersions !== "object" || Array.isArray(value.expectedVersions)) return null;
@@ -48,7 +52,9 @@ export function readVerificationBatch(input: unknown): VerificationBatch | null 
     studentNumbers: ids,
     outcome: value.outcome as RacOutcome,
     expectedVersions: expectedVersions as Record<string, number | null>,
-    sourceVersion: value.sourceVersion,
+    // Preserve an older client's label in the retry fingerprint. The service
+    // chooses the provenance stored on new cases and events independently.
+    sourceVersion: (value.sourceVersion as string | undefined) ?? MANUAL_VERIFICATION_SOURCE,
     operationId: value.operationId.toLowerCase(),
   };
 }

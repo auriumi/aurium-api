@@ -32,7 +32,6 @@ test('RAC access follows the proofreader assignment and its scope', async () => 
 });
 
 test('retired RAC-only and QC assignments cannot read or confirm RAC records', async () => {
-  process.env.RAC_SOURCE_VERSION = 'test-list';
   for (const capability of ['RAC_CHECK', 'INFORMATION_QC', 'PHOTO_UPLOADER']) {
     assignments = [assignment(capability)];
     await assert.rejects(service.listVerificationGraduates(1, query), error => error.status === 403);

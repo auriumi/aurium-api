@@ -73,7 +73,7 @@ export async function listPhotoReviews(adminId: number, cycle: Cycle, page: numb
   }] };
   const [rows, all, counts] = await Promise.all([
     prisma.student.findMany({ where, skip: (page - 1) * 25, take: 25,
-      orderBy: [{ first_name: "asc" }, { id: "asc" }],
+      orderBy: [{ last_name: "asc" }, { first_name: "asc" }, { student_number: "asc" }],
       select: { student_number: true, first_name: true, mid_name: true, last_name: true, suffix: true,
         department: true, course: true, major: true,
         reviewCases: { where: cycleCase, take: 1, select: { outcome: true,

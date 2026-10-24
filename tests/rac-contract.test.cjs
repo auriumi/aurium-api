@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { readVerificationBatch, verificationRequestHash, canAdvanceVerification } = require('../dist/api/review/rac/rac_contract.js');
+const { readVerificationBatch, verificationRequestHash, canAdvanceVerification, MANUAL_VERIFICATION_SOURCE } = require('../dist/api/review/rac/rac_contract.js');
 
 const operationId = '2ee32fe4-537a-4540-b609-1bb6dd2d27da';
 const batch = {
@@ -16,6 +16,17 @@ test('verification batch requires one expected version for each selected graduat
   assert.equal(readVerificationBatch({ ...batch, studentNumbers: [] }), null);
   assert.equal(readVerificationBatch({ ...batch, outcome: 'LOCKED' }), null);
   assert.equal(readVerificationBatch({ ...batch, sourceVersion: '' }), null);
+  assert.equal(readVerificationBatch({ ...batch, sourceVersion: null }), null);
+  assert.equal(readVerificationBatch({ ...batch, sourceVersion: ' manual ' }), null);
+  assert.equal(readVerificationBatch({ ...batch, sourceVersion: 'x'.repeat(101) }), null);
+});
+
+test('manual checks need no list version and remain compatible with older clients', () => {
+  const { sourceVersion, ...manualBatch } = batch;
+  const parsed = readVerificationBatch(manualBatch);
+  assert.equal(parsed.sourceVersion, MANUAL_VERIFICATION_SOURCE);
+  assert.equal(readVerificationBatch(batch).sourceVersion, sourceVersion);
+  assert.equal(verificationRequestHash(parsed), verificationRequestHash({ ...parsed, sourceVersion: MANUAL_VERIFICATION_SOURCE }));
 });
 
 test('retry fingerprint ignores selection order but includes outcome and versions', () => {
