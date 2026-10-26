@@ -15,6 +15,7 @@ const db = {
     findMany: async ({ select, take }) => { assert.equal(take, 25); assert.equal(select.hashed_password, undefined); return []; },
   },
   reviewAssignment: {
+    count: async ({ where }) => assignments.filter(item => matches(item, where)).length,
     findFirst: async ({ where }) => assignments.find(item => matches(item, where)) || null,
     create: async ({ data }) => {
       if (assignments.some(item => matches(item, { admin_id: data.admin_id, capability: data.capability,
@@ -25,6 +26,7 @@ const db = {
     },
     update: async ({ where, data }) => Object.assign(assignments.find(item => item.id === where.id), data),
   },
+  proofreadingDailyTarget: { findMany: async () => [] },
 };
 const path = require.resolve('../dist/config/prisma.js');
 require.cache[path] = { id: path, filename: path, loaded: true, exports: { __esModule: true, default: db } };
