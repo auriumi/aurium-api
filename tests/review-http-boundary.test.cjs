@@ -29,7 +29,7 @@ for (const file of [
   'admin/admin_controller', 'admin/masterlist_detail_controller',
   'review/assignments/assignment_controller', 'review/rac/rac_controller',
   'review/information/information_controller', 'review/photos/photo_controller',
-  'review/corrections/correction_controller',
+  'review/corrections/correction_controller', 'review/targets/target_controller',
 ]) {
   stub(path.join(dist, `api/${file}.js`), new Proxy({ __esModule: true }, {
     get(target, key) {
@@ -146,6 +146,26 @@ test('review server mounts preserve security and dispatch canonical and compatib
     assert.equal((await request('/api/admin/review-staff', { token: member })).status, 403);
     assert.equal((await request('/api/v1/admin/capabilities', { token: member })).status, 200);
     assert.equal((await request('/api/v1/admin/masterlist/99000001', { token: member })).status, 200);
+  });
+  await t.test('targets are v1-only and reach the named controller with the existing guards', async () => {
+    for (const [method, suffix, handler] of [
+      ['GET', '', 'getTargets'], ['GET', '/me', 'getMyProgress'],
+      ['GET', '/schedule', 'getSchedule'], ['GET', '/12/history', 'getHistory'],
+      ['PUT', '', 'setTargets'],
+    ]) {
+      const response = await request(`/api/v1/admin/targets${suffix}`, { method });
+      assert.equal(response.status, 200);
+      assert.equal(JSON.parse(response.body).handler, `review/targets/target_controller:${handler}`);
+      for (const prefix of ['/api/admin/targets', '/api/admin/proofreading-targets', '/api/v1/admin/proofreading-targets']) {
+        assert.equal((await request(prefix + suffix, { method })).status, 404);
+      }
+      assert.equal((await request(`/api/v1/admin/targets${suffix}`, { method, token: null })).status, 401);
+    }
+    assert.equal((await request('/api/v1/admin/targets/me', { token: member })).status, 200);
+    assert.equal((await request('/api/v1/admin/targets', { token: member })).status, 403);
+    for (const origin of [null, 'https://untrusted.invalid']) {
+      assert.equal((await request('/api/v1/admin/targets', { method: 'PUT', origin })).status, 403);
+    }
   });
   await t.test('switching between legacy and v1 paths cannot bypass the shared rate limit', async () => {
     for (let i = 0; i < 100; i++) {

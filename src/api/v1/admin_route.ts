@@ -1,3 +1,4 @@
+import targetRoutes from "../review/targets/target_route";
 import { Router } from "express";
 import reviewRoutes from "../review/review_route";
 import legacyReviewRoutes from "../review/legacy_review_route";
@@ -9,6 +10,8 @@ import { getMasterlistDetail } from "../admin/masterlist_detail_controller";
 // Version the review release without moving existing registration, booking,
 // attendance or authentication endpoints. Compatibility routes share handlers.
 const router = Router();
+// Targets are new in v1; do not expose them through the shared legacy mount.
+router.use("/targets", targetRoutes);
 router.use(reviewRoutes);
 router.use(legacyReviewRoutes);
 router.get("/masterlist/:studentNumber", requirePermission(Permission.MASTERLIST_VIEW), getMasterlistDetail);

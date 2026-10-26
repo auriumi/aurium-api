@@ -1,7 +1,30 @@
+-- MANUAL SETUP REFERENCE ONLY. Never invoked by CI, startup or Prisma migrate.
+-- For Koi: confirm database/schema, back up, and rehearse in the shared test DB.
+-- Run only when BOTH target tables are absent and the existing review schema is ready.
+-- If tables already exist, STOP and inspect their definitions; do not drop/recreate them.
+-- Execute the whole file with stop-on-error enabled. It contains no graduate data writes.
+BEGIN;
+SET LOCAL lock_timeout = '5s';
+SET LOCAL statement_timeout = '60s';
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = current_schema()
+        AND tablename IN ('ProofreadingDailyTarget', 'ProofreadingTargetChange')) THEN
+        RAISE EXCEPTION 'Target tables already exist: inspect schema, do not recreate or reset them';
+    END IF;
+    IF to_regclass('"ReviewAssignment"') IS NULL OR to_regclass('"ReviewTrack"') IS NULL
+        OR to_regclass('"ReviewOperation"') IS NULL OR to_regclass('"InformationReviewEvent"') IS NULL
+        OR to_regclass('"PhotoReviewEvent"') IS NULL THEN
+        RAISE EXCEPTION 'Existing review schema is missing: confirm the database before target setup';
+    END IF;
+END;
+$$;
+
 -- CreateTable
 CREATE TABLE "ProofreadingDailyTarget" (
     "id" SERIAL NOT NULL,
     "staff_id" INTEGER NOT NULL,
+    "capability" "ReviewCapability" NOT NULL DEFAULT 'INFORMATION_PROOFREADER',
     "grad_year" INTEGER NOT NULL,
     "grad_term" "GraduationTerm" NOT NULL,
     "target_date" DATE NOT NULL,
@@ -31,7 +54,7 @@ CREATE TABLE "ProofreadingTargetChange" (
 CREATE INDEX "ProofreadingDailyTarget_grad_year_grad_term_target_date_idx" ON "ProofreadingDailyTarget"("grad_year", "grad_term", "target_date");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "ProofreadingDailyTarget_staff_id_grad_year_grad_term_target_key" ON "ProofreadingDailyTarget"("staff_id", "grad_year", "grad_term", "target_date");
+CREATE UNIQUE INDEX "DailyTarget_staff_cycle_role_date_key" ON "ProofreadingDailyTarget" (staff_id, grad_year, grad_term, capability, target_date);
 
 -- CreateIndex
 CREATE INDEX "ProofreadingTargetChange_target_id_changed_at_idx" ON "ProofreadingTargetChange"("target_id", "changed_at");
@@ -72,3 +95,9 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER "ProofreadingTargetChange_immutable"
     BEFORE UPDATE OR DELETE ON "ProofreadingTargetChange"
     FOR EACH ROW EXECUTE FUNCTION reject_target_history_change();
+
+ALTER TABLE "ProofreadingDailyTarget" ADD CONSTRAINT "DailyTarget_role_check" CHECK (capability IN ('INFORMATION_PROOFREADER', 'INFORMATION_QC', 'PHOTO_UPLOADER', 'PHOTO_QC', 'FINAL_MODERATOR'));
+CREATE INDEX "InformationReviewEvent_target_decisions_idx" ON "InformationReviewEvent" (track_id, created_at, id) WHERE action IN ('APPROVED_QC', 'REJECTED_QC', 'LOCKED', 'REJECTED_MODERATOR');
+CREATE INDEX "PhotoReviewEvent_target_work_idx" ON "PhotoReviewEvent" (track_id, created_at, id) WHERE action IN ('SUBMITTED_QC', 'APPROVED_QC', 'REJECTED_QC', 'LOCKED', 'REJECTED_MODERATOR');
+
+COMMIT;

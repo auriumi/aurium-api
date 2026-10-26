@@ -91,7 +91,7 @@ async function main() {
   // Exercise real HTTP authentication, origin protection and validation.
   const app = require('../dist/server').default;
   server = app.listen(0, '127.0.0.1'); await new Promise(resolve => server.once('listening', resolve));
-  const base = `http://127.0.0.1:${server.address().port}/api/v1/admin/proofreading-targets`;
+  const base = `http://127.0.0.1:${server.address().port}/api/v1/admin/targets`;
   const jwt = require('jsonwebtoken');
   const token = user => jwt.sign({ admin_id: user.id, role: user.role, is_admin: true }, process.env.JWT_SAUCE, { expiresIn: '5m' });
   const get = (path, user) => fetch(base + path, { headers: user ? { cookie: `token=${token(user)}` } : {} });
