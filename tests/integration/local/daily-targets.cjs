@@ -1,15 +1,12 @@
-// Run after build and migration, only against the isolated local fixture database.
+// Explicit local integration test; build and prepare the local fixture schema first.
 // Intentionally leaves uniquely named .invalid fixtures; never resets existing data.
+require('./environment.cjs').configureLocalIntegration();
 const assert = require('node:assert/strict');
 const { randomUUID } = require('node:crypto');
-const url = new URL(process.env.DATABASE_URL || '');
-if (!['localhost', '127.0.0.1'].includes(url.hostname) || url.port !== '51218' || url.pathname !== '/template1') {
-  throw new Error('This acceptance script requires the isolated local fixture database on port 51218.');
-}
-const db = require('../dist/config/prisma').default;
-const service = require('../dist/api/review/targets/target_service');
-const { revokeAssignment } = require('../dist/api/review/assignments/staff_assignment_service');
-const { manilaDate } = require('../dist/api/review/targets/target_contract');
+const db = require('../../../dist/config/prisma').default;
+const service = require('../../../dist/api/review/targets/target_service');
+const { revokeAssignment } = require('../../../dist/api/review/assignments/staff_assignment_service');
+const { manilaDate } = require('../../../dist/api/review/targets/target_contract');
 const today = manilaDate();
 const shift = n => new Date(Date.parse(today) + n * 86400000).toISOString().slice(0, 10);
 const cycle = { year: 2026, term: 'END_YEAR' };
@@ -89,7 +86,7 @@ async function main() {
   await assert.rejects(db.proofreadingDailyTarget.update({ where: { id: saved.saved[0].id }, data: { target_count: -1 } }), /count_check/); passed++;
   await rejects(() => service.targetHistory(other.id, saved.saved[0].id, 1), 403);
   // Exercise real HTTP authentication, origin protection and validation.
-  const app = require('../dist/server').default;
+  const app = require('../../../dist/server').default;
   server = app.listen(0, '127.0.0.1'); await new Promise(resolve => server.once('listening', resolve));
   const base = `http://127.0.0.1:${server.address().port}/api/v1/admin/targets`;
   const jwt = require('jsonwebtoken');

@@ -1,14 +1,11 @@
 // Rehearse the manual setup in a temporary schema inside the isolated local DB.
 // Everything is rolled back; no existing table or migration history is modified.
+const url = require('./environment.cjs').configureLocalIntegration();
 const { readFileSync } = require('node:fs');
 const { join } = require('node:path');
 const { randomUUID } = require('node:crypto');
 const assert = require('node:assert/strict');
 const { Client } = require('pg');
-const url = new URL(process.env.DATABASE_URL || '');
-if (!['localhost', '127.0.0.1'].includes(url.hostname) || url.port !== '51218' || url.pathname !== '/template1') {
-  throw new Error('Only the isolated local fixture database on port 51218 is allowed.');
-}
 async function run() {
   const db = new Client({ connectionString: url.href }); await db.connect();
   try {
@@ -22,7 +19,7 @@ async function run() {
     }
     await db.query('ALTER TABLE "Admin" ADD PRIMARY KEY (id)');
     await db.query('ALTER TABLE "ReviewOperation" ADD PRIMARY KEY (id)');
-    const sql = readFileSync(join(__dirname, 'database/daily-targets-manual-setup.sql'), 'utf8')
+    const sql = readFileSync(join(__dirname, '../../../scripts/database/daily-targets-manual-setup.sql'), 'utf8')
       .replace(/^BEGIN;\s*$/m, '').replace(/^COMMIT;\s*$/m, '');
     await db.query(sql);
     const checks = (await db.query(`SELECT conname FROM pg_constraint c JOIN pg_namespace n ON n.oid=c.connamespace WHERE n.nspname=$1`, [schema])).rows.map(r => r.conname);
