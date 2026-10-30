@@ -22,7 +22,7 @@ async function run() {
     }
     await db.query('ALTER TABLE "Admin" ADD PRIMARY KEY (id)');
     await db.query('ALTER TABLE "ReviewOperation" ADD PRIMARY KEY (id)');
-    const sql = readFileSync(join(__dirname, '../docs/database/daily-targets-manual-setup.sql'), 'utf8')
+    const sql = readFileSync(join(__dirname, 'database/daily-targets-manual-setup.sql'), 'utf8')
       .replace(/^BEGIN;\s*$/m, '').replace(/^COMMIT;\s*$/m, '');
     await db.query(sql);
     const checks = (await db.query(`SELECT conname FROM pg_constraint c JOIN pg_namespace n ON n.oid=c.connamespace WHERE n.nspname=$1`, [schema])).rows.map(r => r.conname);
