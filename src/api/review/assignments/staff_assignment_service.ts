@@ -3,13 +3,15 @@ import prisma from "../../../config/prisma";
 import { readReviewScope } from "../shared/review_scope";
 import { ReviewRequestError } from "../shared/review_error";
 
+import { cancelFutureTargets } from "../targets/target_lifecycle";
+
 const operationalCapabilities: ReviewCapability[] = [
   "INFORMATION_PROOFREADER", "INFORMATION_QC", "PHOTO_UPLOADER", "PHOTO_QC",
 ];
 const administratorCapabilities = [...operationalCapabilities, ReviewCapability.FINAL_MODERATOR, ReviewCapability.IT_CORRECTION];
 const assignmentSelect = { id: true, admin_id: true, capability: true, department: true, course: true, major: true } as const;
 
-async function managerCapabilities(actorId: number, client: Prisma.TransactionClient = prisma) {
+export async function managerCapabilities(actorId: number, client: Prisma.TransactionClient = prisma) {
   const actor = await client.admin.findUnique({ where: { id: actorId }, select: { role: true } });
   if (actor?.role === AdminRoles.ADMINISTRATOR) return administratorCapabilities;
   if (actor?.role === AdminRoles.MODERATOR && await client.reviewAssignment.findFirst({
@@ -89,13 +91,14 @@ export async function revokeAssignment(actorId: number, assignmentId: number) {
   try {
     return await prisma.$transaction(async tx => {
       const capabilities = await lockAssignmentManagement(tx, actorId);
-      const assignment = await tx.reviewAssignment.findFirst({ where: { id: assignmentId, revoked_at: null }, select: { capability: true } });
+      const assignment = await tx.reviewAssignment.findFirst({ where: { id: assignmentId, revoked_at: null }, select: { capability: true, admin_id: true } });
       if (!assignment) return { status: 404, reason: "Active assignment not found." };
       const canRemoveRetiredRac = assignment.capability === "RAC_CHECK" && capabilities.includes("FINAL_MODERATOR");
       if (!capabilities.includes(assignment.capability) && !canRemoveRetiredRac) {
         return { status: 403, reason: "Only an administrator can manage this designation." };
       }
       await tx.reviewAssignment.update({ where: { id: assignmentId }, data: { revoked_at: new Date(), revoked_by: actorId } });
+      await cancelFutureTargets(tx, assignment.admin_id, actorId, assignment.capability);
       return { status: 200, success: true };
     });
   } catch (error) {

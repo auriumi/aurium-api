@@ -110,6 +110,8 @@ model Admin {
   uploadedImages     StudentImage[]
   imageComments      ImageComment[]
   notifications      Notification[] @relation("AdminNotifications")
+  proofreadingTargets ProofreadingDailyTarget[]
+  targetChanges ProofreadingTargetChange[]
   reviewAssignments  ReviewAssignment[] @relation("ReviewAssignee")
   reviewGrants       ReviewAssignment[] @relation("ReviewGrantor")
   reviewRevocations  ReviewAssignment[] @relation("ReviewRevoker")
@@ -244,6 +246,7 @@ model ReviewOperation {
   created_at   DateTime @default(now())
 
   actor    Admin           @relation("ReviewOperationActor", fields: [actor_id], references: [id], onDelete: Restrict)
+  targetChanges ProofreadingTargetChange[]
   events   ReviewEvent[]
   revision ReviewRevision?
   informationEvent InformationReviewEvent?
@@ -599,3 +602,39 @@ model AttendanceQueue {
 }
 
 // ---------------------------------------------------------------------
+
+// Expectations and their audit trail; progress comes from immutable review events.
+model ProofreadingDailyTarget {
+  id Int @id @default(autoincrement())
+  staff_id Int
+  capability ReviewCapability @default(INFORMATION_PROOFREADER)
+  grad_year Int
+  grad_term GraduationTerm
+  target_date DateTime @db.Date
+  target_count Int
+  version Int @default(1)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  staff Admin @relation(fields: [staff_id], references: [id], onDelete: Restrict)
+  changes ProofreadingTargetChange[]
+  @@unique([staff_id, grad_year, grad_term, capability, target_date], map: "DailyTarget_staff_cycle_role_date_key")
+  @@index([grad_year, grad_term, target_date])
+}
+
+model ProofreadingTargetChange {
+  id Int @id @default(autoincrement())
+  target_id Int
+  changed_by Int
+  previous_count Int?
+  new_count Int
+  reason String @db.VarChar(500)
+  operation_id Int
+  changed_at DateTime @default(now())
+  target ProofreadingDailyTarget @relation(fields: [target_id], references: [id], onDelete: Restrict)
+  actor Admin @relation(fields: [changed_by], references: [id], onDelete: Restrict)
+  operation ReviewOperation @relation(fields: [operation_id], references: [id], onDelete: Restrict)
+  @@unique([target_id, operation_id])
+  @@index([target_id, changed_at])
+  @@index([changed_by])
+  @@index([operation_id])
+}
