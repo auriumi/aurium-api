@@ -49,8 +49,8 @@ const gen_limiter = rateLimit({
 });
 
 //API ROUTES
-app.use("/api/admin", admin_limiter, verifyToken, isAdmin, adminRoutes);
-app.use("/api/v1/admin", admin_limiter, verifyToken, isAdmin, reviewV1Routes);
+app.use("/api/admin", verifyToken, isAdmin, adminRoutes);
+app.use("/api/v1/admin", verifyToken, isAdmin, reviewV1Routes);
 app.use("/api/student", gen_limiter, studentRoutes);
 app.use("/api/auth", login_limiter, authRoutes);
 
