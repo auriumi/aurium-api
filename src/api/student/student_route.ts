@@ -4,7 +4,7 @@ import { verifyToken } from "../auth/auth_middleware";
 
 const router = Router();
 
-//handle registration
+//handle registration - off for now :3
 router.post("/submit", studentController.studentRegistration);
 
 //TODO: quick patch, fix later

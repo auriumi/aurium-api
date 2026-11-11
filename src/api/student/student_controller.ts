@@ -38,6 +38,12 @@ function bookingErrorStatus(code: studentService.BookingRequestError["code"]) {
 
 //create student upon registration
 export async function studentRegistration(req: Request, res: Response) {
+
+    //NOTE: stop reg for now :D
+    return res.json({
+        message: "Registration is currently closed.",
+    });
+
     try {
         const body = req.body;
 
