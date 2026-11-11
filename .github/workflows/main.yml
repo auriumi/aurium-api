@@ -24,4 +24,4 @@ jobs:
             npx prisma generate
             npm run build
             npm prune --omit=dev
-            pm2 restart aurium-backend
+            pm2 restart ar-backend
