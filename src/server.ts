@@ -14,13 +14,16 @@ import adminRoutes from "./api/admin/admin_route";
 import authRoutes from "./api/auth/auth_route";
 import reviewV1Routes from "./api/v1/admin_route";
 
-const app = express();
-app.set("trust proxy", 1);
-
 const corsConfig = {
   origin: frontendOrigin,
   credentials: true,
 }
+
+const app = express();
+
+//some conf for teeny tiny "security" :3
+app.set("trust proxy", 1);
+app.set("etag", false);
 
 app.use(helmet());
 app.use(cors(corsConfig));
